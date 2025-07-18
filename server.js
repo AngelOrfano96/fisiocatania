@@ -62,8 +62,8 @@ const USERS = { "admin@admin.com": "admin123" };
       ['alluce sx', '190,810'],
       ['anca dx', '221,438'],
       ['anca sx', '368,438'],
-      ['caviglia dx', '267,790'],
-      ['caviglia sx', '324,790'],
+      ['caviglia dx', '267,780'],
+      ['caviglia sx', '324,780'],
       ['cervicale', '565,200'],
       ['dorsale', '565,270'],
       ['fascia alata', '300,380'],
@@ -82,8 +82,8 @@ const USERS = { "admin@admin.com": "admin123" };
       ['quadricipite sx', '324,550'],
       ['spalla dx', '655,210'],
       ['spalla sx', '474,210'],
-      ['tendine d\'achille dx', '660,790'],
-      ['tendine d\'achille sx', '190,790'],
+      ['tendine d\'achille dx', '615,775'],
+      ['tendine d\'achille sx', '520,775'],
       ['tibiale dx', '264,710'],
       ['tibiale sx', '327,710']
     ];
