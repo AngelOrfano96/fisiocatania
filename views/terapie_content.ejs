@@ -11,10 +11,10 @@
   </div>
 
   <div class="mb-4 d-flex justify-content-center">
-    <div class="position-relative w-100" style="max-width: 600px;">
+    <div class="position-relative" style="max-width: 600px;">
       <img src="/images/uomo_frontal_back.png" class="img-fluid w-100" alt="Corpo umano" id="bodyMap">
+      <!-- container per i pallini rossi -->
       <div id="punti-container" class="position-absolute top-0 start-0"></div>
-      <div id="punti-container"></div>
       <div id="distrettoSelected" class="text-center text-primary fw-semibold mt-2"></div>
     </div>
   </div>
@@ -60,6 +60,15 @@
 </form>
 
 <style>
+  /* container debug */
+  #punti-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    z-index: 5;
+  }
+
   .punto-rosso {
     position: absolute;
     width: 14px;
@@ -69,11 +78,8 @@
     transform: translate(-50%, -50%);
     cursor: pointer;
     opacity: 0.8;
+    pointer-events: auto;
     z-index: 10;
-  }
-
-  area:focus {
-    outline: none;
   }
 
   #distrettoSelected {
@@ -87,82 +93,62 @@
     }
   }
 </style>
-<style>
-    /* Bordo di debug per vedere esattamente l’area dei pallini */
-    #punti-container {
-      position: absolute;
-      top: 0;
-      left: 0;
-      pointer-events: none;       /* lascia passare i click al form sotto */
-      border: 1px dashed blue;    /* bordo di debug */
-    }
-  
-    .punto-rosso {
-      position: absolute;
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      background-color: red;
-      transform: translate(-50%, -50%);
-      cursor: pointer;
-      opacity: 0.8;
-      pointer-events: auto;       /* abilita il click sui pallini */
-      z-index: 10;
-    }
-  </style>
-  
+
 <script>
-    // Dati dal server
-    const distretti = <%- JSON.stringify(distretti) %>;
-  
-    // Elementi del DOM
-    const img = document.getElementById('bodyMap');
-    const container = document.getElementById('punti-container');
-  
-    function renderPallini() {
-        const natW = img.naturalWidth;
-        const natH = img.naturalHeight;
-        const dispW = img.clientWidth;
-        const dispH = img.clientHeight;
-      
-        console.log('nat:', natW, '×', natH, 'disp:', dispW, '×', dispH);
-      
-        // Svuota i pallini precedenti
-        container.querySelectorAll('.punto-rosso').forEach(p => p.remove());
-      
-        distretti.forEach(d => {
-          const [x, y] = d.coords.split(',').map(Number);
-      
-          // Calcolo in percentuale basato sulla dimensione naturale
-          const percentX = x / natW * 100;
-          const percentY = y / natH * 100;
-      
-          const p = document.createElement('div');
-          p.className = 'punto-rosso';
-          p.style.left = `${percentX}%`;
-          p.style.top  = `${percentY}%`;
-          p.title       = d.nome;
-          p.dataset.distretto = d.nome;
-      
-          p.addEventListener('click', () => {
-            document.getElementById('distrettoSelected').textContent =
-              "Distretto selezionato: " + d.nome;
-            const select = document.getElementById('distretto');
-            for (let o of select.options) {
-              if (o.textContent.trim() === d.nome.trim()) {
-                select.value = o.value;
-                break;
-              }
-            }
-          });
-      
-          container.appendChild(p);
-        });
-      }
-  
-  // Al load/resize ridisegna tutto
+  // dati dal server
+  const distretti = <%- JSON.stringify(distretti) %>;
+
+  const img = document.getElementById('bodyMap');
+  const container = document.getElementById('punti-container');
+
+  function renderPallini() {
+    const natW = img.naturalWidth;
+    const natH = img.naturalHeight;
+    const dispW = img.clientWidth;
+    const dispH = img.clientHeight;
+
+    console.log('nat:', natW, '×', natH, 'disp:', dispW, '×', dispH);
+
+    // rimuovi pallini precedenti
+    container.querySelectorAll('.punto-rosso').forEach(p => p.remove());
+
+    distretti.forEach(d => {
+      const [x, y] = d.coords.split(',').map(Number);
+      const percentX = x / natW * 100;
+      const percentY = y / natH * 100;
+
+      const p = document.createElement('div');
+      p.className = 'punto-rosso';
+      p.style.left = `${percentX}%`;
+      p.style.top  = `${percentY}%`;
+      p.title           = d.nome;
+      p.dataset.distretto = d.nome;
+
+      p.addEventListener('click', e => {
+        e.stopPropagation();
+        document.getElementById('distrettoSelected').textContent =
+          'Distretto selezionato: ' + d.nome;
+        const select = document.getElementById('distretto');
+        for (let o of select.options) {
+          if (o.textContent.trim() === d.nome.trim()) {
+            select.value = o.value;
+            break;
+          }
+        }
+      });
+
+      container.appendChild(p);
+    });
+  }
+
+  function syncContainer() {
+    console.log('syncContainer: img size', img.clientWidth, img.clientHeight);
+    container.style.width  = img.clientWidth + 'px';
+    container.style.height = img.clientHeight + 'px';
+    renderPallini();
+  }
+
   img.addEventListener('load', syncContainer);
   window.addEventListener('resize', syncContainer);
   if (img.complete) syncContainer();
-  </script>
-  
+</script>
