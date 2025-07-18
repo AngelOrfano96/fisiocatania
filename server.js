@@ -239,10 +239,13 @@ app.post('/anagrafica/update/:id', async (req, res) => {
 // … tutto quello che hai già sopra, fino a prima di app.get('/terapie' …
 
 // ROTTE TERAPIE
+// … tutto quello che hai già sopra …
+
+// ROTTE TERAPIE
 app.get('/terapie', async (req, res) => {
   if (!req.session.user) return res.redirect('/');
 
-  // 1) prendi i filtri dalla querystring
+  // estrai i filtri dalla query string
   const {
     filter_anagrafica = 'all',
     filter_distretto   = 'all',
@@ -250,57 +253,43 @@ app.get('/terapie', async (req, res) => {
   } = req.query;
 
   try {
-    // per il form di inserimento
+    // dati per i dropdown
     const anagrafiche = await pool.query('SELECT id, nome, cognome FROM anagrafica ORDER BY cognome');
-    const distretti   = await pool.query('SELECT id, nome, coords FROM distretti ORDER BY nome');
-    const trattamenti = await pool.query('SELECT id, nome FROM trattamenti ORDER BY nome');
+    const distretti   = await pool.query('SELECT id, nome, coords   FROM distretti   ORDER BY nome');
+    const trattamenti = await pool.query('SELECT id, nome             FROM trattamenti ORDER BY nome');
 
-    // 2) componi WHERE dinamico per lista terapie
-    let whereClauses = [];
-    let values = [];
+    // costruisci il WHERE dinamico
+    let clauses = [], values = [];
+    if (filter_anagrafica!=='all') { values.push(filter_anagrafica); clauses.push(`t.anagrafica_id = $${values.length}`); }
+    if (filter_distretto!=='all')   { values.push(filter_distretto);   clauses.push(`t.distretto_id   = $${values.length}`); }
+    if (filter_trattamento!=='all') { values.push(filter_trattamento); clauses.push(`t.trattamento_id = $${values.length}`); }
+    const whereSQL = clauses.length? 'WHERE '+clauses.join(' AND ') : '';
 
-    if (filter_anagrafica !== 'all') {
-      values.push(filter_anagrafica);
-      whereClauses.push(`t.anagrafica_id = $${values.length}`);
-    }
-    if (filter_distretto !== 'all') {
-      values.push(filter_distretto);
-      whereClauses.push(`t.distretto_id = $${values.length}`);
-    }
-    if (filter_trattamento !== 'all') {
-      values.push(filter_trattamento);
-      whereClauses.push(`t.trattamento_id = $${values.length}`);
-    }
-
-    const whereSQL = whereClauses.length
-      ? 'WHERE ' + whereClauses.join(' AND ')
-      : '';
-
-    // 3) recupera la lista applicando i filtri
+    // recupera la lista delle terapie (alias l)
     const l = await pool.query(`
-      SELECT
+      SELECT 
         t.id,
         t.operatore,
-        t.created_at,
+        t.data_trattamento,
         a.nome   AS anag_nome,
         a.cognome AS anag_cognome,
         d.nome   AS distretto,
         tr.nome  AS trattamento
       FROM terapie t
-      JOIN anagrafica a ON t.anagrafica_id = a.id
-      JOIN distretti   d ON t.distretto_id = d.id
-      JOIN trattamenti tr ON t.trattamento_id = tr.id
+      JOIN anagrafica   a  ON t.anagrafica_id   = a.id
+      JOIN distretti     d  ON t.distretto_id    = d.id
+      JOIN trattamenti  tr ON t.trattamento_id  = tr.id
       ${whereSQL}
-      ORDER BY t.created_at DESC
+      ORDER BY t.data_trattamento DESC
     `, values);
 
-    // render, passando anche filters
+    // qui PASSIAMO L’ARRAY COME "therapies", così in terapie_content.ejs potrai usare <% therapies.forEach %>
     res.render('layout', {
       page: 'terapie_content',
       anagrafiche:   anagrafiche.rows,
       distretti:     distretti.rows,
       trattamenti:   trattamenti.rows,
-      terapieList:   l.rows,
+      therapies:     l.rows,
       filters: {
         filter_anagrafica,
         filter_distretto,
@@ -313,8 +302,8 @@ app.get('/terapie', async (req, res) => {
     console.error("Errore nel caricamento terapie:", err);
     res.render('layout', {
       page: 'terapie_content',
-      anagrafiche: [], distretti: [], trattamenti: [], terapieList: [],
-      filters: { filter_anagrafica: 'all', filter_distretto: 'all', filter_trattamento: 'all' },
+      anagrafiche: [], distretti: [], trattamenti: [], therapies: [],
+      filters: { filter_anagrafica:'all',filter_distretto:'all',filter_trattamento:'all' },
       message: 'Errore nel caricamento della pagina terapie.'
     });
   }
