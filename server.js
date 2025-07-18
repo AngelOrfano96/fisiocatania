@@ -56,6 +56,15 @@ const USERS = {
 
     await pool.query('DELETE FROM distretti');
 
+    for (const [nome, coords] of distrettiDaInserire) {
+      await pool.query(
+        `INSERT INTO distretti (nome, coords)
+         VALUES ($1, $2)
+         ON CONFLICT (nome) DO UPDATE SET coords = EXCLUDED.coords`,
+        [nome, coords]
+      );
+    }
+
     const distrettiDaInserire = [
       ['adduttore dx', '660,620'],
       ['adduttore sx', '190,620'],
