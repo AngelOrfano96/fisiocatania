@@ -88,8 +88,7 @@
 </style>
 
 <script>
-  const distretti = <%- JSON.stringify(distretti) %>;
-
+    const distretti = JSON.parse('<%= JSON.stringify(distretti) %>');
   const img = document.getElementById('bodyMap');
   const container = document.querySelector('.position-relative');
 
