@@ -59,7 +59,7 @@ const USERS = { "admin@admin.com": "admin123" };
     const distrettiDaInserire = [
       ['adduttore dx', '282,500'],
       ['adduttore sx', '309,500'],
-      ['alluce sx', '190,810'],
+      ['alluce sx', '305,810'],
       ['anca dx', '221,438'],
       ['anca sx', '368,438'],
       ['caviglia dx', '267,780'],
@@ -82,8 +82,8 @@ const USERS = { "admin@admin.com": "admin123" };
       ['quadricipite sx', '324,550'],
       ['spalla dx', '655,210'],
       ['spalla sx', '474,210'],
-      ['tendine d\'achille dx', '600,775'],
-      ['tendine d\'achille sx', '530,775'],
+      ['tendine d\'achille dx', '585,775'],
+      ['tendine d\'achille sx', '545,775'],
       ['tibiale dx', '264,710'],
       ['tibiale sx', '327,710']
     ];
