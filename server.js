@@ -31,7 +31,7 @@ const USERS = {
   "admin@admin.com": "admin123"
 };
 
-// Crea la tabella se non esiste
+// Creazione tabelle se non esistono
 (async () => {
   try {
     await pool.query(`
@@ -45,14 +45,40 @@ const USERS = {
         note TEXT
       );
     `);
-    console.log("✅ Tabella anagrafica pronta");
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS distretti (
+        id SERIAL PRIMARY KEY,
+        nome TEXT,
+        coords TEXT
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS trattamenti (
+        id SERIAL PRIMARY KEY,
+        nome TEXT
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS terapie (
+        id SERIAL PRIMARY KEY,
+        anagrafica_id INTEGER REFERENCES anagrafica(id),
+        distretto_id INTEGER REFERENCES distretti(id),
+        trattamento_id INTEGER REFERENCES trattamenti(id),
+        data_trattamento DATE,
+        note TEXT
+      );
+    `);
+
+    console.log("✅ Tabelle pronte");
   } catch (err) {
-    console.error("❌ Errore nella creazione della tabella:", err);
+    console.error("❌ Errore nella creazione delle tabelle:", err);
   }
 })();
 
 // ROTTE
-
 app.get('/', (req, res) => {
   if (req.session.user) {
     res.redirect('/dashboard');
@@ -151,7 +177,6 @@ app.post('/anagrafica/delete/:id', async (req, res) => {
   }
 });
 
-// MODIFICA giocatore via fetch o AJAX
 app.post('/anagrafica/update/:id', async (req, res) => {
   if (!req.session.user) return res.status(401).send('Non autorizzato');
 
@@ -176,6 +201,50 @@ app.post('/anagrafica/update/:id', async (req, res) => {
   } catch (err) {
     console.error("Errore nell'aggiornamento:", err);
     res.status(500).send('Errore interno');
+  }
+});
+
+// ROTTE TERAPIE
+app.get('/terapie', async (req, res) => {
+  if (!req.session.user) return res.redirect('/');
+  try {
+    const anagrafiche = await pool.query('SELECT id, nome, cognome FROM anagrafica ORDER BY cognome');
+    const distretti = await pool.query('SELECT id, nome, coords FROM distretti ORDER BY nome');
+    const trattamenti = await pool.query('SELECT id, nome FROM trattamenti ORDER BY nome');
+
+    res.render('layout', {
+      page: 'terapie_content',
+      anagrafiche: anagrafiche.rows,
+      distretti: distretti.rows,
+      trattamenti: trattamenti.rows,
+      message: null
+    });
+  } catch (err) {
+    console.error("Errore nel caricamento terapie:", err);
+    res.render('layout', {
+      page: 'terapie_content',
+      anagrafiche: [],
+      distretti: [],
+      trattamenti: [],
+      message: 'Errore nel caricamento della pagina terapie.'
+    });
+  }
+});
+
+app.post('/terapie', async (req, res) => {
+  if (!req.session.user) return res.redirect('/');
+
+  const { anagrafica_id, distretto_id, trattamento_id, data_trattamento, note } = req.body;
+
+  try {
+    await pool.query(
+      'INSERT INTO terapie (anagrafica_id, distretto_id, trattamento_id, data_trattamento, note) VALUES ($1, $2, $3, $4, $5)',
+      [anagrafica_id, distretto_id, trattamento_id, data_trattamento, note]
+    );
+    res.redirect('/terapie');
+  } catch (err) {
+    console.error("Errore nel salvataggio terapia:", err);
+    res.redirect('/terapie');
   }
 });
 

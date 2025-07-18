@@ -1,0 +1,99 @@
+<h3 class="mb-4">Nuova Terapia</h3>
+
+<% if (typeof message !== 'undefined' && message) { %>
+  <div class="alert alert-success"><%= message %></div>
+<% } %>
+
+<form method="POST" action="/terapie">
+  <div class="mb-3">
+    <label for="dataTrattamento" class="form-label">Data trattamento</label>
+    <input type="date" name="data_trattamento" id="dataTrattamento" class="form-control" required>
+  </div>
+
+  <div class="mb-4 d-flex justify-content-center">
+    <div class="position-relative w-100" style="max-width: 600px;">
+      <img src="/images/uomo_frontal_back.png" usemap="#distrettiMap" class="img-fluid w-100" alt="Corpo umano" id="bodyMap">
+      <map name="distrettiMap">
+        <% distretti.forEach(d => { %>
+          <area shape="circle" coords="<%= d.coords %>" href="#" title="<%= d.nome %>" data-distretto="<%= d.nome %>">
+        <% }) %>
+      </map>
+      <div id="distrettoSelected" class="text-center text-primary fw-semibold mt-2"></div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-4">
+      <label for="anagrafica" class="form-label">Anagrafica</label>
+      <select name="anagrafica_id" id="anagrafica" class="form-select" required>
+        <option value="">Seleziona un'anagrafica</option>
+        <% anagrafiche.forEach(a => { %>
+          <option value="<%= a.id %>"><%= a.nome %> <%= a.cognome %></option>
+        <% }) %>
+      </select>
+    </div>
+
+    <div class="col-12 col-md-4">
+      <label for="distretto" class="form-label">Distretto anatomico</label>
+      <select name="distretto_id" id="distretto" class="form-select" required>
+        <option value="">Seleziona un distretto</option>
+        <% distretti.forEach(d => { %>
+          <option value="<%= d.id %>"><%= d.nome %></option>
+        <% }) %>
+      </select>
+    </div>
+
+    <div class="col-12 col-md-4">
+      <label for="trattamento" class="form-label">Trattamento</label>
+      <select name="trattamento_id" id="trattamento" class="form-select" required>
+        <option value="">Seleziona un trattamento</option>
+        <% trattamenti.forEach(t => { %>
+          <option value="<%= t.id %>"><%= t.nome %></option>
+        <% }) %>
+      </select>
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <label for="note" class="form-label">Note</label>
+    <input type="text" name="note" id="note" class="form-control">
+  </div>
+
+  <button type="submit" class="btn btn-success">Salva</button>
+</form>
+
+<style>
+  area:focus {
+    outline: none;
+  }
+
+  #distrettoSelected {
+    font-size: 1.1rem;
+  }
+
+  @media (max-width: 767.98px) {
+    #distrettoSelected {
+      font-size: 1rem;
+      margin-top: 0.5rem;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll('area[data-distretto]').forEach(area => {
+    area.addEventListener('click', function (e) {
+      e.preventDefault();
+      const distrettoNome = this.dataset.distretto;
+
+      document.getElementById('distrettoSelected').textContent = "Distretto selezionato: " + distrettoNome;
+
+      const select = document.getElementById('distretto');
+      for (let option of select.options) {
+        if (option.textContent.trim() === distrettoNome.trim()) {
+          select.value = option.value;
+          break;
+        }
+      }
+    });
+  });
+</script>
