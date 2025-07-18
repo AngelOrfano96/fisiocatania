@@ -49,35 +49,50 @@ const USERS = {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS distretti (
         id SERIAL PRIMARY KEY,
-        nome TEXT,
+        nome TEXT UNIQUE,
         coords TEXT
       );
     `);
 
-    const distrettiCount = await pool.query('SELECT COUNT(*) FROM distretti');
-    if (parseInt(distrettiCount.rows[0].count) === 0) {
-      await pool.query(`
-        INSERT INTO distretti (nome, coords) VALUES
-        ('Collo', '270,80'),
-        ('Spalla destra', '340,130'),
-        ('Spalla sinistra', '200,130'),
-        ('Gomito destro', '370,180'),
-        ('Gomito sinistro', '170,180'),
-        ('Polso destro', '390,250'),
-        ('Polso sinistro', '150,250'),
-        ('Schiena alta', '270,150'),
-        ('Schiena media', '270,200'),
-        ('Schiena bassa', '270,250'),
-        ('Gluteo destro', '310,300'),
-        ('Gluteo sinistro', '230,300'),
-        ('Coscia destra', '310,360'),
-        ('Coscia sinistra', '230,360'),
-        ('Ginocchio destro', '310,420'),
-        ('Ginocchio sinistro', '230,420'),
-        ('Caviglia destra', '310,480'),
-        ('Caviglia sinistra', '230,480');
-      `);
-      console.log("✅ Tabella distretti popolata");
+    const distrettiDaInserire = [
+      ['adduttore dx', '300,530'],
+      ['adduttore sx', '200,530'],
+      ['alluce sx', '220,890'],
+      ['anca dx', '290,440'],
+      ['anca sx', '210,440'],
+      ['caviglia dx', '290,850'],
+      ['caviglia sx', '210,850'],
+      ['cervicale', '250,180'],
+      ['dorsale', '250,260'],
+      ['fascia alata', '250,330'],
+      ['fascia plantare', '250,910'],
+      ['flessore dx', '310,600'],
+      ['flessore sx', '190,600'],
+      ['ginocchio dx', '290,700'],
+      ['ginocchio sx', '210,700'],
+      ['gluteo dx', '290,390'],
+      ['gluteo sx', '210,390'],
+      ['lombare', '250,350'],
+      ['polpaccio dx', '290,770'],
+      ['polpaccio sx', '210,770'],
+      ['pube', '250,520'],
+      ['quadricipite dx', '290,620'],
+      ['quadricipite sx', '210,620'],
+      ['spalla dx', '320,250'],
+      ['spalla sx', '180,250'],
+      ['tendine d\'achille dx', '285,880'],
+      ['tendine d\'achille sx', '215,880'],
+      ['tibiale dx', '285,750'],
+      ['tibiale sx', '215,750']
+    ];
+
+    for (const [nome, coords] of distrettiDaInserire) {
+      await pool.query(
+        `INSERT INTO distretti (nome, coords)
+         VALUES ($1, $2)
+         ON CONFLICT (nome) DO NOTHING`,
+        [nome, coords]
+      );
     }
 
     await pool.query(`
