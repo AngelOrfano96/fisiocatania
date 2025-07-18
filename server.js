@@ -7,7 +7,7 @@ const { Pool } = require('pg');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Collegamento al database PostgreSQL
+// Connessione al database
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
@@ -50,6 +50,8 @@ const USERS = {
   }
 })();
 
+// ROTTE
+
 app.get('/', (req, res) => {
   if (req.session.user) {
     res.redirect('/dashboard');
@@ -68,6 +70,11 @@ app.post('/login', (req, res) => {
   }
 });
 
+app.get('/logout', (req, res) => {
+  req.session.destroy();
+  res.redirect('/');
+});
+
 app.get('/dashboard', (req, res) => {
   if (!req.session.user) return res.redirect('/');
   res.render('layout', {
@@ -76,64 +83,40 @@ app.get('/dashboard', (req, res) => {
   });
 });
 
-app.get('/anagrafica', (req, res) => {
-  if (!req.session.user) return res.redirect('/');
-  res.render('layout', {
-    page: 'anagrafica_content'
-  });
-});
-app.get('/logout', (req, res) => {
-  req.session.destroy();
-  res.redirect('/');
-});
-
 app.get('/anagrafica', async (req, res) => {
   if (!req.session.user) return res.redirect('/');
 
-  const { cognome, nome } = req.query;
-  let query = 'SELECT * FROM anagrafica';
-  let values = [];
+  const { cognome = '', nome = '' } = req.query;
+  let query = 'SELECT * FROM anagrafica WHERE 1=1';
+  const values = [];
 
-  if (cognome || nome) {
-    let conditions = [];
-    if (cognome) {
-      values.push(`%${cognome}%`);
-      conditions.push(`cognome ILIKE $${values.length}`);
-    }
-    if (nome) {
-      values.push(`%${nome}%`);
-      conditions.push(`nome ILIKE $${values.length}`);
-    }
-    query += ' WHERE ' + conditions.join(' AND ');
+  if (cognome) {
+    values.push(`%${cognome}%`);
+    query += ` AND cognome ILIKE $${values.length}`;
   }
+  if (nome) {
+    values.push(`%${nome}%`);
+    query += ` AND nome ILIKE $${values.length}`;
+  }
+
+  query += ' ORDER BY id DESC';
 
   try {
     const result = await pool.query(query, values);
     res.render('layout', {
       page: 'anagrafica_content',
       giocatori: result.rows,
-      filters: { cognome: cognome || '', nome: nome || '' },
+      filters: { cognome, nome },
       message: null
     });
   } catch (err) {
-    console.error(err);
+    console.error("Errore nel caricamento dati:", err);
     res.render('layout', {
       page: 'anagrafica_content',
       giocatori: [],
-      filters: {},
+      filters: { cognome, nome },
       message: 'Errore nel caricamento delle anagrafiche'
     });
-  }
-});
-
-app.post('/anagrafica/delete/:id', async (req, res) => {
-  if (!req.session.user) return res.redirect('/');
-  try {
-    await pool.query('DELETE FROM anagrafica WHERE id = $1', [req.params.id]);
-    res.redirect('/anagrafica');
-  } catch (err) {
-    console.error(err);
-    res.redirect('/anagrafica');
   }
 });
 
@@ -144,19 +127,30 @@ app.post('/anagrafica', async (req, res) => {
       'INSERT INTO anagrafica (cognome, nome, data_nascita, luogo_nascita, cellulare, note) VALUES ($1, $2, $3, $4, $5, $6)',
       [cognome, nome, dataNascita, luogoNascita, cellulare, note]
     );
-    res.render('layout', {
-      page: 'anagrafica_content',
-      message: 'Dati salvati con successo!'
-    });   
+    res.redirect('/anagrafica');
   } catch (err) {
     console.error("Errore nel salvataggio:", err);
     res.render('layout', {
       page: 'anagrafica_content',
+      giocatori: [],
+      filters: { cognome: '', nome: '' },
       message: 'Errore nel salvataggio.'
     });
   }
 });
 
+app.post('/anagrafica/delete/:id', async (req, res) => {
+  if (!req.session.user) return res.redirect('/');
+  try {
+    await pool.query('DELETE FROM anagrafica WHERE id = $1', [req.params.id]);
+    res.redirect('/anagrafica');
+  } catch (err) {
+    console.error("Errore nella cancellazione:", err);
+    res.redirect('/anagrafica');
+  }
+});
+
+// AVVIO SERVER
 app.listen(PORT, () => {
   console.log(`Server in ascolto su http://localhost:${PORT}`);
 });
