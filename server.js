@@ -28,7 +28,7 @@ app.use(session({
 const USERS = { "admin@admin.com": "admin123" };
 
 // Creazione tabelle e popolamento iniziale
-await (async () => {
+(async () => {
   try {
     // Tabella anagrafica
     await pool.query(`
@@ -140,6 +140,7 @@ await (async () => {
     console.error("❌ Errore nella creazione delle tabelle:", err);
   }
 })();
+
 // ROTTE
 app.get('/', (req, res) => {
   if (req.session.user) {
