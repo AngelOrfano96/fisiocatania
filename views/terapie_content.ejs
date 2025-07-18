@@ -12,12 +12,8 @@
 
   <div class="mb-4 d-flex justify-content-center">
     <div class="position-relative w-100" style="max-width: 600px;">
-      <img src="/images/uomo_frontal_back.png" usemap="#distrettiMap" class="img-fluid w-100" alt="Corpo umano" id="bodyMap">
-      <map name="distrettiMap">
-        <% distretti.forEach(d => { %>
-          <area shape="circle" coords="<%= d.coords %>" href="#" title="<%= d.nome %>" data-distretto="<%= d.nome %>">
-        <% }) %>
-      </map>
+      <img src="/images/uomo_frontal_back.png" class="img-fluid w-100" alt="Corpo umano" id="bodyMap">
+      <div id="punti-container"></div>
       <div id="distrettoSelected" class="text-center text-primary fw-semibold mt-2"></div>
     </div>
   </div>
@@ -63,6 +59,18 @@
 </form>
 
 <style>
+  .punto-rosso {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background-color: red;
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+    opacity: 0.8;
+    z-index: 10;
+  }
+
   area:focus {
     outline: none;
   }
@@ -80,20 +88,50 @@
 </style>
 
 <script>
-  document.querySelectorAll('area[data-distretto]').forEach(area => {
-    area.addEventListener('click', function (e) {
-      e.preventDefault();
-      const distrettoNome = this.dataset.distretto;
+  const distretti = <%- JSON.stringify(distretti) %>;
 
-      document.getElementById('distrettoSelected').textContent = "Distretto selezionato: " + distrettoNome;
+  const img = document.getElementById('bodyMap');
+  const container = document.querySelector('.position-relative');
 
-      const select = document.getElementById('distretto');
-      for (let option of select.options) {
-        if (option.textContent.trim() === distrettoNome.trim()) {
-          select.value = option.value;
-          break;
+  function renderPallini() {
+    const imgWidth = img.clientWidth;
+    const imgHeight = img.clientHeight;
+
+    // Rimuovi eventuali pallini precedenti
+    document.querySelectorAll('.punto-rosso').forEach(p => p.remove());
+
+    distretti.forEach(d => {
+      const [x, y] = d.coords.split(',').map(Number);
+      const percentX = (x / 540) * 100;  // immagine base: 540x600
+      const percentY = (y / 600) * 100;
+
+      const punto = document.createElement('div');
+      punto.className = 'punto-rosso';
+      punto.style.left = `${percentX}%`;
+      punto.style.top = `${percentY}%`;
+      punto.title = d.nome;
+      punto.dataset.distretto = d.nome;
+
+      punto.addEventListener('click', () => {
+        document.getElementById('distrettoSelected').textContent = "Distretto selezionato: " + d.nome;
+
+        const select = document.getElementById('distretto');
+        for (let option of select.options) {
+          if (option.textContent.trim() === d.nome.trim()) {
+            select.value = option.value;
+            break;
+          }
         }
-      }
+      });
+
+      container.appendChild(punto);
     });
-  });
+  }
+
+  // Rendi i pallini reattivi al resize
+  window.addEventListener('resize', renderPallini);
+  img.addEventListener('load', renderPallini);
+
+  // Se l'immagine è già caricata (cache), disegna subito
+  if (img.complete) renderPallini();
 </script>
