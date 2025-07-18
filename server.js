@@ -137,6 +137,12 @@ const USERS = { "admin@admin.com": "admin123" };
       );`
     );
 
+    await pool.query(`
+      ALTER TABLE terapie
+        ADD COLUMN IF NOT EXISTS operatore TEXT,
+        ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT now();
+    `);
+
     console.log("✅ Tutte le tabelle pronte e popolate");
   } catch (err) {
     console.error("❌ Errore nella creazione delle tabelle:", err);
@@ -278,14 +284,22 @@ app.get('/terapie', async (req, res) => {
 
 app.post('/terapie', async (req, res) => {
   if (!req.session.user) return res.redirect('/');
+
   const { anagrafica_id, distretto_id, trattamento_id, data_trattamento, note } = req.body;
-  await pool.query(
-    `INSERT INTO terapie
-      (anagrafica_id,distretto_id,trattamento_id,data_trattamento,note)
-     VALUES ($1,$2,$3,$4,$5)`,
-    [anagrafica_id,distretto_id,trattamento_id,data_trattamento,note]
-  );
-  res.redirect('/terapie');
+  const operatore = req.session.user;
+
+  try {
+    await pool.query(
+      `INSERT INTO terapie
+         (anagrafica_id, distretto_id, trattamento_id, data_trattamento, note, operatore)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [anagrafica_id, distretto_id, trattamento_id, data_trattamento, note, operatore]
+    );
+    res.redirect('/terapie');
+  } catch (err) {
+    console.error("Errore nel salvataggio terapia:", err);
+    res.redirect('/terapie');
+  }
 });
 
 // Avvio server
