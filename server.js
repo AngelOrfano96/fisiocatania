@@ -15,6 +15,11 @@ const pool = new Pool({
   }
 });
 
+res.render('dashboard', { user: req.session.user });
+res.render('layout', { page: 'dashboard_content', user: req.session.user });
+res.render('layout', { page: 'anagrafica_content', message: '...' });
+
+
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
