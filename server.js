@@ -238,48 +238,46 @@ app.post('/anagrafica/update/:id', async (req, res) => {
 // --- TERAPIE con filtri e join ---
 app.get('/terapie', async (req, res) => {
   if (!req.session.user) return res.redirect('/');
-  const anagRes  = await pool.query('SELECT id,nome,cognome FROM anagrafica ORDER BY cognome');
-  const distRes  = await pool.query('SELECT id,nome,coords FROM distretti ORDER BY nome');
-  const trattRes = await pool.query('SELECT id,nome FROM trattamenti ORDER BY nome');
 
-  // leggo i filtri ('' = tutti)
-  const { filter_anagrafica='', filter_distretto='', filter_trattamento='' } = req.query;
-  const wheres = [];
-  const vals   = [];
+  try {
+    // Per il form di inserimento
+    const anagrafiche = await pool.query('SELECT id, nome, cognome FROM anagrafica ORDER BY cognome');
+    const distretti   = await pool.query('SELECT id, nome, coords FROM distretti ORDER BY nome');
+    const trattamenti = await pool.query('SELECT id, nome FROM trattamenti ORDER BY nome');
 
-  if (filter_anagrafica)  { vals.push(filter_anagrafica);  wheres.push(`t.anagrafica_id = $${vals.length}`); }
-  if (filter_distretto)    { vals.push(filter_distretto);    wheres.push(`t.distretto_id   = $${vals.length}`); }
-  if (filter_trattamento)  { vals.push(filter_trattamento);  wheres.push(`t.trattamento_id = $${vals.length}`); }
-  const whereSQL = wheres.length ? `WHERE ${wheres.join(' AND ')}` : '';
-
-  const therapiesRes = await pool.query(
-    `
+    // Lista già salvate
+    const l = await pool.query(`
       SELECT
         t.id,
-        t.data_trattamento,
-        a.nome   AS nome_anagrafica,
-        a.cognome AS cognome_anagrafica,
-        d.nome   AS nome_distretto,
-        tr.nome  AS nome_trattamento
+        t.operatore,
+        t.created_at,
+        a.nome   AS anag_nome,
+        a.cognome AS anag_cognome,
+        d.nome   AS distretto,
+        tr.nome  AS trattamento
       FROM terapie t
       JOIN anagrafica a ON t.anagrafica_id = a.id
-      JOIN distretti  d ON t.distretto_id   = d.id
+      JOIN distretti d   ON t.distretto_id = d.id
       JOIN trattamenti tr ON t.trattamento_id = tr.id
-      ${whereSQL}
-      ORDER BY t.id DESC
-    `,
-    vals
-  );
+      ORDER BY t.created_at DESC
+    `);
 
-  res.render('layout', {
-    page: 'terapie_content',
-    anagrafiche:  anagRes.rows,
-    distretti:    distRes.rows,
-    trattamenti: trattRes.rows,
-    therapies:   therapiesRes.rows,
-    filters: { filter_anagrafica, filter_distretto, filter_trattamento },
-    message: null
-  });
+    res.render('layout', {
+      page: 'terapie_content',
+      anagrafiche: anagrafiche.rows,
+      distretti:   distretti.rows,
+      trattamenti: trattamenti.rows,
+      terapieList: l.rows,
+      message: null
+    });
+  } catch (err) {
+    console.error("Errore nel caricamento terapie:", err);
+    res.render('layout', {
+      page: 'terapie_content',
+      anagrafiche: [], distretti: [], trattamenti: [], terapieList: [],
+      message: 'Errore nel caricamento della pagina terapie.'
+    });
+  }
 });
 
 app.post('/terapie', async (req, res) => {
