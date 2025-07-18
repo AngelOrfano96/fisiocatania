@@ -70,8 +70,8 @@ const USERS = { "admin@admin.com": "admin123" };
       ['fascia plantare', '425,825'],
       ['flessore dx', '660,680'],
       ['flessore sx', '190,680'],
-      ['ginocchio dx', '267,605'],
-      ['ginocchio sx', '324,605'],
+      ['ginocchio dx', '267,615'],
+      ['ginocchio sx', '324,615'],
       ['gluteo dx', '600,420'],
       ['gluteo sx', '530,420'],
       ['lombare', '565,380'],
@@ -84,8 +84,8 @@ const USERS = { "admin@admin.com": "admin123" };
       ['spalla sx', '474,210'],
       ['tendine d\'achille dx', '660,790'],
       ['tendine d\'achille sx', '190,790'],
-      ['tibiale dx', '660,710'],
-      ['tibiale sx', '190,710']
+      ['tibiale dx', '264,710'],
+      ['tibiale sx', '327,710']
     ];
 
     // Inserisci o aggiorna i distretti
