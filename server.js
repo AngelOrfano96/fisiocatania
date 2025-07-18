@@ -10,9 +10,7 @@ const PORT = process.env.PORT || 3000;
 // Connessione al database
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
+  ssl: { rejectUnauthorized: false }
 });
 
 app.set('view engine', 'ejs');
@@ -27,13 +25,12 @@ app.use(session({
   saveUninitialized: true
 }));
 
-const USERS = {
-  "admin@admin.com": "admin123"
-};
+const USERS = { "admin@admin.com": "admin123" };
 
 // Creazione tabelle e popolamento iniziale
-(async () => {
+await (async () => {
   try {
+    // Tabella anagrafica
     await pool.query(`
       CREATE TABLE IF NOT EXISTS anagrafica (
         id SERIAL PRIMARY KEY,
@@ -46,6 +43,7 @@ const USERS = {
       );
     `);
 
+    // Tabella distretti
     await pool.query(`
       CREATE TABLE IF NOT EXISTS distretti (
         id SERIAL PRIMARY KEY,
@@ -54,17 +52,10 @@ const USERS = {
       );
     `);
 
+    // Pulisci i distretti esistenti
     await pool.query('DELETE FROM distretti');
 
-    for (const [nome, coords] of distrettiDaInserire) {
-      await pool.query(
-        `INSERT INTO distretti (nome, coords)
-         VALUES ($1, $2)
-         ON CONFLICT (nome) DO UPDATE SET coords = EXCLUDED.coords`,
-        [nome, coords]
-      );
-    }
-
+    // Coordinate centrate su immagine 850x850
     const distrettiDaInserire = [
       ['adduttore dx', '660,620'],
       ['adduttore sx', '190,620'],
@@ -97,6 +88,7 @@ const USERS = {
       ['tibiale sx', '190,710']
     ];
 
+    // Inserisci o aggiorna i distretti
     for (const [nome, coords] of distrettiDaInserire) {
       await pool.query(
         `INSERT INTO distretti (nome, coords)
@@ -106,6 +98,7 @@ const USERS = {
       );
     }
 
+    // Tabella trattamenti
     await pool.query(`
       CREATE TABLE IF NOT EXISTS trattamenti (
         id SERIAL PRIMARY KEY,
@@ -113,6 +106,7 @@ const USERS = {
       );
     `);
 
+    // Popola trattamenti se vuota
     const trattamentiCount = await pool.query('SELECT COUNT(*) FROM trattamenti');
     if (parseInt(trattamentiCount.rows[0].count) === 0) {
       await pool.query(`
@@ -129,6 +123,7 @@ const USERS = {
       console.log("✅ Tabella trattamenti popolata");
     }
 
+    // Tabella terapie
     await pool.query(`
       CREATE TABLE IF NOT EXISTS terapie (
         id SERIAL PRIMARY KEY,
@@ -140,12 +135,11 @@ const USERS = {
       );
     `);
 
-    console.log("✅ Tutte le tabelle pronte e popolate se necessario");
+    console.log("✅ Tutte le tabelle pronte e popolate");
   } catch (err) {
     console.error("❌ Errore nella creazione delle tabelle:", err);
   }
 })();
-
 // ROTTE
 app.get('/', (req, res) => {
   if (req.session.user) {
