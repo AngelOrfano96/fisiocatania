@@ -116,9 +116,9 @@
       <tr>
         <td><%= t.operatore %></td>
         <td><%= t.data_trattamento.toISOString().split('T')[0] %></td>
-        <td><%= t.nome_anagrafica %> <%= t.cognome_anagrafica %></td>
-        <td><%= t.nome_distretto %></td>
-        <td><%= t.nome_trattamento %></td>
+        <td><%= t.anagrafica %></td>
+        <td><%= t.distretto %></td>
+        <td><%= t.trattamento %></td>
         <td>
           <a href="/terapie/edit/<%= t.id %>" class="btn btn-sm btn-outline-warning">
             ✏️

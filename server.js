@@ -267,18 +267,16 @@ app.get('/terapie', async (req, res) => {
 
     // recupera la lista delle terapie (alias l)
     const l = await pool.query(`
-      SELECT 
-        t.id,
-        t.operatore,
-        t.data_trattamento,
-        a.nome   AS anag_nome,
-        a.cognome AS anag_cognome,
-        d.nome   AS distretto,
-        tr.nome  AS trattamento
-      FROM terapie t
-      JOIN anagrafica   a  ON t.anagrafica_id   = a.id
-      JOIN distretti     d  ON t.distretto_id    = d.id
-      JOIN trattamenti  tr ON t.trattamento_id  = tr.id
+        SELECT
+      t.operatore,
+      t.data_trattamento,
+      a.nome   || ' ' || a.cognome  AS anagrafica,
+      d.nome                      AS distretto,
+      tr.nome                     AS trattamento
+    FROM terapie t
+    JOIN anagrafica   a  ON t.anagrafica_id   = a.id
+    JOIN distretti    d  ON t.distretto_id    = d.id
+    JOIN trattamenti tr ON t.trattamento_id  = tr.id
       ${whereSQL}
       ORDER BY t.data_trattamento DESC
     `, values);
@@ -290,12 +288,8 @@ app.get('/terapie', async (req, res) => {
       distretti:     distretti.rows,
       trattamenti:   trattamenti.rows,
       therapies:     l.rows,
-      filters: {
-        filter_anagrafica,
-        filter_distretto,
-        filter_trattamento
-      },
-      message: null
+      filters:       { filter_anagrafica, filter_distretto, filter_trattamento },
+      message:       null
     });
 
   } catch (err) {
