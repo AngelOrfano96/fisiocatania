@@ -1,33 +1,3 @@
-<h3>Registrazione Calciatore</h3>
-
-<% if (typeof message !== 'undefined') { %>
-  <div class="alert alert-success"><%= message %></div>
-<% } %>
-
-<form method="POST" action="/anagrafica">
-  <div class="mb-3"><input name="cognome" class="form-control" placeholder="Cognome" required></div>
-  <div class="mb-3"><input name="nome" class="form-control" placeholder="Nome" required></div>
-  <div class="mb-3"><input type="date" name="dataNascita" class="form-control" required></div>
-  <div class="mb-3"><input name="luogoNascita" class="form-control" placeholder="Luogo di nascita" required></div>
-  <div class="mb-3"><input name="cellulare" class="form-control" placeholder="Cellulare" required></div>
-  <div class="mb-3"><textarea name="note" class="form-control" placeholder="Note"></textarea></div>
-  <button type="submit" class="btn btn-success">Salva</button>
-</form>
-
-<hr>
-<h4 class="mt-5">Lista Anagrafiche</h4>
-<form method="GET" action="/anagrafica" class="row g-2 mb-3">
-  <div class="col-md-5">
-    <input type="text" name="cognome" class="form-control" placeholder="Filtra per Cognome" value="<%= filters.cognome %>">
-  </div>
-  <div class="col-md-5">
-    <input type="text" name="nome" class="form-control" placeholder="Filtra per Nome" value="<%= filters.nome %>">
-  </div>
-  <div class="col-md-2">
-    <button class="btn btn-primary w-100" type="submit">Cerca</button>
-  </div>
-</form>
-
 <table id="tabellaGiocatori" class="table table-bordered table-striped align-middle">
   <thead>
     <tr>
@@ -45,13 +15,28 @@
       <tr data-id="<%= g.id %>">
         <form class="edit-form" method="POST" action="/anagrafica/update/<%= g.id %>">
           <td>
-            <input name="nome" class="form-control form-control-sm" value="<%= g.nome %>" readonly>
-            <input name="cognome" class="form-control form-control-sm mt-1" value="<%= g.cognome %>" readonly>
+            <span class="static nome"><%= g.nome %></span>
+            <input name="nome" class="form-control form-control-sm d-none" value="<%= g.nome %>">
+
+            <span class="static cognome d-block"><%= g.cognome %></span>
+            <input name="cognome" class="form-control form-control-sm d-none mt-1" value="<%= g.cognome %>">
           </td>
-          <td><input name="data_nascita" type="date" class="form-control form-control-sm" value="<%= g.data_nascita.toISOString().split('T')[0] %>" readonly></td>
-          <td><input name="luogo_nascita" class="form-control form-control-sm" value="<%= g.luogo_nascita %>" readonly></td>
-          <td><input name="cellulare" class="form-control form-control-sm" value="<%= g.cellulare %>" readonly></td>
-          <td><textarea name="note" class="form-control form-control-sm" readonly><%= g.note %></textarea></td>
+          <td>
+            <span class="static"><%= g.data_nascita.toISOString().split('T')[0] %></span>
+            <input name="data_nascita" type="date" class="form-control form-control-sm d-none" value="<%= g.data_nascita.toISOString().split('T')[0] %>">
+          </td>
+          <td>
+            <span class="static"><%= g.luogo_nascita %></span>
+            <input name="luogo_nascita" class="form-control form-control-sm d-none" value="<%= g.luogo_nascita %>">
+          </td>
+          <td>
+            <span class="static"><%= g.cellulare %></span>
+            <input name="cellulare" class="form-control form-control-sm d-none" value="<%= g.cellulare %>">
+          </td>
+          <td>
+            <span class="static"><%= g.note %></span>
+            <textarea name="note" class="form-control form-control-sm d-none"><%= g.note %></textarea>
+          </td>
           <td>
             <button type="button" class="btn btn-sm btn-warning btn-edit">✏️</button>
             <button type="submit" class="btn btn-sm btn-success d-none btn-save">💾</button>
@@ -66,10 +51,16 @@
   </tbody>
 </table>
 
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
-<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<style>
+  td span.static {
+    display: inline-block;
+    width: 100%;
+    padding: 4px 6px;
+    background-color: transparent;
+    border-radius: 4px;
+  }
+</style>
+
 <script>
   $(document).ready(function () {
     $('#tabellaGiocatori').DataTable({
@@ -83,13 +74,14 @@
 
     $('.btn-edit').click(function () {
       const form = $(this).closest('form');
-      form.find('input, textarea').prop('readonly', false);
+      form.find('span.static').addClass('d-none');
+      form.find('input, textarea').removeClass('d-none');
       form.find('.btn-edit').addClass('d-none');
       form.find('.btn-save, .btn-cancel').removeClass('d-none');
     });
 
     $('.btn-cancel').click(function () {
-      location.reload();
+      location.reload(); // Annulla e ripristina
     });
   });
 </script>
