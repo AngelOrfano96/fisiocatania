@@ -13,6 +13,7 @@
   <div class="mb-4 d-flex justify-content-center">
     <div class="position-relative w-100" style="max-width: 600px;">
       <img src="/images/uomo_frontal_back.png" class="img-fluid w-100" alt="Corpo umano" id="bodyMap">
+      <div id="punti-container" class="position-absolute top-0 start-0"></div>
       <div id="punti-container"></div>
       <div id="distrettoSelected" class="text-center text-primary fw-semibold mt-2"></div>
     </div>
@@ -88,49 +89,64 @@
 </style>
 
 <script>
-    const distretti = <%- JSON.stringify(distretti).replace(/</g, '\\u003c') %>;
-   const img = document.getElementById('bodyMap');
-  const container = document.querySelector('.position-relative');
-
-  function renderPallini() {
-    const imgWidth = img.clientWidth;
-    const imgHeight = img.clientHeight;
-
-    // Rimuovi eventuali pallini precedenti
-    document.querySelectorAll('.punto-rosso').forEach(p => p.remove());
-
-    distretti.forEach(d => {
-      const [x, y] = d.coords.split(',').map(Number);
-      const percentX = (x / 540) * 100;  // immagine base: 540x600
-      const percentY = (y / 600) * 100;
-
-      const punto = document.createElement('div');
-      punto.className = 'punto-rosso';
-      punto.style.left = `${percentX}%`;
-      punto.style.top = `${percentY}%`;
-      punto.title = d.nome;
-      punto.dataset.distretto = d.nome;
-
-      punto.addEventListener('click', () => {
-        document.getElementById('distrettoSelected').textContent = "Distretto selezionato: " + d.nome;
-
-        const select = document.getElementById('distretto');
-        for (let option of select.options) {
-          if (option.textContent.trim() === d.nome.trim()) {
-            select.value = option.value;
-            break;
+    // Dati dal server
+    const distretti = <%- JSON.stringify(distretti) %>;
+  
+    // Elementi del DOM
+    const img = document.getElementById('bodyMap');
+    const container = document.getElementById('punti-container');
+  
+    function renderPallini() {
+      // Pulisci i vecchi
+      container.innerHTML = '';
+  
+      // Dimensioni fisiche reali e attuali
+      const natW = img.naturalWidth;
+      const natH = img.naturalHeight;
+      const dispW = img.clientWidth;
+      const dispH = img.clientHeight;
+  
+      distretti.forEach(d => {
+        const [x, y] = d.coords.split(',').map(Number);
+        // Calcola percentuale su base reale
+        const percentX = (x / natW) * 100;
+        const percentY = (y / natH) * 100;
+  
+        // Crea il pallino
+        const p = document.createElement('div');
+        p.className = 'punto-rosso';
+        p.style.left = `${percentX}%`;
+        p.style.top  = `${percentY}%`;
+        p.title       = d.nome;
+        p.dataset.distretto = d.nome;
+  
+        // Clic sul pallino → seleziona distretto
+        p.addEventListener('click', () => {
+          document.getElementById('distrettoSelected').textContent
+            = "Distretto selezionato: " + d.nome;
+          const sel = document.getElementById('distretto');
+          for (let o of sel.options) {
+            if (o.textContent.trim() === d.nome.trim()) {
+              sel.value = o.value;
+              break;
+            }
           }
-        }
+        });
+  
+        container.appendChild(p);
       });
-
-      container.appendChild(punto);
-    });
-  }
-
-  // Rendi i pallini reattivi al resize
-  window.addEventListener('resize', renderPallini);
-  img.addEventListener('load', renderPallini);
-
-  // Se l'immagine è già caricata (cache), disegna subito
-  if (img.complete) renderPallini();
-</script>
+    }
+  
+    // Ridefinisci container dimensioni identiche all'immagine
+    function syncContainer() {
+      container.style.width  = img.clientWidth + 'px';
+      container.style.height = img.clientHeight + 'px';
+      renderPallini();
+    }
+  
+    // Al caricamento e ad ogni resize
+    img.addEventListener('load', syncContainer);
+    window.addEventListener('resize', syncContainer);
+    if (img.complete) syncContainer();
+  </script>
+  
