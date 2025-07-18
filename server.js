@@ -57,13 +57,13 @@ const USERS = { "admin@admin.com": "admin123" };
 
     // Coordinate centrate su immagine 850x850
     const distrettiDaInserire = [
-      ['adduttore dx', '285,500'],
+      ['adduttore dx', '282,500'],
       ['adduttore sx', '308,500'],
       ['alluce sx', '190,810'],
       ['anca dx', '221,438'],
       ['anca sx', '368,438'],
-      ['caviglia dx', '660,770'],
-      ['caviglia sx', '190,770'],
+      ['caviglia dx', '267,790'],
+      ['caviglia sx', '324,790'],
       ['cervicale', '565,200'],
       ['dorsale', '565,270'],
       ['fascia alata', '300,380'],
@@ -75,8 +75,8 @@ const USERS = { "admin@admin.com": "admin123" };
       ['gluteo dx', '600,420'],
       ['gluteo sx', '530,420'],
       ['lombare', '565,380'],
-      ['polpaccio dx', '600,620'],
-      ['polpaccio sx', '530,620'],
+      ['polpaccio dx', '600,690'],
+      ['polpaccio sx', '530,690'],
       ['pube', '300,410'],
       ['quadricipite dx', '267,550'],
       ['quadricipite sx', '324,550'],
