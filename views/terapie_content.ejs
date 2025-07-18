@@ -87,7 +87,30 @@
     }
   }
 </style>
-
+<style>
+    /* Bordo di debug per vedere esattamente l’area dei pallini */
+    #punti-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none;       /* lascia passare i click al form sotto */
+      border: 1px dashed blue;    /* bordo di debug */
+    }
+  
+    .punto-rosso {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background-color: red;
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+      opacity: 0.8;
+      pointer-events: auto;       /* abilita il click sui pallini */
+      z-index: 10;
+    }
+  </style>
+  
 <script>
     // Dati dal server
     const distretti = <%- JSON.stringify(distretti) %>;
