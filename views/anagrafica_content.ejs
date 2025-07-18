@@ -28,30 +28,39 @@
   </div>
 </form>
 
-<table id="tabellaGiocatori" class="table table-bordered table-striped">
+<table id="tabellaGiocatori" class="table table-bordered table-striped align-middle">
   <thead>
     <tr>
       <th>Anagrafica</th>
       <th>Data Nascita</th>
       <th>Comune di Nascita</th>
       <th>Cellulare</th>
+      <th>Note</th>
       <th>Modifica</th>
       <th>Elimina</th>
     </tr>
   </thead>
   <tbody>
     <% giocatori.forEach(g => { %>
-      <tr>
-        <td><%= g.nome %> <%= g.cognome %></td>
-        <td><%= g.data_nascita.toISOString().split('T')[0] %></td>
-        <td><%= g.luogo_nascita %></td>
-        <td><%= g.cellulare %></td>
-        <td><a href="/anagrafica/edit/<%= g.id %>" class="btn btn-sm btn-warning">✏️</a></td>
-        <td>
-          <form method="POST" action="/anagrafica/delete/<%= g.id %>" onsubmit="return confirm('Sei sicuro di voler eliminare?')">
-            <button class="btn btn-sm btn-danger">🗑️</button>
-          </form>
-        </td>
+      <tr data-id="<%= g.id %>">
+        <form class="edit-form" method="POST" action="/anagrafica/update/<%= g.id %>">
+          <td><input name="nome" class="form-control form-control-sm-plaintext" value="<%= g.nome %>" readonly>
+              <input name="cognome" class="form-control form-control-sm-plaintext mt-1" value="<%= g.cognome %>" readonly></td>
+          <td><input name="data_nascita" type="date" class="form-control form-control-sm" value="<%= g.data_nascita.toISOString().split('T')[0] %>" readonly></td>
+          <td><input name="luogo_nascita" class="form-control form-control-sm" value="<%= g.luogo_nascita %>" readonly></td>
+          <td><input name="cellulare" class="form-control form-control-sm" value="<%= g.cellulare %>" readonly></td>
+          <td><textarea name="note" class="form-control form-control-sm" readonly><%= g.note %></textarea></td>
+          <td>
+            <button type="button" class="btn btn-sm btn-warning btn-edit">✏️</button>
+            <button type="submit" class="btn btn-sm btn-success d-none btn-save">💾</button>
+            <button type="button" class="btn btn-sm btn-secondary d-none btn-cancel">↩️</button>
+          </td>
+          <td>
+            <form method="POST" action="/anagrafica/delete/<%= g.id %>" onsubmit="return confirm('Sei sicuro di voler eliminare?')">
+              <button class="btn btn-sm btn-danger">🗑️</button>
+            </form>
+          </td>
+        </form>
       </tr>
     <% }) %>
   </tbody>
@@ -68,7 +77,20 @@
       lengthMenu: [5, 10, 20, 50],
       language: {
         url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/it-IT.json'
-      }
+      },
+      columnDefs: [{ orderable: false, targets: [5, 6] }]
+    });
+
+    // Comportamento modifica inline
+    $('.btn-edit').click(function () {
+      const row = $(this).closest('form');
+      row.find('input, textarea').prop('readonly', false);
+      row.find('.btn-edit').addClass('d-none');
+      row.find('.btn-save, .btn-cancel').removeClass('d-none');
+    });
+
+    $('.btn-cancel').click(function () {
+      location.reload(); // Reload semplice per annullare ogni modifica
     });
   });
 </script>

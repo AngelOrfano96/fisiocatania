@@ -150,6 +150,34 @@ app.post('/anagrafica/delete/:id', async (req, res) => {
   }
 });
 
+// MODIFICA giocatore
+app.post('/anagrafica/update/:id', async (req, res) => {
+  if (!req.session.user) return res.redirect('/');
+
+  const id = req.params.id;
+  const {
+    nome,
+    cognome,
+    data_nascita,
+    luogo_nascita,
+    cellulare,
+    note
+  } = req.body;
+
+  try {
+    await pool.query(
+      `UPDATE anagrafica 
+       SET nome = $1, cognome = $2, data_nascita = $3, luogo_nascita = $4, cellulare = $5, note = $6 
+       WHERE id = $7`,
+      [nome, cognome, data_nascita, luogo_nascita, cellulare, note, id]
+    );
+    res.redirect('/anagrafica');
+  } catch (err) {
+    console.error("Errore nell'aggiornamento:", err);
+    res.redirect('/anagrafica');
+  }
+});
+
 // AVVIO SERVER
 app.listen(PORT, () => {
   console.log(`Server in ascolto su http://localhost:${PORT}`);
