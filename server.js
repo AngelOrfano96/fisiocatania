@@ -67,7 +67,7 @@ const USERS = { "admin@admin.com": "admin123" };
       ['cervicale', '565,200'],
       ['dorsale', '565,270'],
       ['fascia alata', '300,380'],
-      ['fascia plantare', '425,825'],
+      ['fascia plantare', '600,800'],
       ['flessore dx', '600,530'],
       ['flessore sx', '530,530'],
       ['ginocchio dx', '267,615'],
@@ -82,8 +82,8 @@ const USERS = { "admin@admin.com": "admin123" };
       ['quadricipite sx', '324,550'],
       ['spalla dx', '655,210'],
       ['spalla sx', '474,210'],
-      ['tendine d\'achille dx', '615,775'],
-      ['tendine d\'achille sx', '520,775'],
+      ['tendine d\'achille dx', '610,775'],
+      ['tendine d\'achille sx', '500,775'],
       ['tibiale dx', '264,710'],
       ['tibiale sx', '327,710']
     ];
