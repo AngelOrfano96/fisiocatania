@@ -54,43 +54,45 @@ const USERS = {
       );
     `);
 
+    await pool.query('DELETE FROM distretti');
+
     const distrettiDaInserire = [
-      ['adduttore dx', '615,615'],
-      ['adduttore sx', '235,615'],
-      ['alluce sx', '255,830'],
-      ['anca dx', '590,500'],
-      ['anca sx', '260,500'],
-      ['caviglia dx', '595,795'],
-      ['caviglia sx', '255,795'],
-      ['cervicale', '430,170'],
-      ['dorsale', '430,260'],
-      ['fascia alata', '430,310'],
-      ['fascia plantare', '430,845'],
-      ['flessore dx', '610,660'],
-      ['flessore sx', '240,660'],
-      ['ginocchio dx', '595,690'],
-      ['ginocchio sx', '255,690'],
-      ['gluteo dx', '590,410'],
-      ['gluteo sx', '260,410'],
-      ['lombare', '430,350'],
-      ['polpaccio dx', '595,735'],
-      ['polpaccio sx', '255,735'],
-      ['pube', '430,600'],
-      ['quadricipite dx', '595,645'],
-      ['quadricipite sx', '255,645'],
-      ['spalla dx', '645,260'],
-      ['spalla sx', '215,260'],
-      ['tendine d\'achille dx', '585,825'],
-      ['tendine d\'achille sx', '275,825'],
-      ['tibiale dx', '585,710'],
-      ['tibiale sx', '275,710']
+      ['adduttore dx', '660,620'],
+      ['adduttore sx', '190,620'],
+      ['alluce sx', '190,810'],
+      ['anca dx', '660,560'],
+      ['anca sx', '190,560'],
+      ['caviglia dx', '660,770'],
+      ['caviglia sx', '190,770'],
+      ['cervicale', '425,200'],
+      ['dorsale', '425,260'],
+      ['fascia alata', '425,320'],
+      ['fascia plantare', '425,825'],
+      ['flessore dx', '660,680'],
+      ['flessore sx', '190,680'],
+      ['ginocchio dx', '660,730'],
+      ['ginocchio sx', '190,730'],
+      ['gluteo dx', '660,460'],
+      ['gluteo sx', '190,460'],
+      ['lombare', '425,380'],
+      ['polpaccio dx', '660,760'],
+      ['polpaccio sx', '190,760'],
+      ['pube', '425,580'],
+      ['quadricipite dx', '660,660'],
+      ['quadricipite sx', '190,660'],
+      ['spalla dx', '660,270'],
+      ['spalla sx', '190,270'],
+      ['tendine d\'achille dx', '660,790'],
+      ['tendine d\'achille sx', '190,790'],
+      ['tibiale dx', '660,710'],
+      ['tibiale sx', '190,710']
     ];
 
     for (const [nome, coords] of distrettiDaInserire) {
       await pool.query(
         `INSERT INTO distretti (nome, coords)
          VALUES ($1, $2)
-         ON CONFLICT (nome) DO NOTHING`,
+         ON CONFLICT (nome) DO UPDATE SET coords = EXCLUDED.coords`,
         [nome, coords]
       );
     }
