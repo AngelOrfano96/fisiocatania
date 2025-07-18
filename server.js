@@ -70,12 +70,17 @@ app.post('/login', (req, res) => {
 
 app.get('/dashboard', (req, res) => {
   if (!req.session.user) return res.redirect('/');
-  res.render('layout', { page: 'dashboard_content', user: req.session.user });
+  res.render('layout', {
+    page: 'dashboard_content',
+    user: req.session.user
+  });
 });
 
 app.get('/anagrafica', (req, res) => {
   if (!req.session.user) return res.redirect('/');
-  res.render('layout', { page: 'anagrafica_content' });
+  res.render('layout', {
+    page: 'anagrafica_content'
+  });
 });
 
 app.post('/anagrafica', async (req, res) => {
