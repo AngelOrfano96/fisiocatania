@@ -15,11 +15,6 @@ const pool = new Pool({
   }
 });
 
-res.render('dashboard', { user: req.session.user });
-res.render('layout', { page: 'dashboard_content', user: req.session.user });
-res.render('layout', { page: 'anagrafica_content', message: '...' });
-
-
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -75,12 +70,12 @@ app.post('/login', (req, res) => {
 
 app.get('/dashboard', (req, res) => {
   if (!req.session.user) return res.redirect('/');
-  res.render('dashboard', { user: req.session.user });
+  res.render('layout', { page: 'dashboard_content', user: req.session.user });
 });
 
 app.get('/anagrafica', (req, res) => {
   if (!req.session.user) return res.redirect('/');
-  res.render('anagrafica');
+  res.render('layout', { page: 'anagrafica_content' });
 });
 
 app.post('/anagrafica', async (req, res) => {
@@ -90,10 +85,16 @@ app.post('/anagrafica', async (req, res) => {
       'INSERT INTO anagrafica (cognome, nome, data_nascita, luogo_nascita, cellulare, note) VALUES ($1, $2, $3, $4, $5, $6)',
       [cognome, nome, dataNascita, luogoNascita, cellulare, note]
     );
-    res.render('anagrafica', { message: 'Dati salvati con successo!' });
+    res.render('layout', {
+      page: 'anagrafica_content',
+      message: 'Dati salvati con successo!'
+    });
   } catch (err) {
     console.error("Errore nel salvataggio:", err);
-    res.render('anagrafica', { message: 'Errore nel salvataggio.' });
+    res.render('layout', {
+      page: 'anagrafica_content',
+      message: 'Errore nel salvataggio.'
+    });
   }
 });
 
