@@ -1,6 +1,6 @@
 <h3 class="mb-4">Nuova Terapia</h3>
 
-<% if (typeof message !== 'undefined' && message) { %>
+<% if (message) { %>
   <div class="alert alert-success"><%= message %></div>
 <% } %>
 
@@ -11,9 +11,11 @@
   </div>
 
   <div class="mb-4 d-flex justify-content-center">
-    <div class="position-relative" style="max-width: 600px;">
-      <img src="/images/uomo_frontal_back.png" class="img-fluid w-100" alt="Corpo umano" id="bodyMap">
-      <!-- container per i pallini rossi -->
+    <div class="position-relative w-100" style="max-width: 600px;">
+      <img src="/images/uomo_frontal_back.png"
+           class="img-fluid w-100"
+           alt="Corpo umano"
+           id="bodyMap">
       <div id="punti-container" class="position-absolute top-0 start-0"></div>
       <div id="distrettoSelected" class="text-center text-primary fw-semibold mt-2"></div>
     </div>
@@ -25,11 +27,12 @@
       <select name="anagrafica_id" id="anagrafica" class="form-select" required>
         <option value="">Seleziona un'anagrafica</option>
         <% anagrafiche.forEach(a => { %>
-          <option value="<%= a.id %>"><%= a.nome %> <%= a.cognome %></option>
+          <option value="<%= a.id %>">
+            <%= a.nome %> <%= a.cognome %>
+          </option>
         <% }) %>
       </select>
     </div>
-
     <div class="col-12 col-md-4">
       <label for="distretto" class="form-label">Distretto anatomico</label>
       <select name="distretto_id" id="distretto" class="form-select" required>
@@ -39,7 +42,6 @@
         <% }) %>
       </select>
     </div>
-
     <div class="col-12 col-md-4">
       <label for="trattamento" class="form-label">Trattamento</label>
       <select name="trattamento_id" id="trattamento" class="form-select" required>
@@ -58,6 +60,78 @@
 
   <button type="submit" class="btn btn-success">Salva</button>
 </form>
+
+<hr>
+
+<h4 class="mb-3">Lista Terapie</h4>
+<form method="GET" action="/terapie" class="row g-3 align-items-end mb-3">
+  <div class="col-md-3">
+    <label class="form-label">Anagrafica</label>
+    <select name="filter_anagrafica" class="form-select">
+      <option value="">Tutti</option>
+      <% anagrafiche.forEach(a => { %>
+        <option value="<%= a.id %>" <%= filters.filter_anagrafica==a.id?'selected':'' %>>
+          <%= a.nome %> <%= a.cognome %>
+        </option>
+      <% }) %>
+    </select>
+  </div>
+  <div class="col-md-3">
+    <label class="form-label">Distretto anatomico</label>
+    <select name="filter_distretto" class="form-select">
+      <option value="">Tutti</option>
+      <% distretti.forEach(d => { %>
+        <option value="<%= d.id %>" <%= filters.filter_distretto==d.id?'selected':'' %>>
+          <%= d.nome %>
+        </option>
+      <% }) %>
+    </select>
+  </div>
+  <div class="col-md-3">
+    <label class="form-label">Trattamento</label>
+    <select name="filter_trattamento" class="form-select">
+      <option value="">Tutti</option>
+      <% trattamenti.forEach(t => { %>
+        <option value="<%= t.id %>" <%= filters.filter_trattamento==t.id?'selected':'' %>>
+          <%= t.nome %>
+        </option>
+      <% }) %>
+    </select>
+  </div>
+  <div class="col-md-3 text-end">
+    <button type="submit" class="btn btn-primary">Filtra</button>
+    <button type="button" class="btn btn-success" disabled>Esporta</button>
+  </div>
+</form>
+
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Operatore inserimento</th>
+      <th>Data trattamento</th>
+      <th>Anagrafica</th>
+      <th>Distretto anatomico</th>
+      <th>Trattamento</th>
+      <th>Modifica</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% therapies.forEach(t => { %>
+      <tr>
+        <td><%= t.operatore %></td>
+        <td><%= t.data_trattamento.toISOString().split('T')[0] %></td>
+        <td><%= t.nome_anagrafica %> <%= t.cognome_anagrafica %></td>
+        <td><%= t.nome_distretto %></td>
+        <td><%= t.nome_trattamento %></td>
+        <td>
+          <a href="/terapie/edit/<%= t.id %>" class="btn btn-sm btn-outline-warning">
+            ✏️
+          </a>
+        </td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>
 
 <style>
   /* container debug */
@@ -85,65 +159,41 @@
   #distrettoSelected {
     font-size: 1.1rem;
   }
-
   @media (max-width: 767.98px) {
-    #distrettoSelected {
-      font-size: 1rem;
-      margin-top: 0.5rem;
-    }
+    #distrettoSelected { font-size: 1rem; margin-top: 0.5rem; }
   }
 </style>
 
 <script>
-  // dati dal server
   const distretti = <%- JSON.stringify(distretti) %>;
-
-  const img = document.getElementById('bodyMap');
+  const img       = document.getElementById('bodyMap');
   const container = document.getElementById('punti-container');
 
   function renderPallini() {
-    const natW = img.naturalWidth;
-    const natH = img.naturalHeight;
-    const dispW = img.clientWidth;
-    const dispH = img.clientHeight;
-
-    console.log('nat:', natW, '×', natH, 'disp:', dispW, '×', dispH);
-
-    // rimuovi pallini precedenti
-    container.querySelectorAll('.punto-rosso').forEach(p => p.remove());
-
+    const natW = img.naturalWidth, natH = img.naturalHeight;
+    container.querySelectorAll('.punto-rosso').forEach(p=>p.remove());
     distretti.forEach(d => {
-      const [x, y] = d.coords.split(',').map(Number);
-      const percentX = x / natW * 100;
-      const percentY = y / natH * 100;
-
+      const [x,y] = d.coords.split(',').map(Number);
+      const px = x / natW * 100, py = y / natH * 100;
       const p = document.createElement('div');
-      p.className = 'punto-rosso';
-      p.style.left = `${percentX}%`;
-      p.style.top  = `${percentY}%`;
-      p.title           = d.nome;
+      p.className         = 'punto-rosso';
+      p.style.left        = `${px}%`;
+      p.style.top         = `${py}%`;
+      p.title             = d.nome;
       p.dataset.distretto = d.nome;
-
       p.addEventListener('click', e => {
         e.stopPropagation();
         document.getElementById('distrettoSelected').textContent =
           'Distretto selezionato: ' + d.nome;
-        const select = document.getElementById('distretto');
-        for (let o of select.options) {
-          if (o.textContent.trim() === d.nome.trim()) {
-            select.value = o.value;
-            break;
-          }
-        }
+        const sel = document.getElementById('distretto');
+        for (let o of sel.options) if (o.text.trim()===d.nome) { sel.value=o.value; break; }
       });
-
       container.appendChild(p);
     });
   }
 
   function syncContainer() {
-    console.log('syncContainer: img size', img.clientWidth, img.clientHeight);
-    container.style.width  = img.clientWidth + 'px';
+    container.style.width  = img.clientWidth  + 'px';
     container.style.height = img.clientHeight + 'px';
     renderPallini();
   }

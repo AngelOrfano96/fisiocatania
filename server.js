@@ -18,7 +18,6 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-
 app.use(session({
   secret: 'fisiocatania_secret',
   resave: false,
@@ -27,10 +26,10 @@ app.use(session({
 
 const USERS = { "admin@admin.com": "admin123" };
 
-// Creazione tabelle e popolamento iniziale
+// --- CREAZIONE TABELLE & POPOLAMENTO INIZIALE ---
 (async () => {
   try {
-    // Tabella anagrafica
+    // anagrafica
     await pool.query(`
       CREATE TABLE IF NOT EXISTS anagrafica (
         id SERIAL PRIMARY KEY,
@@ -43,7 +42,7 @@ const USERS = { "admin@admin.com": "admin123" };
       );
     `);
 
-    // Tabella distretti
+    // distretti
     await pool.query(`
       CREATE TABLE IF NOT EXISTS distretti (
         id SERIAL PRIMARY KEY,
@@ -51,65 +50,54 @@ const USERS = { "admin@admin.com": "admin123" };
         coords TEXT
       );
     `);
-
-    // Pulisci i distretti esistenti
-    await pool.query('DELETE FROM distretti');
-
-    // Coordinate centrate su immagine 850x850
+    // pulisco e reinserisco secondo lista
+    await pool.query('DELETE FROM distretti;');
     const distrettiDaInserire = [
       ['adduttore dx', '282,500'],
       ['adduttore sx', '309,500'],
-      ['alluce sx', '305,810'],
-      ['anca dx', '221,438'],
-      ['anca sx', '368,438'],
+      ['alluce sx',   '305,810'],
+      ['anca dx',     '221,438'],
+      ['anca sx',     '368,438'],
       ['caviglia dx', '267,780'],
       ['caviglia sx', '324,780'],
-      ['cervicale', '565,200'],
-      ['dorsale', '565,270'],
-      ['fascia alata', '300,380'],
-      ['fascia plantare', '530,815'],
-      ['flessore dx', '600,530'],
-      ['flessore sx', '530,530'],
-      ['ginocchio dx', '267,615'],
-      ['ginocchio sx', '324,615'],
-      ['gluteo dx', '600,420'],
-      ['gluteo sx', '530,420'],
-      ['lombare', '565,380'],
-      ['polpaccio dx', '600,690'],
-      ['polpaccio sx', '530,690'],
-      ['pube', '300,410'],
-      ['quadricipite dx', '267,550'],
-      ['quadricipite sx', '324,550'],
-      ['spalla dx', '655,210'],
-      ['spalla sx', '474,210'],
-      ['tendine d\'achille dx', '585,775'],
-      ['tendine d\'achille sx', '545,775'],
-      ['tibiale dx', '264,710'],
-      ['tibiale sx', '327,710']
+      ['cervicale',   '565,200'],
+      ['dorsale',     '565,270'],
+      ['fascia alata','300,380'],
+      ['fascia plantare','530,815'],
+      ['flessore dx','600,530'],
+      ['flessore sx','530,530'],
+      ['ginocchio dx','267,615'],
+      ['ginocchio sx','324,615'],
+      ['gluteo dx','600,420'],
+      ['gluteo sx','530,420'],
+      ['lombare','565,380'],
+      ['polpaccio dx','600,690'],
+      ['polpaccio sx','530,690'],
+      ['pube','300,410'],
+      ['quadricipite dx','267,550'],
+      ['quadricipite sx','324,550'],
+      ['spalla dx','655,210'],
+      ['spalla sx','474,210'],
+      ['tendine d\'achille dx','585,775'],
+      ['tendine d\'achille sx','545,775'],
+      ['tibiale dx','264,710'],
+      ['tibiale sx','327,710']
     ];
-
-    // Inserisci o aggiorna i distretti
-    for (const [nome, coords] of distrettiDaInserire) {
-      await pool.query(
-        `INSERT INTO distretti (nome, coords)
-         VALUES ($1, $2)`,
-        [nome, coords]
-      );
+    for (const [n, c] of distrettiDaInserire) {
+      await pool.query(`INSERT INTO distretti(nome,coords) VALUES($1,$2)`, [n, c]);
     }
 
-    // Tabella trattamenti
+    // trattamenti
     await pool.query(`
       CREATE TABLE IF NOT EXISTS trattamenti (
         id SERIAL PRIMARY KEY,
         nome TEXT
       );
     `);
-
-    // Popola trattamenti se vuota
-    const trattamentiCount = await pool.query('SELECT COUNT(*) FROM trattamenti');
-    if (parseInt(trattamentiCount.rows[0].count) === 0) {
+    const cnt = await pool.query(`SELECT COUNT(*) FROM trattamenti`);
+    if (+cnt.rows[0].count === 0) {
       await pool.query(`
-        INSERT INTO trattamenti (nome) VALUES
+        INSERT INTO trattamenti(nome) VALUES
         ('Massaggio decontratturante'),
         ('TENS'),
         ('Tecarterapia'),
@@ -119,51 +107,46 @@ const USERS = { "admin@admin.com": "admin123" };
         ('Stretching passivo'),
         ('Manipolazioni vertebrali');
       `);
-      console.log("✅ Tabella trattamenti popolata");
     }
 
-    // Tabella terapie
+    // terapie (con operatore)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS terapie (
         id SERIAL PRIMARY KEY,
         anagrafica_id INTEGER REFERENCES anagrafica(id),
-        distretto_id INTEGER REFERENCES distretti(id),
+        distretto_id  INTEGER REFERENCES distretti(id),
         trattamento_id INTEGER REFERENCES trattamenti(id),
         data_trattamento DATE,
-        note TEXT
+        note TEXT,
+        operatore TEXT
       );
     `);
 
-    console.log("✅ Tutte le tabelle pronte e popolate");
-  } catch (err) {
-    console.error("❌ Errore nella creazione delle tabelle:", err);
+    console.log("✅ Tabelle pronte e popolate");
+  } catch (e) {
+    console.error("❌ Errore creazione tabelle:", e);
   }
 })();
 
-// ROTTE
+// --- ROTTE AUTENTICAZIONE ---
 app.get('/', (req, res) => {
-  if (req.session.user) {
-    res.redirect('/dashboard');
-  } else {
-    res.render('login', { error: null });
-  }
+  if (req.session.user) return res.redirect('/dashboard');
+  res.render('login', { error: null });
 });
-
 app.post('/login', (req, res) => {
   const { email, password } = req.body;
   if (USERS[email] && USERS[email] === password) {
     req.session.user = email;
-    res.redirect('/dashboard');
-  } else {
-    res.render('login', { error: 'Credenziali errate' });
+    return res.redirect('/dashboard');
   }
+  res.render('login', { error: 'Credenziali errate' });
 });
-
 app.get('/logout', (req, res) => {
   req.session.destroy();
   res.redirect('/');
 });
 
+// --- DASHBOARD ---
 app.get('/dashboard', (req, res) => {
   if (!req.session.user) return res.redirect('/');
   res.render('layout', {
@@ -172,145 +155,128 @@ app.get('/dashboard', (req, res) => {
   });
 });
 
+// --- ANAGRAFICA ---
 app.get('/anagrafica', async (req, res) => {
   if (!req.session.user) return res.redirect('/');
-
   const { cognome = '', nome = '' } = req.query;
-  let query = 'SELECT * FROM anagrafica WHERE 1=1';
-  const values = [];
-
+  let sql = 'SELECT * FROM anagrafica WHERE 1=1';
+  const vals = [];
   if (cognome) {
-    values.push(`%${cognome}%`);
-    query += ` AND cognome ILIKE $${values.length}`;
+    vals.push(`%${cognome}%`);
+    sql += ` AND cognome ILIKE $${vals.length}`;
   }
   if (nome) {
-    values.push(`%${nome}%`);
-    query += ` AND nome ILIKE $${values.length}`;
+    vals.push(`%${nome}%`);
+    sql += ` AND nome ILIKE $${vals.length}`;
   }
-
-  query += ' ORDER BY id DESC';
-
+  sql += ' ORDER BY id DESC';
   try {
-    const result = await pool.query(query, values);
+    const r = await pool.query(sql, vals);
     res.render('layout', {
       page: 'anagrafica_content',
-      giocatori: result.rows,
+      giocatori: r.rows,
       filters: { cognome, nome },
       message: null
     });
-  } catch (err) {
-    console.error("Errore nel caricamento dati:", err);
+  } catch {
     res.render('layout', {
       page: 'anagrafica_content',
       giocatori: [],
       filters: { cognome, nome },
-      message: 'Errore nel caricamento delle anagrafiche'
+      message: 'Errore nel caricamento'
     });
   }
 });
-
 app.post('/anagrafica', async (req, res) => {
   const { cognome, nome, dataNascita, luogoNascita, cellulare, note } = req.body;
   try {
     await pool.query(
-      'INSERT INTO anagrafica (cognome, nome, data_nascita, luogo_nascita, cellulare, note) VALUES ($1, $2, $3, $4, $5, $6)',
+      `INSERT INTO anagrafica(cognome,nome,data_nascita,luogo_nascita,cellulare,note)
+       VALUES($1,$2,$3,$4,$5,$6)`,
       [cognome, nome, dataNascita, luogoNascita, cellulare, note]
     );
     res.redirect('/anagrafica');
-  } catch (err) {
-    console.error("Errore nel salvataggio:", err);
-    res.render('layout', {
-      page: 'anagrafica_content',
-      giocatori: [],
-      filters: { cognome: '', nome: '' },
-      message: 'Errore nel salvataggio.'
-    });
+  } catch {
+    res.redirect('/anagrafica');
   }
 });
-
 app.post('/anagrafica/delete/:id', async (req, res) => {
   if (!req.session.user) return res.redirect('/');
-  try {
-    await pool.query('DELETE FROM anagrafica WHERE id = $1', [req.params.id]);
-    res.redirect('/anagrafica');
-  } catch (err) {
-    console.error("Errore nella cancellazione:", err);
-    res.redirect('/anagrafica');
-  }
+  await pool.query(`DELETE FROM anagrafica WHERE id=$1`, [req.params.id]);
+  res.redirect('/anagrafica');
 });
-
 app.post('/anagrafica/update/:id', async (req, res) => {
   if (!req.session.user) return res.status(401).send('Non autorizzato');
-
-  const id = req.params.id;
-  const {
-    nome,
-    cognome,
-    data_nascita,
-    luogo_nascita,
-    cellulare,
-    note
-  } = req.body;
-
-  try {
-    await pool.query(
-      `UPDATE anagrafica 
-       SET nome = $1, cognome = $2, data_nascita = $3, luogo_nascita = $4, cellulare = $5, note = $6 
-       WHERE id = $7`,
-      [nome, cognome, data_nascita, luogo_nascita, cellulare, note, id]
-    );
-    res.status(200).send('Aggiornato');
-  } catch (err) {
-    console.error("Errore nell'aggiornamento:", err);
-    res.status(500).send('Errore interno');
-  }
+  const { nome, cognome, data_nascita, luogo_nascita, cellulare, note } = req.body;
+  await pool.query(
+    `UPDATE anagrafica SET nome=$1,cognome=$2,data_nascita=$3,luogo_nascita=$4,cellulare=$5,note=$6
+     WHERE id=$7`,
+    [nome, cognome, data_nascita, luogo_nascita, cellulare, note, req.params.id]
+  );
+  res.sendStatus(200);
 });
 
-// ROTTE TERAPIE
+// --- TERAPIE: FORM & LISTA FILTRATA ---
 app.get('/terapie', async (req, res) => {
   if (!req.session.user) return res.redirect('/');
-  try {
-    const anagrafiche = await pool.query('SELECT id, nome, cognome FROM anagrafica ORDER BY cognome');
-    const distretti = await pool.query('SELECT id, nome, coords FROM distretti ORDER BY nome');
-    const trattamenti = await pool.query('SELECT id, nome FROM trattamenti ORDER BY nome');
+  const { anagrafica = 'Tutti', distretto = 'Tutti', trattamento = 'Tutti' } = req.query;
 
-    res.render('layout', {
-      page: 'terapie_content',
-      anagrafiche: anagrafiche.rows,
-      distretti: distretti.rows,
-      trattamenti: trattamenti.rows,
-      message: null
-    });
-  } catch (err) {
-    console.error("Errore nel caricamento terapie:", err);
-    res.render('layout', {
-      page: 'terapie_content',
-      anagrafiche: [],
-      distretti: [],
-      trattamenti: [],
-      message: 'Errore nel caricamento della pagina terapie.'
-    });
-  }
+  // select lists
+  const [anagrafiche, distretti, trattamenti] = await Promise.all([
+    pool.query('SELECT id,nome,cognome FROM anagrafica ORDER BY cognome'),
+    pool.query('SELECT id,nome,coords FROM distretti ORDER BY nome'),
+    pool.query('SELECT id,nome FROM trattamenti ORDER BY nome')
+  ]);
+
+  // where dinamico
+  const where = [];
+  const vals  = [];
+  if (anagrafica!=='Tutti') { vals.push(anagrafica); where.push(`t.anagrafica_id=$${vals.length}`); }
+  if (distretto!=='Tutti')  { vals.push(distretto);  where.push(`t.distretto_id=$${vals.length}`); }
+  if (trattamento!=='Tutti'){ vals.push(trattamento);where.push(`t.trattamento_id=$${vals.length}`); }
+  const whereSQL = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+  // recupero lista
+  const therapies = await pool.query(`
+    SELECT
+      t.id,
+      t.operatore,
+      to_char(t.data_trattamento,'DD/MM/YYYY') AS data_trattamento,
+      a.nome     AS nome_anagrafica,
+      a.cognome  AS cognome_anagrafica,
+      d.nome     AS nome_distretto,
+      tr.nome    AS nome_trattamento
+    FROM terapie t
+    LEFT JOIN anagrafica a ON a.id=t.anagrafica_id
+    LEFT JOIN distretti  d ON d.id=t.distretto_id
+    LEFT JOIN trattamenti tr ON tr.id=t.trattamento_id
+    ${whereSQL}
+    ORDER BY t.data_trattamento DESC
+  `, vals);
+
+  res.render('layout', {
+    page: 'terapie_content',
+    anagrafiche: anagrafiche.rows,
+    distretti:    distretti.rows,
+    trattamenti:  trattamenti.rows,
+    therapies:    therapies.rows,
+    filters:      { anagrafica, distretto, trattamento },
+    message:      null
+  });
 });
 
 app.post('/terapie', async (req, res) => {
   if (!req.session.user) return res.redirect('/');
-
   const { anagrafica_id, distretto_id, trattamento_id, data_trattamento, note } = req.body;
-
-  try {
-    await pool.query(
-      'INSERT INTO terapie (anagrafica_id, distretto_id, trattamento_id, data_trattamento, note) VALUES ($1, $2, $3, $4, $5)',
-      [anagrafica_id, distretto_id, trattamento_id, data_trattamento, note]
-    );
-    res.redirect('/terapie');
-  } catch (err) {
-    console.error("Errore nel salvataggio terapia:", err);
-    res.redirect('/terapie');
-  }
+  await pool.query(
+    `INSERT INTO terapie(anagrafica_id,distretto_id,trattamento_id,data_trattamento,note,operatore)
+     VALUES($1,$2,$3,$4,$5,$6)`,
+    [anagrafica_id, distretto_id, trattamento_id, data_trattamento, note, req.session.user]
+  );
+  res.redirect('/terapie');
 });
 
-// AVVIO SERVER
+// --- AVVIO SERVER ---
 app.listen(PORT, () => {
   console.log(`Server in ascolto su http://localhost:${PORT}`);
 });
