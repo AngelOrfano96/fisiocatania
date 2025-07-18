@@ -44,8 +44,10 @@
     <% giocatori.forEach(g => { %>
       <tr data-id="<%= g.id %>">
         <form class="edit-form" method="POST" action="/anagrafica/update/<%= g.id %>">
-          <td><input name="nome" class="form-control form-control-sm-plaintext" value="<%= g.nome %>" readonly>
-              <input name="cognome" class="form-control form-control-sm-plaintext mt-1" value="<%= g.cognome %>" readonly></td>
+          <td>
+            <input name="nome" class="form-control form-control-sm" value="<%= g.nome %>" readonly>
+            <input name="cognome" class="form-control form-control-sm mt-1" value="<%= g.cognome %>" readonly>
+          </td>
           <td><input name="data_nascita" type="date" class="form-control form-control-sm" value="<%= g.data_nascita.toISOString().split('T')[0] %>" readonly></td>
           <td><input name="luogo_nascita" class="form-control form-control-sm" value="<%= g.luogo_nascita %>" readonly></td>
           <td><input name="cellulare" class="form-control form-control-sm" value="<%= g.cellulare %>" readonly></td>
@@ -56,9 +58,7 @@
             <button type="button" class="btn btn-sm btn-secondary d-none btn-cancel">↩️</button>
           </td>
           <td>
-            <form method="POST" action="/anagrafica/delete/<%= g.id %>" onsubmit="return confirm('Sei sicuro di voler eliminare?')">
-              <button class="btn btn-sm btn-danger">🗑️</button>
-            </form>
+            <button type="submit" formaction="/anagrafica/delete/<%= g.id %>" formmethod="POST" class="btn btn-sm btn-danger" onclick="return confirm('Confermi l\'eliminazione?')">🗑️</button>
           </td>
         </form>
       </tr>
@@ -81,16 +81,15 @@
       columnDefs: [{ orderable: false, targets: [5, 6] }]
     });
 
-    // Comportamento modifica inline
     $('.btn-edit').click(function () {
-      const row = $(this).closest('form');
-      row.find('input, textarea').prop('readonly', false);
-      row.find('.btn-edit').addClass('d-none');
-      row.find('.btn-save, .btn-cancel').removeClass('d-none');
+      const form = $(this).closest('form');
+      form.find('input, textarea').prop('readonly', false);
+      form.find('.btn-edit').addClass('d-none');
+      form.find('.btn-save, .btn-cancel').removeClass('d-none');
     });
 
     $('.btn-cancel').click(function () {
-      location.reload(); // Reload semplice per annullare ogni modifica
+      location.reload();
     });
   });
 </script>
