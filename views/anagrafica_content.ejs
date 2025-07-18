@@ -16,6 +16,7 @@
 
 <hr>
 <h4 class="mt-5">Lista Anagrafiche</h4>
+
 <form method="GET" action="/anagrafica" class="row g-2 mb-3">
   <div class="col-md-5">
     <input type="text" name="cognome" class="form-control" placeholder="Filtra per Cognome" value="<%= filters.cognome %>">
@@ -43,39 +44,39 @@
   <tbody>
     <% giocatori.forEach(g => { %>
       <tr data-id="<%= g.id %>">
-        <form class="edit-form" method="POST" action="/anagrafica/update/<%= g.id %>">
-          <td>
-            <span class="static"><%= g.nome %> <%= g.cognome %></span>
-            <div class="d-none editable">
-              <input name="nome" class="form-control form-control-sm mb-1" value="<%= g.nome %>">
-              <input name="cognome" class="form-control form-control-sm" value="<%= g.cognome %>">
-            </div>
-          </td>
-          <td>
-            <span class="static"><%= g.data_nascita.toISOString().split('T')[0] %></span>
-            <input name="data_nascita" type="date" class="form-control form-control-sm d-none editable" value="<%= g.data_nascita.toISOString().split('T')[0] %>">
-          </td>
-          <td>
-            <span class="static"><%= g.luogo_nascita %></span>
-            <input name="luogo_nascita" class="form-control form-control-sm d-none editable" value="<%= g.luogo_nascita %>">
-          </td>
-          <td>
-            <span class="static"><%= g.cellulare %></span>
-            <input name="cellulare" class="form-control form-control-sm d-none editable" value="<%= g.cellulare %>">
-          </td>
-          <td>
-            <span class="static"><%= g.note %></span>
-            <textarea name="note" class="form-control form-control-sm d-none editable"><%= g.note %></textarea>
-          </td>
-          <td>
-            <button type="button" class="btn btn-sm btn-warning btn-edit">✏️</button>
-            <button type="submit" class="btn btn-sm btn-success d-none btn-save">💾</button>
-            <button type="button" class="btn btn-sm btn-secondary d-none btn-cancel">↩️</button>
-          </td>
-          <td>
-            <button type="submit" formaction="/anagrafica/delete/<%= g.id %>" formmethod="POST" class="btn btn-sm btn-danger" onclick="return confirm('Confermi l\'eliminazione?')">🗑️</button>
-          </td>
-        </form>
+        <td class="anagrafica">
+          <span><%= g.nome %> <%= g.cognome %></span>
+          <div class="d-none">
+            <input name="nome" class="form-control form-control-sm mb-1" value="<%= g.nome %>">
+            <input name="cognome" class="form-control form-control-sm" value="<%= g.cognome %>">
+          </div>
+        </td>
+        <td class="data_nascita">
+          <span><%= g.data_nascita.toISOString().split('T')[0] %></span>
+          <input type="date" name="data_nascita" class="form-control form-control-sm d-none" value="<%= g.data_nascita.toISOString().split('T')[0] %>">
+        </td>
+        <td class="luogo_nascita">
+          <span><%= g.luogo_nascita %></span>
+          <input name="luogo_nascita" class="form-control form-control-sm d-none" value="<%= g.luogo_nascita %>">
+        </td>
+        <td class="cellulare">
+          <span><%= g.cellulare %></span>
+          <input name="cellulare" class="form-control form-control-sm d-none" value="<%= g.cellulare %>">
+        </td>
+        <td class="note">
+          <span><%= g.note %></span>
+          <textarea name="note" class="form-control form-control-sm d-none"><%= g.note %></textarea>
+        </td>
+        <td>
+          <button type="button" class="btn btn-warning btn-sm btn-edit">✏️</button>
+          <button type="button" class="btn btn-success btn-sm d-none btn-save">💾</button>
+          <button type="button" class="btn btn-secondary btn-sm d-none btn-cancel">↩️</button>
+        </td>
+        <td>
+          <form method="POST" action="/anagrafica/delete/<%= g.id %>" onsubmit="return confirm('Sicuro di voler eliminare?')">
+            <button class="btn btn-danger btn-sm">🗑️</button>
+          </form>
+        </td>
       </tr>
     <% }) %>
   </tbody>
@@ -85,16 +86,6 @@
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-
-<style>
-  td span.static {
-    display: inline-block;
-    width: 100%;
-    padding: 4px 6px;
-    background-color: transparent;
-    border-radius: 4px;
-  }
-</style>
 
 <script>
   $(document).ready(function () {
@@ -108,15 +99,32 @@
     });
 
     $('.btn-edit').click(function () {
-      const form = $(this).closest('form');
-      form.find('.static').addClass('d-none');
-      form.find('.editable').removeClass('d-none');
-      form.find('.btn-edit').addClass('d-none');
-      form.find('.btn-save, .btn-cancel').removeClass('d-none');
+      const row = $(this).closest('tr');
+      row.find('span').addClass('d-none');
+      row.find('input, textarea, div').removeClass('d-none');
+      row.find('.btn-edit').addClass('d-none');
+      row.find('.btn-save, .btn-cancel').removeClass('d-none');
     });
 
     $('.btn-cancel').click(function () {
-      location.reload();
+      location.reload(); // più semplice per ora
+    });
+
+    $('.btn-save').click(function () {
+      const row = $(this).closest('tr');
+      const id = row.data('id');
+      const data = {
+        nome: row.find('input[name="nome"]').val(),
+        cognome: row.find('input[name="cognome"]').val(),
+        data_nascita: row.find('input[name="data_nascita"]').val(),
+        luogo_nascita: row.find('input[name="luogo_nascita"]').val(),
+        cellulare: row.find('input[name="cellulare"]').val(),
+        note: row.find('textarea[name="note"]').val()
+      };
+
+      $.post(`/anagrafica/update/${id}`, data, function () {
+        location.reload(); // ricarica per ora, ma puoi anche aggiornare inline
+      });
     });
   });
 </script>

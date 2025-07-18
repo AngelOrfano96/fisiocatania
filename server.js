@@ -19,6 +19,7 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
 
 app.use(session({
   secret: 'fisiocatania_secret',
@@ -150,9 +151,9 @@ app.post('/anagrafica/delete/:id', async (req, res) => {
   }
 });
 
-// MODIFICA giocatore
+// MODIFICA giocatore via fetch o AJAX
 app.post('/anagrafica/update/:id', async (req, res) => {
-  if (!req.session.user) return res.redirect('/');
+  if (!req.session.user) return res.status(401).send('Non autorizzato');
 
   const id = req.params.id;
   const {
@@ -171,10 +172,10 @@ app.post('/anagrafica/update/:id', async (req, res) => {
        WHERE id = $7`,
       [nome, cognome, data_nascita, luogo_nascita, cellulare, note, id]
     );
-    res.redirect('/anagrafica');
+    res.status(200).send('Aggiornato');
   } catch (err) {
     console.error("Errore nell'aggiornamento:", err);
-    res.redirect('/anagrafica');
+    res.status(500).send('Errore interno');
   }
 });
 
