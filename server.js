@@ -30,12 +30,11 @@ const USERS = { "admin@admin.com": "admin123" };
 // Creazione tabelle e popolamento iniziale
 ;(async () => {
   try {
-    // anagrafica
+    // --- anagrafica
     await pool.query(`
       CREATE TABLE IF NOT EXISTS anagrafica (
         id SERIAL PRIMARY KEY,
-        cognome TEXT,
-        nome TEXT,
+        cognome TEXT, nome TEXT,
         data_nascita DATE,
         luogo_nascita TEXT,
         cellulare TEXT,
@@ -43,67 +42,69 @@ const USERS = { "admin@admin.com": "admin123" };
       );`
     );
 
-    // distretti
+    // --- distretti
     await pool.query(`
       CREATE TABLE IF NOT EXISTS distretti (
-        id SERIAL PRIMARY KEY,
-        nome TEXT UNIQUE,
+        id     SERIAL PRIMARY KEY,
+        nome   TEXT UNIQUE,
         coords TEXT
       );`
     );
 
-    // pulisco e reinserisco distretti
-    await pool.query(`DELETE FROM distretti;`);
-
+    // lista dei distretti + coords
     const distrettiDaInserire = [
-      ['adduttore dx', '282,500'],
-      ['adduttore sx', '309,500'],
-      ['alluce sx', '305,810'],
-      ['anca dx', '221,438'],
-      ['anca sx', '368,438'],
-      ['caviglia dx', '267,780'],
-      ['caviglia sx', '324,780'],
-      ['cervicale', '565,200'],
-      ['dorsale', '565,270'],
-      ['fascia alata', '300,380'],
-      ['fascia plantare', '530,815'],
-      ['flessore dx', '600,530'],
-      ['flessore sx', '530,530'],
-      ['ginocchio dx', '267,615'],
-      ['ginocchio sx', '324,615'],
-      ['gluteo dx', '600,420'],
-      ['gluteo sx', '530,420'],
-      ['lombare', '565,380'],
-      ['polpaccio dx', '600,690'],
-      ['polpaccio sx', '530,690'],
-      ['pube', '300,410'],
-      ['quadricipite dx', '267,550'],
-      ['quadricipite sx', '324,550'],
-      ['spalla dx', '655,210'],
-      ['spalla sx', '474,210'],
-      ['tendine d\'achille dx', '585,775'],
-      ['tendine d\'achille sx', '545,775'],
-      ['tibiale dx', '264,710'],
-      ['tibiale sx', '327,710']
+      ['adduttore dx',       '282,500'],
+      ['adduttore sx',       '309,500'],
+      ['alluce sx',          '305,810'],
+      ['anca dx',            '221,438'],
+      ['anca sx',            '368,438'],
+      ['caviglia dx',        '267,780'],
+      ['caviglia sx',        '324,780'],
+      ['cervicale',          '565,200'],
+      ['dorsale',            '565,270'],
+      ['fascia alata',       '300,380'],
+      ['fascia plantare',    '530,815'],
+      ['flessore dx',        '600,530'],
+      ['flessore sx',        '530,530'],
+      ['ginocchio dx',       '267,615'],
+      ['ginocchio sx',       '324,615'],
+      ['gluteo dx',          '600,420'],
+      ['gluteo sx',          '530,420'],
+      ['lombare',            '565,380'],
+      ['polpaccio dx',       '600,690'],
+      ['polpaccio sx',       '530,690'],
+      ['pube',               '300,410'],
+      ['quadricipite dx',    '267,550'],
+      ['quadricipite sx',    '324,550'],
+      ['spalla dx',          '655,210'],
+      ['spalla sx',          '474,210'],
+      ['tendine d\'achille dx','585,775'],
+      ['tendine d\'achille sx','545,775'],
+      ['tibiale dx',         '264,710'],
+      ['tibiale sx',         '327,710']
     ];
 
+    // upsert per ogni distretto
     for (const [nome, coords] of distrettiDaInserire) {
       await pool.query(
-        `INSERT INTO distretti (nome, coords) VALUES ($1, $2)`,
+        `INSERT INTO distretti (nome, coords)
+         VALUES ($1, $2)
+         ON CONFLICT (nome) DO UPDATE
+           SET coords = EXCLUDED.coords`,
         [nome, coords]
       );
     }
 
-    // trattamenti
+    // --- trattamenti
     await pool.query(`
       CREATE TABLE IF NOT EXISTS trattamenti (
-        id SERIAL PRIMARY KEY,
+        id   SERIAL PRIMARY KEY,
         nome TEXT
       );`
     );
 
-    const trattamentiCount = await pool.query(`SELECT COUNT(*) FROM trattamenti`);
-    if (+trattamentiCount.rows[0].count === 0) {
+    const cnt = await pool.query(`SELECT COUNT(*) FROM trattamenti`);
+    if (+cnt.rows[0].count === 0) {
       await pool.query(`
         INSERT INTO trattamenti (nome) VALUES
         ('Massaggio decontratturante'),
@@ -118,15 +119,15 @@ const USERS = { "admin@admin.com": "admin123" };
       console.log("✅ Tabella trattamenti popolata");
     }
 
-    // terapie
+    // --- terapie
     await pool.query(`
       CREATE TABLE IF NOT EXISTS terapie (
-        id SERIAL PRIMARY KEY,
-        anagrafica_id INTEGER REFERENCES anagrafica(id),
-        distretto_id   INTEGER REFERENCES distretti(id),
-        trattamento_id INTEGER REFERENCES trattamenti(id),
+        id              SERIAL PRIMARY KEY,
+        anagrafica_id   INTEGER REFERENCES anagrafica(id),
+        distretto_id    INTEGER REFERENCES distretti(id),
+        trattamento_id  INTEGER REFERENCES trattamenti(id),
         data_trattamento DATE,
-        note TEXT
+        note            TEXT
       );`
     );
 
