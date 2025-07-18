@@ -82,6 +82,11 @@ app.get('/anagrafica', (req, res) => {
     page: 'anagrafica_content'
   });
 });
+app.get('/logout', (req, res) => {
+  req.session.destroy();
+  res.redirect('/');
+});
+
 
 app.post('/anagrafica', async (req, res) => {
   const { cognome, nome, dataNascita, luogoNascita, cellulare, note } = req.body;
@@ -93,7 +98,7 @@ app.post('/anagrafica', async (req, res) => {
     res.render('layout', {
       page: 'anagrafica_content',
       message: 'Dati salvati con successo!'
-    });
+    });   
   } catch (err) {
     console.error("Errore nel salvataggio:", err);
     res.render('layout', {
