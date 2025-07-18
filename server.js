@@ -92,8 +92,7 @@ const USERS = { "admin@admin.com": "admin123" };
     for (const [nome, coords] of distrettiDaInserire) {
       await pool.query(
         `INSERT INTO distretti (nome, coords)
-         VALUES ($1, $2)
-         ON CONFLICT (nome) DO UPDATE SET coords = EXCLUDED.coords`,
+         VALUES ($1, $2)`,
         [nome, coords]
       );
     }
