@@ -87,6 +87,55 @@ app.get('/logout', (req, res) => {
   res.redirect('/');
 });
 
+app.get('/anagrafica', async (req, res) => {
+  if (!req.session.user) return res.redirect('/');
+
+  const { cognome, nome } = req.query;
+  let query = 'SELECT * FROM anagrafica';
+  let values = [];
+
+  if (cognome || nome) {
+    let conditions = [];
+    if (cognome) {
+      values.push(`%${cognome}%`);
+      conditions.push(`cognome ILIKE $${values.length}`);
+    }
+    if (nome) {
+      values.push(`%${nome}%`);
+      conditions.push(`nome ILIKE $${values.length}`);
+    }
+    query += ' WHERE ' + conditions.join(' AND ');
+  }
+
+  try {
+    const result = await pool.query(query, values);
+    res.render('layout', {
+      page: 'anagrafica_content',
+      giocatori: result.rows,
+      filters: { cognome: cognome || '', nome: nome || '' },
+      message: null
+    });
+  } catch (err) {
+    console.error(err);
+    res.render('layout', {
+      page: 'anagrafica_content',
+      giocatori: [],
+      filters: {},
+      message: 'Errore nel caricamento delle anagrafiche'
+    });
+  }
+});
+
+app.post('/anagrafica/delete/:id', async (req, res) => {
+  if (!req.session.user) return res.redirect('/');
+  try {
+    await pool.query('DELETE FROM anagrafica WHERE id = $1', [req.params.id]);
+    res.redirect('/anagrafica');
+  } catch (err) {
+    console.error(err);
+    res.redirect('/anagrafica');
+  }
+});
 
 app.post('/anagrafica', async (req, res) => {
   const { cognome, nome, dataNascita, luogoNascita, cellulare, note } = req.body;
