@@ -58,7 +58,7 @@ const USERS = { "admin@admin.com": "admin123" };
     // Coordinate centrate su immagine 850x850
     const distrettiDaInserire = [
       ['adduttore dx', '282,500'],
-      ['adduttore sx', '308,500'],
+      ['adduttore sx', '309,500'],
       ['alluce sx', '190,810'],
       ['anca dx', '221,438'],
       ['anca sx', '368,438'],
@@ -67,7 +67,7 @@ const USERS = { "admin@admin.com": "admin123" };
       ['cervicale', '565,200'],
       ['dorsale', '565,270'],
       ['fascia alata', '300,380'],
-      ['fascia plantare', '600,800'],
+      ['fascia plantare', '530,815'],
       ['flessore dx', '600,530'],
       ['flessore sx', '530,530'],
       ['ginocchio dx', '267,615'],
@@ -82,8 +82,8 @@ const USERS = { "admin@admin.com": "admin123" };
       ['quadricipite sx', '324,550'],
       ['spalla dx', '655,210'],
       ['spalla sx', '474,210'],
-      ['tendine d\'achille dx', '610,775'],
-      ['tendine d\'achille sx', '500,775'],
+      ['tendine d\'achille dx', '600,775'],
+      ['tendine d\'achille sx', '530,775'],
       ['tibiale dx', '264,710'],
       ['tibiale sx', '327,710']
     ];
