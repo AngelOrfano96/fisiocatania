@@ -120,56 +120,49 @@
     const container = document.getElementById('punti-container');
   
     function renderPallini() {
-      // Pulisci i vecchi
-      container.innerHTML = '';
-  
-      // Dimensioni fisiche reali e attuali
-      const natW = img.naturalWidth;
-      const natH = img.naturalHeight;
-      const dispW = img.clientWidth;
-      const dispH = img.clientHeight;
-  
-      distretti.forEach(d => {
-        const [x, y] = d.coords.split(',').map(Number);
-        // Calcola percentuale su base reale
-        const percentX = (x / natW) * 100;
-        const percentY = (y / natH) * 100;
-  
-        // Crea il pallino
-        const p = document.createElement('div');
-        p.className = 'punto-rosso';
-        p.style.left = `${percentX}%`;
-        p.style.top  = `${percentY}%`;
-        p.title       = d.nome;
-        p.dataset.distretto = d.nome;
-  
-        // Clic sul pallino → seleziona distretto
-        p.addEventListener('click', () => {
-          document.getElementById('distrettoSelected').textContent
-            = "Distretto selezionato: " + d.nome;
-          const sel = document.getElementById('distretto');
-          for (let o of sel.options) {
-            if (o.textContent.trim() === d.nome.trim()) {
-              sel.value = o.value;
-              break;
+        const natW = img.naturalWidth;
+        const natH = img.naturalHeight;
+        const dispW = img.clientWidth;
+        const dispH = img.clientHeight;
+      
+        console.log('nat:', natW, '×', natH, 'disp:', dispW, '×', dispH);
+      
+        // Svuota i pallini precedenti
+        container.querySelectorAll('.punto-rosso').forEach(p => p.remove());
+      
+        distretti.forEach(d => {
+          const [x, y] = d.coords.split(',').map(Number);
+      
+          // Calcolo in percentuale basato sulla dimensione naturale
+          const percentX = x / natW * 100;
+          const percentY = y / natH * 100;
+      
+          const p = document.createElement('div');
+          p.className = 'punto-rosso';
+          p.style.left = `${percentX}%`;
+          p.style.top  = `${percentY}%`;
+          p.title       = d.nome;
+          p.dataset.distretto = d.nome;
+      
+          p.addEventListener('click', () => {
+            document.getElementById('distrettoSelected').textContent =
+              "Distretto selezionato: " + d.nome;
+            const select = document.getElementById('distretto');
+            for (let o of select.options) {
+              if (o.textContent.trim() === d.nome.trim()) {
+                select.value = o.value;
+                break;
+              }
             }
-          }
+          });
+      
+          container.appendChild(p);
         });
+      }
   
-        container.appendChild(p);
-      });
-    }
-  
-    // Ridefinisci container dimensioni identiche all'immagine
-    function syncContainer() {
-      container.style.width  = img.clientWidth + 'px';
-      container.style.height = img.clientHeight + 'px';
-      renderPallini();
-    }
-  
-    // Al caricamento e ad ogni resize
-    img.addEventListener('load', syncContainer);
-    window.addEventListener('resize', syncContainer);
-    if (img.complete) syncContainer();
+  // Al load/resize ridisegna tutto
+  img.addEventListener('load', syncContainer);
+  window.addEventListener('resize', syncContainer);
+  if (img.complete) syncContainer();
   </script>
   
