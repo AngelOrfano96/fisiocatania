@@ -57,7 +57,7 @@ const USERS = { "admin@admin.com": "admin123" };
 
     // Coordinate centrate su immagine 850x850
     const distrettiDaInserire = [
-      ['adduttore dx', '286,500'],
+      ['adduttore dx', '285,500'],
       ['adduttore sx', '308,500'],
       ['alluce sx', '190,810'],
       ['anca dx', '221,438'],
@@ -78,8 +78,8 @@ const USERS = { "admin@admin.com": "admin123" };
       ['polpaccio dx', '660,760'],
       ['polpaccio sx', '190,760'],
       ['pube', '300,410'],
-      ['quadricipite dx', '660,660'],
-      ['quadricipite sx', '190,660'],
+      ['quadricipite dx', '265,580'],
+      ['quadricipite sx', '320,580'],
       ['spalla dx', '655,210'],
       ['spalla sx', '474,210'],
       ['tendine d\'achille dx', '660,790'],
