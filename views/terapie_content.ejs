@@ -64,45 +64,41 @@
 <hr>
 
 <h4 class="mb-3">Lista Terapie</h4>
-<form method="GET" action="/terapie" class="row g-3 align-items-end mb-3">
-  <div class="col-md-3">
-    <label class="form-label">Anagrafica</label>
-    <select name="filter_anagrafica" class="form-select">
-      <option value="">Tutti</option>
-      <% anagrafiche.forEach(a => { %>
-        <option value="<%= a.id %>" <%= filters.filter_anagrafica==a.id?'selected':'' %>>
-          <%= a.nome %> <%= a.cognome %>
-        </option>
-      <% }) %>
-    </select>
-  </div>
-  <div class="col-md-3">
-    <label class="form-label">Distretto anatomico</label>
-    <select name="filter_distretto" class="form-select">
-      <option value="">Tutti</option>
-      <% distretti.forEach(d => { %>
-        <option value="<%= d.id %>" <%= filters.filter_distretto==d.id?'selected':'' %>>
-          <%= d.nome %>
-        </option>
-      <% }) %>
-    </select>
-  </div>
-  <div class="col-md-3">
-    <label class="form-label">Trattamento</label>
-    <select name="filter_trattamento" class="form-select">
-      <option value="">Tutti</option>
-      <% trattamenti.forEach(t => { %>
-        <option value="<%= t.id %>" <%= filters.filter_trattamento==t.id?'selected':'' %>>
-          <%= t.nome %>
-        </option>
-      <% }) %>
-    </select>
-  </div>
-  <div class="col-md-3 text-end">
-    <button type="submit" class="btn btn-primary">Filtra</button>
-    <button type="button" class="btn btn-success" disabled>Esporta</button>
-  </div>
-</form>
+<form method="GET" action="/terapie" class="row g-2 mb-3">
+    <div class="col-md-4">
+      <select name="filter_anagrafica" class="form-select">
+        <option value="all" <%= filters.filter_anagrafica==='all'?'selected':'' %>>Tutti</option>
+        <% anagrafiche.forEach(a=>{ %>
+          <option value="<%= a.id %>" <%= filters.filter_anagrafica==a.id?'selected':'' %>>
+            <%= a.nome %> <%= a.cognome %>
+          </option>
+        <% }) %>
+      </select>
+    </div>
+    <div class="col-md-4">
+      <select name="filter_distretto" class="form-select">
+        <option value="all" <%= filters.filter_distretto==='all'?'selected':'' %>>Tutti</option>
+        <% distretti.forEach(d=>{ %>
+          <option value="<%= d.id %>" <%= filters.filter_distretto==d.id?'selected':'' %>>
+            <%= d.nome %>
+          </option>
+        <% }) %>
+      </select>
+    </div>
+    <div class="col-md-4">
+      <select name="filter_trattamento" class="form-select">
+        <option value="all" <%= filters.filter_trattamento==='all'?'selected':'' %>>Tutti</option>
+        <% trattamenti.forEach(t=>{ %>
+          <option value="<%= t.id %>" <%= filters.filter_trattamento==t.id?'selected':'' %>>
+            <%= t.nome %>
+          </option>
+        <% }) %>
+      </select>
+    </div>
+    <div class="col-12 text-end">
+      <button type="submit" class="btn btn-primary">Filtra</button>
+    </div>
+  </form>
 
 <table class="table table-striped">
   <thead>

@@ -236,16 +236,47 @@ app.post('/anagrafica/update/:id', async (req, res) => {
 });
 
 // --- TERAPIE con filtri e join ---
+// … tutto quello che hai già sopra, fino a prima di app.get('/terapie' …
+
+// ROTTE TERAPIE
 app.get('/terapie', async (req, res) => {
   if (!req.session.user) return res.redirect('/');
 
+  // 1) prendi i filtri dalla querystring
+  const {
+    filter_anagrafica = 'all',
+    filter_distretto   = 'all',
+    filter_trattamento = 'all'
+  } = req.query;
+
   try {
-    // Per il form di inserimento
+    // per il form di inserimento
     const anagrafiche = await pool.query('SELECT id, nome, cognome FROM anagrafica ORDER BY cognome');
     const distretti   = await pool.query('SELECT id, nome, coords FROM distretti ORDER BY nome');
     const trattamenti = await pool.query('SELECT id, nome FROM trattamenti ORDER BY nome');
 
-    // Lista già salvate
+    // 2) componi WHERE dinamico per lista terapie
+    let whereClauses = [];
+    let values = [];
+
+    if (filter_anagrafica !== 'all') {
+      values.push(filter_anagrafica);
+      whereClauses.push(`t.anagrafica_id = $${values.length}`);
+    }
+    if (filter_distretto !== 'all') {
+      values.push(filter_distretto);
+      whereClauses.push(`t.distretto_id = $${values.length}`);
+    }
+    if (filter_trattamento !== 'all') {
+      values.push(filter_trattamento);
+      whereClauses.push(`t.trattamento_id = $${values.length}`);
+    }
+
+    const whereSQL = whereClauses.length
+      ? 'WHERE ' + whereClauses.join(' AND ')
+      : '';
+
+    // 3) recupera la lista applicando i filtri
     const l = await pool.query(`
       SELECT
         t.id,
@@ -257,24 +288,33 @@ app.get('/terapie', async (req, res) => {
         tr.nome  AS trattamento
       FROM terapie t
       JOIN anagrafica a ON t.anagrafica_id = a.id
-      JOIN distretti d   ON t.distretto_id = d.id
+      JOIN distretti   d ON t.distretto_id = d.id
       JOIN trattamenti tr ON t.trattamento_id = tr.id
+      ${whereSQL}
       ORDER BY t.created_at DESC
-    `);
+    `, values);
 
+    // render, passando anche filters
     res.render('layout', {
       page: 'terapie_content',
-      anagrafiche: anagrafiche.rows,
-      distretti:   distretti.rows,
-      trattamenti: trattamenti.rows,
-      terapieList: l.rows,
+      anagrafiche:   anagrafiche.rows,
+      distretti:     distretti.rows,
+      trattamenti:   trattamenti.rows,
+      terapieList:   l.rows,
+      filters: {
+        filter_anagrafica,
+        filter_distretto,
+        filter_trattamento
+      },
       message: null
     });
+
   } catch (err) {
     console.error("Errore nel caricamento terapie:", err);
     res.render('layout', {
       page: 'terapie_content',
       anagrafiche: [], distretti: [], trattamenti: [], terapieList: [],
+      filters: { filter_anagrafica: 'all', filter_distretto: 'all', filter_trattamento: 'all' },
       message: 'Errore nel caricamento della pagina terapie.'
     });
   }
