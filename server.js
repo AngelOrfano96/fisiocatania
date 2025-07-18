@@ -50,6 +50,12 @@ const USERS = { "admin@admin.com": "admin123" };
         coords TEXT
       );`
     );
+        // Assicura che esista un indice UNIQUE su nome, anche se la tabella era già lì senza constraint
+        await pool.query(`
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_distretti_nome 
+          ON distretti (nome);
+        `);
+    
 
     // lista dei distretti + coords
     const distrettiDaInserire = [
