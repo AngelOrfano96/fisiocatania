@@ -57,8 +57,8 @@ const USERS = { "admin@admin.com": "admin123" };
 
     // Coordinate centrate su immagine 850x850
     const distrettiDaInserire = [
-      ['adduttore dx', '660,620'],
-      ['adduttore sx', '190,620'],
+      ['adduttore dx', '290,455'],
+      ['adduttore sx', '310,455'],
       ['alluce sx', '190,810'],
       ['anca dx', '221,438'],
       ['anca sx', '368,438'],
