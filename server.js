@@ -2,9 +2,18 @@ const express = require('express');
 const session = require('express-session');
 const path = require('path');
 const bodyParser = require('body-parser');
+const { Pool } = require('pg');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Collegamento al database PostgreSQL
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -20,6 +29,26 @@ app.use(session({
 const USERS = {
   "admin@admin.com": "admin123"
 };
+
+// Crea la tabella se non esiste
+(async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS anagrafica (
+        id SERIAL PRIMARY KEY,
+        cognome TEXT,
+        nome TEXT,
+        data_nascita DATE,
+        luogo_nascita TEXT,
+        cellulare TEXT,
+        note TEXT
+      );
+    `);
+    console.log("✅ Tabella anagrafica pronta");
+  } catch (err) {
+    console.error("❌ Errore nella creazione della tabella:", err);
+  }
+})();
 
 app.get('/', (req, res) => {
   if (req.session.user) {
@@ -49,10 +78,18 @@ app.get('/anagrafica', (req, res) => {
   res.render('anagrafica');
 });
 
-app.post('/anagrafica', (req, res) => {
-  const data = req.body;
-  console.log("Dati ricevuti:", data);
-  res.render('anagrafica', { message: 'Dati salvati (temporaneamente)!' });
+app.post('/anagrafica', async (req, res) => {
+  const { cognome, nome, dataNascita, luogoNascita, cellulare, note } = req.body;
+  try {
+    await pool.query(
+      'INSERT INTO anagrafica (cognome, nome, data_nascita, luogo_nascita, cellulare, note) VALUES ($1, $2, $3, $4, $5, $6)',
+      [cognome, nome, dataNascita, luogoNascita, cellulare, note]
+    );
+    res.render('anagrafica', { message: 'Dati salvati con successo!' });
+  } catch (err) {
+    console.error("Errore nel salvataggio:", err);
+    res.render('anagrafica', { message: 'Errore nel salvataggio.' });
+  }
 });
 
 app.listen(PORT, () => {
