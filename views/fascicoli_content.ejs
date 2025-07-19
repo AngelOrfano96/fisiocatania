@@ -40,17 +40,15 @@
     </tr>
   </thead>
   <tbody>
-    <% anagrafiche.forEach(a => { %>
+    <% anagrafiche.forEach(a => {
+         // preparo la foto e la data
+         const fotoSrc = a.foto || defaultPhoto;
+         const dataDisplay = typeof a.data_nascita === 'string'
+           ? a.data_nascita.slice(0,10)
+           : '';
+    %>
       <tr>
         <td>
-          <% 
-            // Se c’è un URL in a.foto lo uso, altrimenti il default
-            const fotoSrc = a.foto || defaultPhoto;
-            // Estraggo YYYY-MM-DD dalla stringa
-            const dataDisplay = typeof a.data_nascita === 'string'
-              ? a.data_nascita.slice(0,10)
-              : '';
-          %>
           <img
             src="<%= fotoSrc %>"
             alt="Foto di <%= a.nome %> <%= a.cognome %>"
@@ -64,10 +62,11 @@
         <td><%= a.luogo_nascita %></td>
         <td><%= a.cellulare %></td>
         <td>
+          <!-- uso onclick inline per non sbagliare mai l'id -->
           <button
             type="button"
-            class="btn btn-sm btn-info btn-view"
-            data-id="<%= a.id %>"
+            class="btn btn-sm btn-info"
+            onclick="caricaFascicolo(<%= a.id %>)"
           >👁️</button>
         </td>
       </tr>
@@ -78,10 +77,26 @@
 <div id="fascicolo-detail" class="mt-4"></div>
 
 <script>
-  // Funzione per attivare il photo‑editor nel dettaglio
+  // funzione per fare il fetch del dettaglio e montare l'editor foto
+  async function caricaFascicolo(id) {
+    if (!id || isNaN(id)) {
+      return alert('ID non valido: ' + id);
+    }
+    try {
+      const res = await fetch(`/fascicoli/${id}`);
+      if (!res.ok) throw new Error('Errore nel caricamento del fascicolo');
+      const html = await res.text();
+      document.getElementById('fascicolo-detail').innerHTML = html;
+      initPhotoEditor();
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  // initPhotoEditor: aggancia i pulsanti modifica/salva/annulla alla foto
   function initPhotoEditor() {
-    const btnEdit   = document.querySelector('#fascicolo-detail #btn-edit-photo');
-    if (!btnEdit) return; // non siamo in un dettaglio
+    const btnEdit = document.getElementById('btn-edit-photo');
+    if (!btnEdit) return; // se non esiste, niente da fare
     const btnSave   = document.getElementById('btn-save-photo');
     const btnCancel = document.getElementById('btn-cancel-photo');
     const inputFile = document.getElementById('foto-input');
@@ -99,7 +114,6 @@
       btnEdit.classList.remove('d-none');
       btnSave.classList.add('d-none');
       btnCancel.classList.add('d-none');
-      // ripristino preview
       imgPreview.src = imgPreview.getAttribute('src');
     });
     inputFile.addEventListener('change', () => {
@@ -110,25 +124,4 @@
       reader.readAsDataURL(file);
     });
   }
-
-  // Attacco i listener sui pulsanti “👁️” **dopo** che il DOM è pronto
-  document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.btn-view').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const id = btn.getAttribute('data-id');
-        if (!id) return alert('ID non valido per questa anagrafica');
-        fetch(`/fascicoli/${id}`)
-          .then(res => {
-            if (!res.ok) throw new Error('Errore nel caricamento del fascicolo');
-            return res.text();
-          })
-          .then(html => {
-            const container = document.getElementById('fascicolo-detail');
-            container.innerHTML = html;
-            initPhotoEditor();
-          })
-          .catch(err => alert(err.message));
-      });
-    });
-  });
 </script>
