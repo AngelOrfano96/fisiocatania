@@ -3,7 +3,12 @@
 <head>
   <title>FisioCatania</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- DataTables Bootstrap5 CSS -->
+  <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+
   <style>
     @media (min-width: 768px) {
       #menu {
@@ -46,15 +51,37 @@
   <div id="menu" class="border-bottom d-md-block d-flex flex-column flex-md-column">
     <h5 class="ms-2 mt-2">Menù</h5>
     <ul class="nav flex-column flex-md-column flex-sm-row">
-      <li class="nav-item"><a href="/dashboard" class="nav-link <%= page === 'dashboard_content' ? 'active' : '' %>">Dashboard</a></li>
-      <li class="nav-item"><a href="/anagrafica" class="nav-link <%= page === 'anagrafica_content' ? 'active' : '' %>">Anagrafica</a></li>
-      <li class="nav-item"><a href="/terapie" class="nav-link <%= page === 'terapie_content' ? 'active' : '' %>">Terapie</a></li>
-      <li class="nav-item"><a href="/logout" class="nav-link text-danger">Logout</a></li>
+      <li class="nav-item">
+        <a href="/dashboard" class="nav-link <%= page === 'dashboard_content' ? 'active' : '' %>">
+          Dashboard
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="/anagrafica" class="nav-link <%= page === 'anagrafica_content' ? 'active' : '' %>">
+          Anagrafica
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="/terapie" class="nav-link <%= page === 'terapie_content' ? 'active' : '' %>">
+          Terapie
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="/logout" class="nav-link text-danger">Logout</a>
+      </li>
     </ul>
   </div>
 
   <div id="content">
     <%- include(page) %>
   </div>
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <!-- Bootstrap Bundle (Popper + JS) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- DataTables JS -->
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 </body>
 </html>

@@ -332,6 +332,37 @@ app.post('/terapie', async (req, res) => {
   }
 });
 
+// UPDATE inline di una terapia
+app.post('/terapie/update/:id', async (req, res) => {
+  if (!req.session.user) return res.redirect('/');
+
+  const id = req.params.id;
+  const {
+    anagrafica_id,
+    distretto_id,
+    trattamento_id,
+    data_trattamento,
+    note
+  } = req.body;
+
+  try {
+    await pool.query(
+      `UPDATE terapie
+         SET anagrafica_id   = $1,
+             distretto_id     = $2,
+             trattamento_id   = $3,
+             data_trattamento = $4,
+             note             = $5
+       WHERE id = $6`,
+      [anagrafica_id, distretto_id, trattamento_id, data_trattamento, note, id]
+    );
+    res.redirect('/terapie');
+  } catch (err) {
+    console.error("Errore nell'aggiornamento terapia:", err);
+    res.redirect('/terapie');
+  }
+});
+
 // Avvio server
 app.listen(PORT, () => {
   console.log(`Server in ascolto su http://localhost:${PORT}`);
