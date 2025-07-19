@@ -120,28 +120,32 @@
   // 1) Upload allegati con fetch + toast di conferma
   document.querySelectorAll('tbody tr').forEach(row => {
     const therapyId = row.dataset.id;
-    const fileInput = row.querySelector('.file-input');
-    const btnUpload = row.querySelector('.btn-upload');
-    const btnCancel = row.querySelector('.btn-cancel-allegato');
+    const cell = row.querySelector('td:last-child'); // la cella "Allegati"
+    const fileInput = cell.querySelector('.file-input');
+    const btnUpload = cell.querySelector('.btn-upload');
+    const btnCancel = cell.querySelector('.btn-cancel-allegato');
 
-    // apri file picker
-    row.querySelector('.upload-trigger').addEventListener('click', e => {
+    // click sull’icona per aprire file picker
+    cell.querySelector('.upload-trigger').addEventListener('click', e => {
       e.stopPropagation();
       fileInput.click();
     });
 
+    // quando scelgo un file, mostra Salva/Annulla
     fileInput.addEventListener('change', () => {
       if (!fileInput.files.length) return;
       btnUpload.classList.remove('d-none');
       btnCancel.classList.remove('d-none');
     });
 
+    // annulla selezione
     btnCancel.addEventListener('click', () => {
       fileInput.value = '';
       btnUpload.classList.add('d-none');
       btnCancel.classList.add('d-none');
     });
 
+    // upload vero e proprio
     btnUpload.addEventListener('click', () => {
       const formData = new FormData();
       formData.append('allegato', fileInput.files[0]);
@@ -161,6 +165,7 @@
         toast.textContent = 'Allegato caricato!';
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 3000);
+
         // reset UI
         fileInput.value = '';
         btnUpload.classList.add('d-none');
