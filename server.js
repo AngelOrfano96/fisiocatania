@@ -333,35 +333,36 @@ app.post('/terapie', async (req, res) => {
 });
 
 // UPDATE inline di una terapia
+// UPDATE inline di una terapia
 app.post('/terapie/update/:id', async (req, res) => {
-  if (!req.session.user) return res.redirect('/');
-
+  if (!req.session.user) return res.status(401).send('Non autorizzato');
   const id = req.params.id;
   const {
+    data_trattamento,
     anagrafica_id,
     distretto_id,
     trattamento_id,
-    data_trattamento,
     note
   } = req.body;
 
   try {
     await pool.query(
       `UPDATE terapie
-         SET anagrafica_id   = $1,
-             distretto_id     = $2,
-             trattamento_id   = $3,
-             data_trattamento = $4,
+         SET data_trattamento = $1,
+             anagrafica_id    = $2,
+             distretto_id     = $3,
+             trattamento_id   = $4,
              note             = $5
        WHERE id = $6`,
-      [anagrafica_id, distretto_id, trattamento_id, data_trattamento, note, id]
+      [data_trattamento, anagrafica_id, distretto_id, trattamento_id, note, id]
     );
-    res.redirect('/terapie');
+    res.sendStatus(200);
   } catch (err) {
-    console.error("Errore nell'aggiornamento terapia:", err);
-    res.redirect('/terapie');
+    console.error("Errore nell'update terapia:", err);
+    res.sendStatus(500);
   }
 });
+
 
 // Avvio server
 app.listen(PORT, () => {
