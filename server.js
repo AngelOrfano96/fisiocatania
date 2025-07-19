@@ -497,7 +497,7 @@ app.get('/fascicoli', async (req, res) => {
 });
 
 // dettaglio di un singolo fascicolo (partial HTML)
-app.get('/fascicoli/:id', async (req, res) => {
+/*app.get('/fascicoli/:id', async (req, res) => {
   if (!req.session.user) return res.status(401).send('Non autorizzato');
   const { id } = req.params;
   try {
@@ -531,11 +531,44 @@ app.get('/fascicoli/:id', async (req, res) => {
     console.error(err);
     res.status(500).send('Errore interno');
   }
+}); */
+
+app.get('/fascicoli/:id', async (req, res) => {
+  if (!req.session.user) return res.status(401).send('Non autorizzato');
+
+  const id = req.params.id;
+  try {
+    const aRes = await pool.query(
+      `SELECT * FROM anagrafica WHERE id = $1`,
+      [id]
+    );
+    if (!aRes.rows.length) return res.status(404).send('Non trovato');
+
+    const anag = aRes.rows[0];
+    const tRes = await pool.query(
+      `SELECT 
+         d.nome AS distretto,
+         tr.nome AS trattamento,
+         t.data_trattamento,
+         t.note
+       FROM terapie t
+       JOIN distretti d ON t.distretto_id = d.id
+       JOIN trattamenti tr ON t.trattamento_id = tr.id
+       WHERE t.anagrafica_id = $1
+       ORDER BY t.data_trattamento DESC`,
+      [id]
+    );
+
+    res.render('fascicoli_detail', {
+      anagrafica: anag,
+      therapies: tRes.rows,
+      defaultPhoto: '/images/default.png'
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Errore interno');
+  }
 });
-
-
-
-
 
 // Avvio server
 app.listen(PORT, () => {

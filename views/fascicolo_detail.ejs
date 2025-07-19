@@ -1,0 +1,42 @@
+<div class="card">
+  <div class="card-body">
+    <% 
+      // Costruisci src per la foto
+      const fotoSrc = anagrafica.foto
+        ? '/uploads/' + encodeURIComponent(anagrafica.foto)
+        : defaultPhoto;
+    %>
+    <div class="d-flex mb-3">
+      <img src="<%= fotoSrc %>" 
+           alt="Foto di <%= anagrafica.nome %> <%= anagrafica.cognome %>" 
+           class="rounded me-3" 
+           style="width:120px;height:120px;object-fit:cover;"
+           onerror="this.onerror=null;this.src='<%= defaultPhoto %>'">
+      <div>
+        <h5><%= anagrafica.nome %> <%= anagrafica.cognome %></h5>
+        <p><strong>Data di nascita:</strong> <%= anagrafica.data_nascita.toISOString().split('T')[0] %></p>
+        <p><strong>Comune:</strong> <%= anagrafica.luogo_nascita %></p>
+        <p><strong>Cellulare:</strong> <%= anagrafica.cellulare %></p>
+        <p><strong>Note:</strong> <%= anagrafica.note || '—' %></p>
+      </div>
+    </div>
+    <h6 class="mt-4">Terapie collegate</h6>
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th>Data</th><th>Distretto</th><th>Trattamento</th><th>Note</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% therapies.forEach(t => { %>
+          <tr>
+            <td><%= t.data_trattamento.toISOString().split('T')[0] %></td>
+            <td><%= t.distretto %></td>
+            <td><%= t.trattamento %></td>
+            <td><%= t.note || '—' %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
