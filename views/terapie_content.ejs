@@ -160,23 +160,25 @@
 </table>
 
 <script>
-  // inizializza DataTables
-  $('#tabellaTerapie').DataTable({
-    pageLength: 10,
-    lengthMenu: [5, 10, 20],
-    columnDefs: [{ orderable: false, targets: 6 }]
-  });
+  $(document).ready(function() {
+    // inizializza DataTable
+    $('#tabellaTerapie').DataTable({
+      pageLength: 10,
+      lengthMenu: [5, 10, 20],
+      columnDefs: [{ orderable: false, targets: 6 }]
+    });
 
-  // inline edit
-  $('.btn-edit').on('click', function() {
-    const form = $(this).closest('form');
-    form.find('.static').addClass('d-none');
-    form.find('.editable').removeClass('d-none');
-    form.find('.btn-edit').addClass('d-none');
-    form.find('.btn-save, .btn-cancel').removeClass('d-none');
-  });
-  $('.btn-cancel').on('click', function() {
-    location.reload();
+    // inline edit
+    $('.btn-edit').on('click', function() {
+      const form = $(this).closest('form');
+      form.find('.static').addClass('d-none');
+      form.find('.editable').removeClass('d-none');
+      form.find('.btn-edit').addClass('d-none');
+      form.find('.btn-save, .btn-cancel').removeClass('d-none');
+    });
+    $('.btn-cancel').on('click', function() {
+      location.reload();
+    });
   });
 </script>
 
