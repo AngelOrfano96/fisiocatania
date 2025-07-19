@@ -78,10 +78,7 @@
               <td>
                 <label class="btn btn-outline-primary btn-sm m-0 upload-trigger">
                   📎
-                  <input type="file"
-                         accept="image/*"
-                         class="d-none file-input"
-                         required>
+                  <input type="file class="file-input d-none" accept="image/*">
                 </label>
                 <button class="btn btn-sm btn-success btn-upload d-none">💾</button>
                 <button class="btn btn-sm btn-secondary btn-cancel-allegato d-none">↩️</button>
@@ -124,7 +121,54 @@
     const fileInput = cell.querySelector('.file-input');
     const btnUpload = cell.querySelector('.btn-upload');
     const btnCancel = cell.querySelector('.btn-cancel-allegato');
+    const trigger    = cell.querySelector('.upload-trigger');
 
+     trigger.addEventListener('click', e => {
+    e.stopPropagation();
+    fileInput.click();
+  });
+
+   fileInput.addEventListener('change', () => {
+    if (!fileInput.files.length) return;
+    btnUpload.classList.remove('d-none');
+    btnCancel.classList.remove('d-none');
+  });
+
+    btnCancel.addEventListener('click', () => {
+    fileInput.value = '';
+    btnUpload.classList.add('d-none');
+    btnCancel.classList.add('d-none');
+  });
+   
+btnUpload.addEventListener('click', () => {
+    const formData = new FormData();
+    formData.append('allegato', fileInput.files[0]);
+
+    fetch(`/terapie/${therapyId}/allegati`, {
+      method: 'POST',
+      body: formData
+    })
+    .then(res => {
+      if (!res.ok) throw new Error('Upload fallito');
+      return res.text();
+    })
+    .then(() => {
+      // toast di conferma
+      const toast = document.createElement('div');
+      toast.className = 'alert alert-success position-fixed bottom-0 end-0 m-3';
+      toast.textContent = 'Allegato caricato!';
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+
+      // reset UI
+      fileInput.value = '';
+      btnUpload.classList.add('d-none');
+      btnCancel.classList.add('d-none');
+    })
+    .catch(err => alert(err.message));
+  });
+
+    /*
     // click sull’icona per aprire file picker
     cell.querySelector('.upload-trigger').addEventListener('click', e => {
       e.stopPropagation();
@@ -172,7 +216,7 @@
         btnCancel.classList.add('d-none');
       })
       .catch(err => alert(err.message));
-    });
+    }); */
   });
 
   // 2) Photo‑editor init
