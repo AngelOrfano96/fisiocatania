@@ -248,7 +248,36 @@ app.get('/anagrafica', async (req, res) => {
   }
 });
 
+// subito dopo aver inizializzato `const upload = multer({ storage })`
 
+app.post('/anagrafica', upload.single('foto'), async (req, res) => {
+  const { cognome, nome, dataNascita, luogoNascita, cellulare, note } = req.body;
+  // CloudinaryStorage ti mette l’URL in req.file.path
+  const fotoUrl = req.file ? req.file.path : null;
+
+  try {
+    await pool.query(
+      `INSERT INTO anagrafica
+         (cognome, nome, data_nascita, luogo_nascita, cellulare, note, foto)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [cognome, nome, dataNascita, luogoNascita, cellulare, note, fotoUrl]
+    );
+    return res.redirect('/anagrafica');
+  } catch (err) {
+    console.error("Errore nel salvataggio:", err);
+    // Ricarico la pagina di inserimento con il messaggio di errore
+    const filters = { cognome: '', nome: '' };
+    return res.render('layout', {
+      page:    'anagrafica_content',
+      giocatori: [],      // non mostriamo la lista in caso di errore
+      filters,
+      message: err.message || 'Errore nel salvataggio'
+    });
+  }
+});
+
+
+/*
 // creazione con upload Cloudinary
 app.post('/anagrafica', upload.single('foto'), async (req, res) => {
   const { cognome, nome, dataNascita, luogoNascita, cellulare, note } = req.body;
@@ -274,7 +303,7 @@ app.post('/anagrafica', upload.single('foto'), async (req, res) => {
     console.error("Errore nel salvataggio:", err);
     res.redirect('/anagrafica');
   }
-});
+}); */
 
 
 // POST elimina anagrafica (e tutte le terapie collegate)

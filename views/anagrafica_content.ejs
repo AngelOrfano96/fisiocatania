@@ -1,8 +1,9 @@
 <h3>Registrazione Calciatore</h3>
 
-<% if (typeof message !== 'undefined') { %>
-  <div class="alert alert-success"><%= message %></div>
+<% if (typeof message !== 'undefined' && message) { %>
+  <div class="alert alert-danger"><%= message %></div>
 <% } %>
+
 
 <form method="POST" action="/anagrafica" enctype="multipart/form-data">
   <div class="mb-3"><input name="cognome" class="form-control" placeholder="Cognome" required></div>
