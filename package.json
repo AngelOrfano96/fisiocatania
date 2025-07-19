@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@supabase/supabase-js": "^2.52.0",
     "body-parser": "^2.2.0",
     "cloudinary": "^1.41.3",
     "dotenv": "^17.2.0",
