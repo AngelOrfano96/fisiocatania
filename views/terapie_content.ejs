@@ -62,8 +62,6 @@
 </form>
 
 <hr>
-
-<hr>
 <h4 class="mb-3">Lista Terapie</h4>
 <form method="GET" action="/terapie" class="row g-2 mb-3">
   <div class="col-md-4">
@@ -109,53 +107,83 @@
     </tr>
   </thead>
   <tbody>
-    <% therapies.forEach(t => { %>
-      <tr data-id="<%= t.id %>">
-        <td class="operatore"><span class="static"><%= t.operatore %></span></td>
-        <td class="data_trattamento">
-          <span class="static"><%= t.data_trattamento.toISOString().split('T')[0] %></span>
-          <input name="data_trattamento" type="date" class="form-control form-control-sm editable d-none" value="<%= t.data_trattamento.toISOString().split('T')[0] %>">
-        </td>
-        <td class="anagrafica">
-          <span class="static"><%= t.anagrafica %></span>
-          <select name="anagrafica_id" class="form-select form-select-sm editable d-none">
-            <% anagrafiche.forEach(a => { %>
-              <option value="<%= a.id %>" <%= a.nome+' '+a.cognome === t.anagrafica ? 'selected':'' %>><%= a.nome %> <%= a.cognome %></option>
-            <% }) %>
-          </select>
-        </td>
-        <td class="distretto">
-          <span class="static"><%= t.distretto %></span>
-          <select name="distretto_id" class="form-select form-select-sm editable d-none">
-            <% distretti.forEach(d => { %>
-              <option value="<%= d.id %>" <%= d.nome === t.distretto ? 'selected':'' %>><%= d.nome %></option>
-            <% }) %>
-          </select>
-        </td>
-        <td class="trattamento">
-          <span class="static"><%= t.trattamento %></span>
-          <select name="trattamento_id" class="form-select form-select-sm editable d-none">
-            <% trattamenti.forEach(r => { %>
-              <option value="<%= r.id %>" <%= r.nome === t.trattamento ? 'selected':'' %>><%= r.nome %></option>
-            <% }) %>
-          </select>
-        </td>
-        <td class="note">
-          <span class="static"><%= t.note %></span>
-          <input name="note" class="form-control form-control-sm editable d-none" value="<%= t.note %>">
-        </td>
-        <td>
-          <button type="button" class="btn btn-sm btn-warning btn-edit">✏️</button>
-          <button type="button" class="btn btn-sm btn-success btn-save d-none">💾</button>
-          <button type="button" class="btn btn-sm btn-secondary btn-cancel d-none">↩️</button>
-          <!-- delete -->
-  <form method="POST" action="/terapie/delete/<%= t.id %>" class="d-inline" onsubmit="return confirm('Confermi eliminazione di questa terapia?')">
-    <button type="submit" class="btn btn-sm btn-danger">🗑️</button>
-  </form>
-        </td>
-      </tr>
-    <% }) %>
-  </tbody>
+  <% therapies.forEach(t => { 
+      // formattazione sicura della data
+      let dt = t.data_trattamento;
+      let dtStr = (dt instanceof Date)
+        ? dt.toISOString().split('T')[0]
+        : (typeof dt === 'string' ? dt.slice(0,10) : '');
+  %>
+    <tr data-id="<%= t.id %>">
+      <td class="operatore">
+        <span class="static"><%= t.operatore %></span>
+      </td>
+      <td class="data_trattamento">
+        <span class="static"><%= dtStr %></span>
+        <input
+          name="data_trattamento"
+          type="date"
+          class="form-control form-control-sm editable d-none"
+          value="<%= dtStr %>"
+        >
+      </td>
+      <td class="anagrafica">
+        <span class="static"><%= t.anagrafica %></span>
+        <select name="anagrafica_id" class="form-select form-select-sm editable d-none">
+          <% anagrafiche.forEach(a => { %>
+            <option
+              value="<%= a.id %>"
+              <%= (a.nome+' '+a.cognome) === t.anagrafica ? 'selected' : '' %>
+            ><%= a.nome %> <%= a.cognome %></option>
+          <% }) %>
+        </select>
+      </td>
+      <td class="distretto">
+        <span class="static"><%= t.distretto %></span>
+        <select name="distretto_id" class="form-select form-select-sm editable d-none">
+          <% distretti.forEach(d => { %>
+            <option
+              value="<%= d.id %>"
+              <%= d.nome === t.distretto ? 'selected' : '' %>
+            ><%= d.nome %></option>
+          <% }) %>
+        </select>
+      </td>
+      <td class="trattamento">
+        <span class="static"><%= t.trattamento %></span>
+        <select name="trattamento_id" class="form-select form-select-sm editable d-none">
+          <% trattamenti.forEach(r => { %>
+            <option
+              value="<%= r.id %>"
+              <%= r.nome === t.trattamento ? 'selected' : '' %>
+            ><%= r.nome %></option>
+          <% }) %>
+        </select>
+      </td>
+      <td class="note">
+        <span class="static"><%= t.note %></span>
+        <input
+          name="note"
+          class="form-control form-control-sm editable d-none"
+          value="<%= t.note %>"
+        >
+      </td>
+      <td>
+        <button type="button" class="btn btn-sm btn-warning btn-edit">✏️</button>
+        <button type="button" class="btn btn-sm btn-success btn-save d-none">💾</button>
+        <button type="button" class="btn btn-sm btn-secondary btn-cancel d-none">↩️</button>
+        <form
+          method="POST"
+          action="/terapie/delete/<%= t.id %>"
+          class="d-inline"
+          onsubmit="return confirm('Confermi eliminazione di questa terapia?')"
+        >
+          <button type="submit" class="btn btn-sm btn-danger">🗑️</button>
+        </form>
+      </td>
+    </tr>
+  <% }) %>
+</tbody>
 </table>
 
 <!-- includi jQuery + DataTables -->

@@ -222,56 +222,55 @@ app.get('/dashboard', (req, res) => {
   res.render('layout', { page: 'dashboard_content', user: req.session.user });
 });
 
+
 // ANAGRAFICA
 app.get('/anagrafica', async (req, res) => {
   if (!req.session.user) return res.redirect('/');
+  const { cognome = '', nome = '' } = req.query;
   try {
-    const { data: giocatori, error } = await supabase
-      .from('anagrafica')
-      .select('*')
-      .order('id', { ascending: false });
+    let query = supabase.from('anagrafica').select('*').order('id', { ascending: false });
+    if (cognome) query = query.ilike('cognome', `%${cognome}%`);
+    if (nome)     query = query.ilike('nome',     `%${nome}%`);
+    const { data: giocatori, error } = await query;
     if (error) throw error;
     res.render('layout', {
-      page: 'anagrafica_content',
+      page:    'anagrafica_content',
       giocatori,
-      filters: { cognome: '', nome: '' },
+      filters: { cognome, nome },
       message: null
     });
   } catch (err) {
     console.error(err);
     res.render('layout', {
-      page: 'anagrafica_content',
+      page:    'anagrafica_content',
       giocatori: [],
-      filters: { cognome: '', nome: '' },
+      filters: { cognome, nome },
       message: 'Errore nel caricamento delle anagrafiche'
     });
   }
 });
 
-// subito dopo aver inizializzato `const upload = multer({ storage })`
-
+// POST /anagrafica  (con Cloudinary + multer-storage)
 app.post('/anagrafica', upload.single('foto'), async (req, res) => {
+  if (!req.session.user) return res.redirect('/');
   const { cognome, nome, dataNascita, luogoNascita, cellulare, note } = req.body;
-  // CloudinaryStorage ti mette l’URL in req.file.path
-  const fotoUrl = req.file ? req.file.path : null;
-
+  const foto = req.file?.path || null;
   try {
-    await pool.query(
-      `INSERT INTO anagrafica
-         (cognome, nome, data_nascita, luogo_nascita, cellulare, note, foto)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-      [cognome, nome, dataNascita, luogoNascita, cellulare, note, fotoUrl]
-    );
-    return res.redirect('/anagrafica');
+    const { error } = await supabase
+      .from('anagrafica')
+      .insert({ cognome, nome,
+                data_nascita: dataNascita,
+                luogo_nascita: luogoNascita,
+                cellulare, note, foto });
+    if (error) throw error;
+    res.redirect('/anagrafica');
   } catch (err) {
-    console.error("Errore nel salvataggio:", err);
-    // Ricarico la pagina di inserimento con il messaggio di errore
-    const filters = { cognome: '', nome: '' };
-    return res.render('layout', {
+    console.error(err);
+    res.render('layout', {
       page:    'anagrafica_content',
-      giocatori: [],      // non mostriamo la lista in caso di errore
-      filters,
-      message: err.message || 'Errore nel salvataggio'
+      giocatori: [],
+      filters: { cognome: '', nome: '' },
+      message: 'Errore nel salvataggio'
     });
   }
 });
@@ -306,62 +305,44 @@ app.post('/anagrafica', upload.single('foto'), async (req, res) => {
 }); */
 
 
-// POST elimina anagrafica (e tutte le terapie collegate)
+// POST /anagrafica/delete/:id
 app.post('/anagrafica/delete/:id', async (req, res) => {
   if (!req.session.user) return res.redirect('/');
-
   const id = req.params.id;
-
   try {
-    // 1) elimina tutte le terapie che fanno riferimento a questa anagrafica
-    let { error: errT } = await supabase
+    let { error } = await supabase
       .from('terapie')
       .delete()
       .eq('anagrafica_id', id);
-
-    if (errT) throw errT;
-
-    // 2) elimina l’anagrafica
-    let { error: errA } = await supabase
+    if (error) throw error;
+    ({ error } = await supabase
       .from('anagrafica')
       .delete()
-      .eq('id', id);
-
-    if (errA) throw errA;
-
+      .eq('id', id));
+    if (error) throw error;
     res.redirect('/anagrafica');
   } catch (err) {
-    console.error("Errore nella cancellazione via Supabase:", err);
+    console.error(err);
     res.redirect('/anagrafica');
   }
 });
 
 
 
+// POST /anagrafica/update/:id
 app.post('/anagrafica/update/:id', async (req, res) => {
   if (!req.session.user) return res.status(401).send('Non autorizzato');
-
   const id = req.params.id;
   const { nome, cognome, data_nascita, luogo_nascita, cellulare, note } = req.body;
-
   try {
     const { error } = await supabase
       .from('anagrafica')
-      .update({
-        nome,
-        cognome,
-        data_nascita,
-        luogo_nascita,
-        cellulare,
-        note
-      })
+      .update({ nome, cognome, data_nascita, luogo_nascita, cellulare, note })
       .eq('id', id);
-
     if (error) throw error;
-
     res.sendStatus(200);
   } catch (err) {
-    console.error("Errore nell'update via Supabase:", err);
+    console.error(err);
     res.sendStatus(500);
   }
 });
@@ -376,35 +357,21 @@ app.post('/anagrafica/update/:id', async (req, res) => {
 // ROTTE TERAPIE
 app.get('/terapie', async (req, res) => {
   if (!req.session.user) return res.redirect('/');
-
-  // Estrai i filtri dalla query string
   const {
-    filter_anagrafica   = 'all',
-    filter_distretto     = 'all',
-    filter_trattamento   = 'all'
+    filter_anagrafica = 'all',
+    filter_distretto   = 'all',
+    filter_trattamento = 'all'
   } = req.query;
 
   try {
-    // Dati per i dropdown
-    const { data: anagrafiche, error: errA } = await supabase
-      .from('anagrafica')
-      .select('id, nome, cognome')
-      .order('cognome', { ascending: true });
-    if (errA) throw errA;
+    // Dropdown
+    const [{ data: anagrafiche }, { data: distretti }, { data: trattamenti }] = await Promise.all([
+      supabase.from('anagrafica').select('id,nome,cognome').order('cognome'),
+      supabase.from('distretti').select('id,nome,coords').order('nome'),
+      supabase.from('trattamenti').select('id,nome').order('nome')
+    ]);
 
-    const { data: distretti, error: errD } = await supabase
-      .from('distretti')
-      .select('id, nome, coords')
-      .order('nome', { ascending: true });
-    if (errD) throw errD;
-
-    const { data: trattamenti, error: errT } = await supabase
-      .from('trattamenti')
-      .select('id, nome')
-      .order('nome', { ascending: true });
-    if (errT) throw errT;
-
-    // Costruisci la query per le terapie con join sui record collegati
+    // Query terapie con join
     let query = supabase
       .from('terapie')
       .select(`
@@ -412,61 +379,42 @@ app.get('/terapie', async (req, res) => {
         operatore,
         data_trattamento,
         note,
-        anagrafica!inner(nome, cognome),
-        distretti!inner(nome),
-        trattamenti!inner(nome)
+        anagrafica:anagrafica!inner(nome,cognome),
+        distretti:distretti!inner(nome),
+        trattamenti:trattamenti!inner(nome)
       `)
       .order('data_trattamento', { ascending: false });
 
-    if (filter_anagrafica !== 'all') {
-      query = query.eq('anagrafica_id', filter_anagrafica);
-    }
-    if (filter_distretto !== 'all') {
-      query = query.eq('distretto_id', filter_distretto);
-    }
-    if (filter_trattamento !== 'all') {
-      query = query.eq('trattamento_id', filter_trattamento);
-    }
+    if (filter_anagrafica!=='all') query = query.eq('anagrafica_id', filter_anagrafica);
+    if (filter_distretto!=='all')   query = query.eq('distretto_id',   filter_distretto);
+    if (filter_trattamento!=='all') query = query.eq('trattamento_id', filter_trattamento);
 
-    const { data: therapies, error: errTh } = await query;
-    if (errTh) throw errTh;
+    const { data: raw, error } = await query;
+    if (error) throw error;
 
-    // Renderizza la pagina
-    res.render('layout', {
-      page: 'terapie_content',
-      anagrafiche,
-      distretti,
-      trattamenti,
-      therapies: therapies.map(t => ({
-        id: t.id,
-        operatore: t.operatore,
-        data_trattamento: t.data_trattamento,
-        anagrafica: `${t.anagrafica.nome} ${t.anagrafica.cognome}`,
-        distretto: t.distretti.nome,
-        trattamento: t.trattamenti.nome,
-        note: t.note
-      })),
-      filters: {
-        filter_anagrafica,
-        filter_distretto,
-        filter_trattamento
-      },
+    const therapies = raw.map(t => ({
+      id: t.id,
+      operatore: t.operatore,
+      data_trattamento: t.data_trattamento,
+      anagrafica: `${t.anagrafica.nome} ${t.anagrafica.cognome}`,
+      distretto: t.distretti.nome,
+      trattamento: t.trattamenti.nome,
+      note: t.note
+    }));
+
+      res.render('layout', {
+      page:        'terapie_content',
+      anagrafiche, distretti, trattamenti, therapies,
+      filters: { filter_anagrafica, filter_distretto, filter_trattamento },
       message: null
     });
   } catch (err) {
-    console.error("Errore nel caricamento terapie:", err);
+    console.error(err);
     res.render('layout', {
       page: 'terapie_content',
-      anagrafiche: [],
-      distretti: [],
-      trattamenti: [],
-      therapies: [],
-      filters: {
-        filter_anagrafica: 'all',
-        filter_distretto: 'all',
-        filter_trattamento: 'all'
-      },
-      message: 'Errore nel caricamento della pagina terapie.'
+      anagrafiche: [], distretti: [], trattamenti: [], therapies: [],
+      filters: { filter_anagrafica:'all',filter_distretto:'all',filter_trattamento:'all' },
+      message: 'Errore nel caricamento delle terapie'
     });
   }
 });
@@ -474,79 +422,50 @@ app.get('/terapie', async (req, res) => {
 
 app.post('/terapie', async (req, res) => {
   if (!req.session.user) return res.redirect('/');
-
   const { anagrafica_id, distretto_id, trattamento_id, data_trattamento, note } = req.body;
   const operatore = req.session.user;
-
   try {
     const { error } = await supabase
       .from('terapie')
-      .insert({
-        anagrafica_id:   anagrafica_id,
-        distretto_id:    distretto_id,
-        trattamento_id:  trattamento_id,
-        data_trattamento: data_trattamento,
-        note:             note,
-        operatore:        operatore
-      });
+      .insert({ anagrafica_id, distretto_id, trattamento_id, data_trattamento, note, operatore });
     if (error) throw error;
-
     res.redirect('/terapie');
   } catch (err) {
-    console.error("Errore nel salvataggio terapia:", err);
+    console.error(err);
     res.redirect('/terapie');
   }
 });
 
 
-// UPDATE inline di una terapia
 app.post('/terapie/update/:id', async (req, res) => {
   if (!req.session.user) return res.status(401).send('Non autorizzato');
   const id = req.params.id;
-  const {
-    data_trattamento,
-    anagrafica_id,
-    distretto_id,
-    trattamento_id,
-    note
-  } = req.body;
-
+  const { data_trattamento, anagrafica_id, distretto_id, trattamento_id, note } = req.body;
   try {
     const { error } = await supabase
       .from('terapie')
-      .update({
-        data_trattamento,
-        anagrafica_id,
-        distretto_id,
-        trattamento_id,
-        note
-      })
+      .update({ data_trattamento, anagrafica_id, distretto_id, trattamento_id, note })
       .eq('id', id);
-
     if (error) throw error;
     res.sendStatus(200);
   } catch (err) {
-    console.error("Errore nell'update terapia:", err);
+    console.error(err);
     res.sendStatus(500);
   }
 });
 
-
-// DELETE di una terapia
+// POST /terapie/delete/:id
 app.post('/terapie/delete/:id', async (req, res) => {
   if (!req.session.user) return res.redirect('/');
-
-  const id = req.params.id;
   try {
     const { error } = await supabase
       .from('terapie')
       .delete()
-      .eq('id', id);
-
+      .eq('id', req.params.id);
     if (error) throw error;
     res.redirect('/terapie');
   } catch (err) {
-    console.error("Errore nella cancellazione terapia:", err);
+    console.error(err);
     res.redirect('/terapie');
   }
 });
@@ -555,68 +474,53 @@ app.post('/terapie/delete/:id', async (req, res) => {
 // ROTTA FASCICOLI
 app.get('/fascicoli', async (req, res) => {
   if (!req.session.user) return res.redirect('/');
-
   const { cognome = '', nome = '' } = req.query;
 
   try {
-    // 1) Prendo le anagrafiche filtrate
     let query = supabase
       .from('anagrafica')
-      .select('id, cognome, nome, data_nascita, luogo_nascita, cellulare, note, foto')
-      .order('cognome', { ascending: true })
-      .order('nome',   { ascending: true });
-
+      .select('id,cognome,nome,data_nascita,luogo_nascita,cellulare,note,foto')
+      .order('cognome',{ascending:true})
+      .order('nome',{ascending:true});
     if (cognome) query = query.ilike('cognome', `%${cognome}%`);
     if (nome)     query = query.ilike('nome',     `%${nome}%`);
+    const { data: anagrafiche, error: e1 } = await query;
+    if (e1) throw e1;
 
-    const { data: anagrafiche, error: anagErr } = await query;
-    if (anagErr) throw anagErr;
-
-    // 2) Prendo tutte le terapie per questi id
-    const ids = anagrafiche.map(a => a.id);
+    // prendo tutte le terapie per gli id filtrati
+    const ids = anagrafiche.map(a=>a.id);
     let therapies = [];
     if (ids.length) {
-      const { data: th, error: thErr } = await supabase
+      const { data: th, error: e2 } = await supabase
         .from('terapie')
-        .select(`
-          anagrafica_id,
-          data_trattamento,
-          note,
-          distretti ( nome ),
-          trattamenti ( nome )
-        `)
+        .select(`anagrafica_id,data_trattamento,note,distretti(nome),trattamenti(nome)`)
         .in('anagrafica_id', ids)
-        .order('data_trattamento', { ascending: false });
-      if (thErr) throw thErr;
-      // re-mappo per portare distretto e trattamento in campi top-level
+        .order('data_trattamento',{ascending:false});
+      if (e2) throw e2;
       therapies = th.map(t => ({
-        anagrafica_id:   t.anagrafica_id,
+        anagrafica_id:    t.anagrafica_id,
         data_trattamento: t.data_trattamento,
-        distretto:       t.distretti.nome,
-        trattamento:     t.trattamenti.nome,
-        note:            t.note
+        distretto:        t.distretti.nome,
+        trattamento:      t.trattamenti.nome,
+        note:             t.note
       }));
     }
 
-    // render
-    res.render('layout', {
+    res.render('layout',{
       page:         'fascicoli_content',
-      anagrafiche,               // lista delle anagrafiche
-      therapies,                 // tutte le terapie correlate
-      filters:     { cognome, nome },
+      anagrafiche, therapies,
+      filters:{cognome,nome},
       defaultPhoto: '/images/default.png',
-      message:      null
+      message: null
     });
-
   } catch (err) {
-    console.error("Errore nel caricamento fascicoli:", err);
-    res.render('layout', {
+    console.error(err);
+    res.render('layout',{
       page:         'fascicoli_content',
-      anagrafiche:  [],
-      therapies:    [],
-      filters:      { cognome:'', nome:'' },
-      defaultPhoto: '/images/default.png',
-      message:      'Errore nel caricamento dei fascicoli'
+      anagrafiche: [], therapies: [],
+      filters:{cognome:'',nome:''},
+      defaultPhoto:'/images/default.png',
+      message:    'Errore nel caricamento dei fascicoli'
     });
   }
 });
@@ -661,46 +565,33 @@ app.get('/fascicoli', async (req, res) => {
 
 app.get('/fascicoli/:id', async (req, res) => {
   if (!req.session.user) return res.status(401).send('Non autorizzato');
-  const { id } = req.params;
-
+  const id = req.params.id;
   try {
-    // 1) Recupera l’anagrafica
-    const { data: anag, error: anagErr } = await supabase
+    const { data: anag, error: e1 } = await supabase
       .from('anagrafica')
-      .select('id, cognome, nome, data_nascita, luogo_nascita, cellulare, note, foto')
+      .select('*')
       .eq('id', id)
       .single();
-    if (anagErr || !anag) return res.status(404).send('Non trovato');
+    if (e1 || !anag) return res.status(404).send('Non trovato');
 
-    // 2) Recupera le terapie correlate
-    const { data: th, error: thErr } = await supabase
+    const { data: th, error: e2 } = await supabase
       .from('terapie')
-      .select(`
-        data_trattamento,
-        note,
-        distretti(nome),
-        trattamenti(nome)
-      `)
+      .select(`data_trattamento,note,distretti(nome),trattamenti(nome)`)
       .eq('anagrafica_id', id)
-      .order('data_trattamento', { ascending: false });
-    if (thErr) throw thErr;
+      .order('data_trattamento',{ascending:false});
+    if (e2) throw e2;
 
-    // 3) Rimappiamo in un formato più semplice
-    const therapies = th.map(t => ({
+    const therapies = th.map(t=>({
       data_trattamento: t.data_trattamento,
-      note: t.note,
-      distretto: t.distretti.nome,
-      trattamento: t.trattamenti.nome
+      note:             t.note,
+      distretto:        t.distretti.nome,
+      trattamento:      t.trattamenti.nome
     }));
 
-    // 4) Render del partial (views/fascicoli_detail.ejs)
-    res.render('fascicoli_detail', {
-      anagrafica:  anag,
-      therapies,
-      defaultPhoto: '/images/default.png'
-    });
+    // renderizza SOLO il partial fascicoli_detail.ejs
+    res.render('fascicoli_detail',{ anagrafica: anag, therapies, defaultPhoto:'/images/default.png' });
   } catch (err) {
-    console.error("Errore nel caricamento del fascicolo:", err);
+    console.error(err);
     res.status(500).send('Errore interno');
   }
 });

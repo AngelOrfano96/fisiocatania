@@ -2,25 +2,25 @@
   <div class="card-body">
     <div class="d-flex align-items-center mb-4">
       <% 
-        // calcolo src dell’immagine (upload o default)
-        const fotoSrc = anagrafica.foto 
-          ? anagrafica.foto 
-          : defaultPhoto;
+        // URL immagine: se è già l’URL Cloudinary lo uso, altrimenti fallback
+        const fotoSrc = anagrafica.foto || defaultPhoto;
       %>
-      <img src="<%= fotoSrc %>"
-           alt="Foto di <%= anagrafica.nome %> <%= anagrafica.cognome %>"
-           class="img-thumbnail me-3"
-           style="width:100px; height:100px; object-fit:cover;"
-           onerror="this.onerror=null;this.src='<%= defaultPhoto %>'">
+      <img
+        src="<%= fotoSrc %>"
+        alt="Foto di <%= anagrafica.nome %> <%= anagrafica.cognome %>"
+        class="img-thumbnail me-3"
+        style="width:100px; height:100px; object-fit:cover;"
+        onerror="this.onerror=null;this.src='<%= defaultPhoto %>'"
+      >
       <h5 class="mb-0"><%= anagrafica.nome %> <%= anagrafica.cognome %></h5>
     </div>
 
     <% 
-      // renderizzo la data di nascita con fallback
-      const dob = anagrafica.data_nascita;
-      const dobStr = dob instanceof Date
-        ? dob.toISOString().split('T')[0]
-        : (typeof dob === 'string' ? dob.slice(0,10) : '—');
+      // Formatta data di nascita come stringa YYYY-MM-DD
+      const dobRaw = anagrafica.data_nascita;
+      const dobStr = typeof dobRaw === 'string'
+        ? dobRaw.slice(0,10)
+        : '—';
     %>
     <p><strong>Data di nascita:</strong> <%= dobStr %></p>
     <p><strong>Comune:</strong> <%= anagrafica.luogo_nascita %></p>
@@ -43,11 +43,11 @@
           </tr>
         </thead>
         <tbody>
-          <% therapies.forEach(tr => { 
-               const td = tr.data_trattamento;
-               const tdStr = td instanceof Date
-                 ? td.toISOString().split('T')[0]
-                 : (typeof td === 'string' ? td.slice(0,10) : '');
+          <% therapies.forEach(tr => {
+               const tdRaw = tr.data_trattamento;
+               const tdStr = typeof tdRaw === 'string'
+                 ? tdRaw.slice(0,10)
+                 : '';
           %>
             <tr>
               <td><%= tdStr %></td>

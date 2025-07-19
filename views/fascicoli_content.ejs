@@ -4,13 +4,24 @@
   <div class="alert alert-danger"><%= message %></div>
 <% } %>
 
-
 <form method="GET" action="/fascicoli" class="row g-2 mb-4">
   <div class="col-md-5">
-    <input type="text" name="cognome" class="form-control" placeholder="Filtra per Cognome" value="<%= filters.cognome %>">
+    <input
+      type="text"
+      name="cognome"
+      class="form-control"
+      placeholder="Filtra per Cognome"
+      value="<%= filters.cognome %>"
+    >
   </div>
   <div class="col-md-5">
-    <input type="text" name="nome" class="form-control" placeholder="Filtra per Nome"    value="<%= filters.nome     %>">
+    <input
+      type="text"
+      name="nome"
+      class="form-control"
+      placeholder="Filtra per Nome"
+      value="<%= filters.nome %>"
+    >
   </div>
   <div class="col-md-2 text-end">
     <button class="btn btn-primary w-100">Filtra</button>
@@ -33,10 +44,8 @@
       <tr>
         <td>
           <% 
-            // Costruisco la sorgente immagine: upload o default
-            const fotoSrc = a.foto
-              ? '/uploads/' + encodeURIComponent(a.foto)
-              : defaultPhoto;
+            // Se c’è un URL in a.foto lo uso, altrimenti il default
+            const fotoSrc = a.foto || defaultPhoto;
           %>
           <img
             src="<%= fotoSrc %>"
@@ -49,15 +58,10 @@
         <td><%= a.nome %> <%= a.cognome %></td>
         <td>
           <% 
-            // Gestione data di nascita: può essere Date o stringa
-            let dataDisplay;
-            if (a.data_nascita instanceof Date) {
-              dataDisplay = a.data_nascita.toISOString().split('T')[0];
-            } else if (typeof a.data_nascita === 'string') {
-              dataDisplay = a.data_nascita.slice(0,10);
-            } else {
-              dataDisplay = '';
-            }
+            // Estraggo i primi 10 caratteri di YYYY-MM-DD...
+            const dataDisplay = typeof a.data_nascita === 'string'
+              ? a.data_nascita.slice(0,10)
+              : '';
           %>
           <%= dataDisplay %>
         </td>
