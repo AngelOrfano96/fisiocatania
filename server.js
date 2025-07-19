@@ -333,7 +333,6 @@ app.post('/terapie', async (req, res) => {
 });
 
 // UPDATE inline di una terapia
-// UPDATE inline di una terapia
 app.post('/terapie/update/:id', async (req, res) => {
   if (!req.session.user) return res.status(401).send('Non autorizzato');
   const id = req.params.id;
@@ -362,6 +361,19 @@ app.post('/terapie/update/:id', async (req, res) => {
     res.sendStatus(500);
   }
 });
+
+// DELETE di una terapia
+app.post('/terapie/delete/:id', async (req, res) => {
+  if (!req.session.user) return res.redirect('/');
+  try {
+    await pool.query('DELETE FROM terapie WHERE id = $1', [req.params.id]);
+    res.redirect('/terapie');
+  } catch (err) {
+    console.error("Errore nella cancellazione terapia:", err);
+    res.redirect('/terapie');
+  }
+});
+
 
 
 // Avvio server
