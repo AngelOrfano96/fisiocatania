@@ -66,6 +66,7 @@
             <th>Distretto</th>
             <th>Trattamento</th>
             <th>Note</th>
+            <th>Allegati</th>
           </tr>
         </thead>
         <tbody>
@@ -80,11 +81,69 @@
               <td><%= tr.distretto %></td>
               <td><%= tr.trattamento %></td>
               <td><%= tr.note || '—' %></td>
+               <td>                             <!-- NEW -->
+                <form class="upload-attachments-form"
+                      action="/terapie/<%= tr.id %>/allegati"
+                      method="POST"
+                      enctype="multipart/form-data">
+                  <label class="btn btn-outline-primary btn-sm m-0">
+                    📎
+                    <input type="file"
+                           name="allegato"
+                           accept="image/*"
+                           class="d-none"
+                           required>
+                  </label>
+                  <button type="submit"
+                          class="btn btn-sm btn-success d-none">
+                    💾
+                  </button>
+                  <button type="button"
+                          class="btn btn-sm btn-secondary btn-cancel-allegato d-none">
+                    ↩️
+                  </button>
+                </form>
+              </td>  
             </tr>
           <% }) %>
         </tbody>
       </table>
     <% } %>
+    <h6 class="mt-4">Allegati per ogni terapia</h6>
+<% therapies.forEach(tr => {
+     const atts = attachments.filter(a => a.terapia_id === tr.id);
+%>
+  <p>
+    <strong><%= tr.data_trattamento %>:</strong>
+    <% atts.forEach(a => { %>
+      <a href="<%= a.url %>" target="_blank" class="mx-1">🖼️</a>
+    <% }) %>
+  </p>
+<% }) %>
+
+    <script>
+  document.querySelectorAll('.upload-attachments-form').forEach(form => {
+    const fileInput = form.querySelector('input[type="file"]');
+    const btnSubmit = form.querySelector('button[type="submit"]');
+    const btnCancel = form.querySelector('.btn-cancel-allegato');
+
+    // Quando scelgo un file, mostro Save/Cancel
+    fileInput.addEventListener('change', () => {
+      if (!fileInput.files.length) return;
+      btnSubmit.classList.remove('d-none');
+      btnCancel.classList.remove('d-none');
+    });
+
+    // Annulla selezione
+    btnCancel.addEventListener('click', () => {
+      fileInput.value = '';
+      btnSubmit.classList.add('d-none');
+      btnCancel.classList.add('d-none');
+    });
+
+    // (il submit del form va al server)
+  });
+</script>
   </div>
 </div>
 

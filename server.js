@@ -505,6 +505,38 @@ app.post('/terapie/delete/:id', async (req, res) => {
   }
 });
 
+// Upload di un singolo allegato per una terapia (usando Supabase)
+app.post('/terapie/:id/allegati', upload.single('allegato'), async (req, res) => {
+  if (!req.session.user) return res.redirect('/login');
+  const therapyId = parseInt(req.params.id, 10);
+
+  if (!req.file) {
+    // nessun file selezionato: torna indietro con errore
+    return res.status(400).send('Nessun file caricato');
+  }
+
+  // req.file.path contiene l'URL Cloudinary
+  const url = req.file.path;
+
+  try {
+    const { error } = await supabase
+      .from('allegati')
+      .insert({
+        terapia_id: therapyId,
+        url
+      });
+
+    if (error) throw error;
+
+    // torno indietro alla pagina di fascicoli (o alla stessa view)
+    res.redirect('back');
+  } catch (err) {
+    console.error('Errore upload allegato via Supabase:', err);
+    res.status(500).send('Errore interno durante il salvataggio dell\'allegato');
+  }
+});
+
+
 
 // ROTTA FASCICOLI
 app.get('/fascicoli', async (req, res) => {
@@ -622,6 +654,21 @@ app.get('/fascicoli/:id', async (req, res) => {
       distretto:        t.distretti.nome,
       trattamento:      t.trattamenti.nome
     }));
+
+    // dopo aver recuperato `therapies`
+const { data: attachments, error: errAtt } = await supabase
+  .from('allegati')
+  .select('*')
+  .in('terapia_id', therapies.map(t=>t.id));
+if (errAtt) throw errAtt;
+// ... poi nel render:
+res.render('fascicoli_detail', {
+  anagrafica: anag,
+  therapies,
+  attachments,
+  defaultPhoto: '/images/default.png'
+});
+
 
     // renderizza SOLO il partial fascicoli_detail.ejs
     res.render('fascicoli_detail',{ anagrafica: anag, therapies, defaultPhoto:'/images/default.png' });
