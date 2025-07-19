@@ -6,10 +6,22 @@
 
 <form method="GET" action="/fascicoli" class="row g-2 mb-4">
   <div class="col-md-5">
-    <input type="text" name="cognome" class="form-control" placeholder="Filtra per Cognome" value="<%= filters.cognome %>">
+    <input
+      type="text"
+      name="cognome"
+      class="form-control"
+      placeholder="Filtra per Cognome"
+      value="<%= filters.cognome %>"
+    >
   </div>
   <div class="col-md-5">
-    <input type="text" name="nome" class="form-control" placeholder="Filtra per Nome"    value="<%= filters.nome     %>">
+    <input
+      type="text"
+      name="nome"
+      class="form-control"
+      placeholder="Filtra per Nome"
+      value="<%= filters.nome %>"
+    >
   </div>
   <div class="col-md-2 text-end">
     <button class="btn btn-primary w-100">Filtra</button>
@@ -31,21 +43,30 @@
     <% anagrafiche.forEach(a => { %>
       <tr>
         <td>
-          <img src="<%= a.foto || defaultPhoto %>" 
-               alt="Foto <%= a.nome %>" 
-               class="img-thumbnail" 
-               style="width:60px;height:60px;object-fit:cover;">
+          <% 
+            // Costruisco la sorgente immagine: upload o default
+            const fotoSrc = a.foto
+              ? '/uploads/' + encodeURIComponent(a.foto)
+              : defaultPhoto;
+          %>
+          <img
+            src="<%= fotoSrc %>"
+            alt="Foto di <%= a.nome %> <%= a.cognome %>"
+            class="img-thumbnail"
+            style="width:60px; height:60px; object-fit:cover;"
+            onerror="this.onerror=null; this.src='<%= defaultPhoto %>'"
+          >
         </td>
         <td><%= a.nome %> <%= a.cognome %></td>
         <td><%= a.data_nascita.toISOString().split('T')[0] %></td>
         <td><%= a.luogo_nascita %></td>
         <td><%= a.cellulare %></td>
         <td>
-          <button type="button" 
-                  class="btn btn-sm btn-info btn-view" 
-                  data-id="<%= a.id %>">
-            👁️
-          </button>
+          <button
+            type="button"
+            class="btn btn-sm btn-info btn-view"
+            data-id="<%= a.id %>"
+          >👁️</button>
         </td>
       </tr>
     <% }) %>
@@ -58,10 +79,16 @@
   document.querySelectorAll('.btn-view').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.dataset.id;
-      fetch(`/fascicoli/${id}`)       // dovrai aggiungere una rotta /fascicoli/:id
-        .then(res => res.text())
+      fetch(`/fascicoli/${id}`)
+        .then(res => {
+          if (!res.ok) throw new Error('Errore nel caricamento del fascicolo');
+          return res.text();
+        })
         .then(html => {
           document.getElementById('fascicolo-detail').innerHTML = html;
+        })
+        .catch(err => {
+          alert(err.message);
         });
     });
   });

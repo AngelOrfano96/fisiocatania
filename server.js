@@ -9,6 +9,7 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+
 // Assicura la directory degli upload
 const uploadDir = path.join(__dirname, 'public/uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
@@ -226,27 +227,28 @@ app.get('/anagrafica', async (req, res) => {
 // con quest’altra, che intercetta anche il file “foto”:
 app.post('/anagrafica', upload.single('foto'), async (req, res) => {
   const { cognome, nome, dataNascita, luogoNascita, cellulare, note } = req.body;
-  // se multer ha accettato un’immagine, ne ricava il path
-  const foto = req.file ? `/uploads/${req.file.filename}` : null;
+  let fotoPath = null;
+
+  // MULTER mette il file in req.file
+  if (req.file) {
+    fotoPath = req.file.filename;
+    console.log('UPLOAD OK – file salvato come', fotoPath);
+  }
 
   try {
     await pool.query(
-      `INSERT INTO anagrafica
-         (cognome, nome, data_nascita, luogo_nascita, cellulare, note, foto)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [cognome, nome, dataNascita, luogoNascita, cellulare, note, foto]
+      `INSERT INTO anagrafica 
+         (cognome,nome,data_nascita,luogo_nascita,cellulare,note,foto)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [cognome, nome, dataNascita, luogoNascita, cellulare, note, fotoPath]
     );
     res.redirect('/anagrafica');
   } catch (err) {
     console.error("Errore nel salvataggio:", err);
-    res.render('layout', {
-      page: 'anagrafica_content',
-      giocatori: [],
-      filters: { cognome: '', nome: '' },
-      message: 'Errore nel salvataggio.'
-    });
+    res.redirect('/anagrafica');
   }
 });
+
 
 // POST elimina anagrafica (e tutte le terapie collegate)
 app.post('/anagrafica/delete/:id', async (req, res) => {
@@ -493,6 +495,44 @@ app.get('/fascicoli', async (req, res) => {
     });
   }
 });
+
+// dettaglio di un singolo fascicolo (partial HTML)
+app.get('/fascicoli/:id', async (req, res) => {
+  if (!req.session.user) return res.status(401).send('Non autorizzato');
+  const { id } = req.params;
+  try {
+    // 1) prendi l’anagrafica
+    const aRes = await pool.query(`
+      SELECT id, nome, cognome, data_nascita, luogo_nascita, cellulare, note, foto
+      FROM anagrafica
+      WHERE id = $1
+    `, [id]);
+    if (aRes.rowCount === 0) return res.status(404).send('Non trovato');
+
+    const a = aRes.rows[0];
+
+    // 2) tutte le terapie relative
+    const tRes = await pool.query(`
+      SELECT data_trattamento, d.nome AS distretto, tr.nome AS trattamento, note
+      FROM terapie t
+      JOIN distretti d   ON t.distretto_id   = d.id
+      JOIN trattamenti tr ON t.trattamento_id = tr.id
+      WHERE t.anagrafica_id = $1
+      ORDER BY t.data_trattamento DESC
+    `, [id]);
+
+    // 3) render di un partial (lo creiamo subito qui di seguito)
+    res.render('fascicolo_detail', {
+      a,
+      therapies: tRes.rows,
+      defaultPhoto: '/images/default.png'
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Errore interno');
+  }
+});
+
 
 
 
