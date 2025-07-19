@@ -82,6 +82,41 @@
 <div id="fascicolo-detail" class="mt-4"></div>
 
 <script>
+  // 1) definisci una funzione che associa i listener
+  function initPhotoEditor() {
+    const btnEdit = document.querySelector('#fascicolo-detail #btn-edit-photo');
+    const btnSave = document.querySelector('#fascicolo-detail #btn-save-photo');
+    const btnCancel = document.querySelector('#fascicolo-detail #btn-cancel-photo');
+    const inputFile = document.querySelector('#fascicolo-detail #foto-input');
+    const imgPreview = document.querySelector('#fascicolo-detail #profile-img');
+
+    if (!btnEdit) return; // niente da fare se non c'è
+
+    btnEdit.addEventListener('click', () => {
+      inputFile.classList.remove('d-none');
+      btnEdit.classList.add('d-none');
+      btnSave.classList.remove('d-none');
+      btnCancel.classList.remove('d-none');
+    });
+    btnCancel.addEventListener('click', () => {
+      inputFile.value = '';
+      inputFile.classList.add('d-none');
+      btnEdit.classList.remove('d-none');
+      btnSave.classList.add('d-none');
+      btnCancel.classList.add('d-none');
+      // ripristina src originale
+      imgPreview.src = imgPreview.getAttribute('src');
+    });
+    inputFile.addEventListener('change', () => {
+      const file = inputFile.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => imgPreview.src = e.target.result;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // 2) quando clicchi sulla lente, dopo aver inserito HTML chiami initPhotoEditor
   document.querySelectorAll('.btn-view').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.dataset.id;
@@ -91,11 +126,11 @@
           return res.text();
         })
         .then(html => {
-          document.getElementById('fascicolo-detail').innerHTML = html;
+          const container = document.getElementById('fascicolo-detail');
+          container.innerHTML = html;
+          initPhotoEditor();        // <— associa i listener
         })
-        .catch(err => {
-          alert(err.message);
-        });
+        .catch(err => alert(err.message));
     });
   });
 </script>
