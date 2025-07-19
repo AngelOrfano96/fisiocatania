@@ -453,8 +453,8 @@ app.get('/fascicoli', async (req, res) => {
       values
     );
 
-    const ids = anagRes.rows.map(r => r.id);
     // 2) prendi tutte le terapie per questi id
+    const ids = anagRes.rows.map(r => r.id);
     const therapyRes = ids.length
       ? await pool.query(
           `SELECT
@@ -472,25 +472,28 @@ app.get('/fascicoli', async (req, res) => {
         )
       : { rows: [] };
 
+    // qui passiamo sempre anche message: null
     res.render('layout', {
-      page:        'fascicoli_content',
-      anagrafiche: anagRes.rows,
-      therapies:   therapyRes.rows,
-      filters:     { cognome, nome },
-      defaultPhoto: '/images/default.png'  // metti qui la tua foto di fallback
+      page:         'fascicoli_content',
+      anagrafiche:  anagRes.rows,
+      therapies:    therapyRes.rows,
+      filters:      { cognome, nome },
+      defaultPhoto: '/images/default.png',
+      message:      null        // <–– aggiungi questa riga
     });
   } catch (err) {
     console.error("Errore nel caricamento fascicoli:", err);
     res.render('layout', {
-      page:        'fascicoli_content',
-      anagrafiche: [],
-      therapies:   [],
-      filters:     { cognome:'', nome:'' },
+      page:         'fascicoli_content',
+      anagrafiche:  [],
+      therapies:    [],
+      filters:      { cognome: '', nome: '' },
       defaultPhoto: '/images/default.png',
-      message:     'Errore nel caricamento dei fascicoli'
+      message:      'Errore nel caricamento dei fascicoli'
     });
   }
 });
+
 
 
 
