@@ -630,50 +630,63 @@ app.get('/fascicoli', async (req, res) => {
   }
 }); */
 
+// dettaglio di un singolo fascicolo (partial HTML)
 app.get('/fascicoli/:id', async (req, res) => {
   if (!req.session.user) return res.status(401).send('Non autorizzato');
-  const id = req.params.id;
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).send('ID non valido');
+
   try {
-    const { data: anag, error: e1 } = await supabase
+    // 1) Recupera l’anagrafica
+    const { data: anag, error: errA } = await supabase
       .from('anagrafica')
-      .select('*')
+      .select('id, cognome, nome, data_nascita, luogo_nascita, cellulare, note, foto')
       .eq('id', id)
       .single();
-    if (e1 || !anag) return res.status(404).send('Non trovato');
+    if (errA || !anag) return res.status(404).send('Non trovato');
 
-    const { data: th, error: e2 } = await supabase
+    // 2) Recupera le terapie correlate
+    const { data: th, error: errT } = await supabase
       .from('terapie')
-      .select(`data_trattamento,note,distretti(nome),trattamenti(nome)`)
+      .select(`
+        id,
+        data_trattamento,
+        note,
+        distretti(nome),
+        trattamenti(nome)
+      `)
       .eq('anagrafica_id', id)
-      .order('data_trattamento',{ascending:false});
-    if (e2) throw e2;
-
-    const therapies = th.map(t=>({
+      .order('data_trattamento', { ascending: false });
+    if (errT) throw errT;
+    const therapies = th.map(t => ({
+      id: t.id,
       data_trattamento: t.data_trattamento,
-      note:             t.note,
-      distretto:        t.distretti.nome,
-      trattamento:      t.trattamenti.nome
+      note: t.note,
+      distretto: t.distretti.nome,
+      trattamento: t.trattamenti.nome
     }));
 
-    // dopo aver recuperato `therapies`
-const { data: attachments, error: errAtt } = await supabase
-  .from('allegati')
-  .select('*')
-  .in('terapia_id', therapies.map(t=>t.id));
-if (errAtt) throw errAtt;
-// ... poi nel render:
-res.render('fascicoli_detail', {
-  anagrafica: anag,
-  therapies,
-  attachments,
-  defaultPhoto: '/images/default.png'
-});
+    // 3) Recupera gli allegati per ciascuna terapia
+    const terapiaIds = therapies.map(t => t.id);
+    let attachments = [];
+    if (terapiaIds.length) {
+      const { data: att, error: errAtt } = await supabase
+        .from('allegati')
+        .select('id, terapia_id, url')
+        .in('terapia_id', terapiaIds);
+      if (errAtt) throw errAtt;
+      attachments = att;
+    }
 
-
-    // renderizza SOLO il partial fascicoli_detail.ejs
-    res.render('fascicoli_detail',{ anagrafica: anag, therapies, defaultPhoto:'/images/default.png' });
+    // 4) Render del partial (views/fascicoli_detail.ejs)
+    res.render('fascicoli_detail', {
+      anagrafica:  anag,
+      therapies,
+      attachments,
+      defaultPhoto: '/images/default.png'
+    });
   } catch (err) {
-    console.error(err);
+    console.error("Errore nel caricamento del fascicolo:", err);
     res.status(500).send('Errore interno');
   }
 });
