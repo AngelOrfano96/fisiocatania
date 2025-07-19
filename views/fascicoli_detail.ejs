@@ -1,11 +1,8 @@
 <div class="card">
   <div class="card-body">
     <div class="d-flex align-items-center mb-4">
-      <%
-        // sorgente immagine (upload o default)
-        const fotoSrc = anagrafica.foto
-          ? anagrafica.foto
-          : defaultPhoto;
+      <% 
+        const fotoSrc = anagrafica.foto || defaultPhoto;
       %>
       <form id="photo-form"
             action="/anagrafica/update-photo/<%= anagrafica.id %>"
@@ -27,7 +24,6 @@
         </div>
         <div>
           <h5 class="mb-1"><%= anagrafica.nome %> <%= anagrafica.cognome %></h5>
-          <!-- pulsanti -->
           <button id="btn-edit-photo" type="button" class="btn btn-sm btn-outline-primary mb-2">
             Modifica foto
           </button>
@@ -41,144 +37,122 @@
       </form>
     </div>
 
-```
-<%
-  // data nascita
-  const dob = anagrafica.data_nascita;
-  const dobStr = (dob instanceof Date)
-    ? dob.toISOString().split('T')[0]
-    : (typeof dob === 'string' ? dob.slice(0,10) : '—');
-%>
-<p><strong>Data di nascita:</strong> <%= dobStr %></p>
-<p><strong>Comune:</strong> <%= anagrafica.luogo_nascita %></p>
-<p><strong>Cellulare:</strong> <%= anagrafica.cellulare %></p>
-<p><strong>Note:</strong> <%= anagrafica.note || '—' %></p>
+    <% 
+      const dob = anagrafica.data_nascita;
+      const dobStr = (typeof dob === 'string' ? dob.slice(0,10)
+                      : dob instanceof Date ? dob.toISOString().split('T')[0]
+                      : '—');
+    %>
+    <p><strong>Data di nascita:</strong> <%= dobStr %></p>
+    <p><strong>Comune:</strong> <%= anagrafica.luogo_nascita %></p>
+    <p><strong>Cellulare:</strong> <%= anagrafica.cellulare %></p>
+    <p><strong>Note:</strong> <%= anagrafica.note || '—' %></p>
 
-<hr>
+    <hr>
+    <h5>Terapie collegate</h5>
+    <% if (therapies.length === 0) { %>
+      <p class="text-muted">Nessuna terapia registrata.</p>
+    <% } else { %>
+      <table class="table table-sm table-bordered">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Distretto</th>
+            <th>Trattamento</th>
+            <th>Note</th>
+            <th>Allegati</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% therapies.forEach(tr => {
+               const td = tr.data_trattamento;
+               const tdStr = (typeof td === 'string' ? td.slice(0,10)
+                              : td instanceof Date ? td.toISOString().split('T')[0]
+                              : '');
+          %>
+            <tr>
+              <td><%= tdStr %></td>
+              <td><%= tr.distretto %></td>
+              <td><%= tr.trattamento %></td>
+              <td><%= tr.note || '—' %></td>
+              <td>
+                <form class="upload-attachments-form"
+                      action="/terapie/<%= tr.id %>/allegati"
+                      method="POST"
+                      enctype="multipart/form-data">
+                  <label class="btn btn-outline-primary btn-sm m-0">
+                    📎
+                    <input type="file"
+                           name="allegato"
+                           accept="image/*"
+                           class="d-none"
+                           required>
+                  </label>
+                  <button type="submit"
+                          class="btn btn-sm btn-success d-none">💾</button>
+                  <button type="button"
+                          class="btn btn-sm btn-secondary btn-cancel-allegato d-none">↩️</button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
 
-<h5>Terapie collegate</h5>
-<% if (therapies.length === 0) { %>
-  <p class="text-muted">Nessuna terapia registrata.</p>
-<% } else { %>
-  <table class="table table-sm table-bordered">
-    <thead>
-      <tr>
-        <th>Data</th>
-        <th>Distretto</th>
-        <th>Trattamento</th>
-        <th>Note</th>
-        <th>Allegati</th>
-      </tr>
-    </thead>
-    <tbody>
+    <h6 class="mt-4">Allegati per ogni terapia</h6>
+    <% if (attachments.length === 0) { %>
+      <p class="text-muted">Nessun allegato caricato.</p>
+    <% } else { %>
       <% therapies.forEach(tr => {
-           const td = tr.data_trattamento;
-           const tdStr = (td instanceof Date)
-             ? td.toISOString().split('T')[0]
-             : (typeof td === 'string' ? td.slice(0,10) : '');
+           const atts = attachments.filter(a=>a.terapia_id===tr.id);
       %>
-        <tr>
-          <td><%= tdStr %></td>
-          <td><%= tr.distretto %></td>
-          <td><%= tr.trattamento %></td>
-          <td><%= tr.note || '—' %></td>
-          <td>
-            <form class="upload-attachments-form"
-                  action="/terapie/<%= tr.id %>/allegati"
-                  method="POST"
-                  enctype="multipart/form-data">
-              <label class="btn btn-outline-primary btn-sm m-0">
-                📎
-                <input type="file"
-                       name="allegato"
-                       accept="image/*"
-                       class="d-none">
-              </label>
-              <button type="submit"
-                      class="btn btn-sm btn-success d-none">
-                💾
-              </button>
-              <button type="button"
-                      class="btn btn-sm btn-secondary btn-cancel-allegato d-none">
-                ↩️
-              </button>
-            </form>
-          </td>
-        </tr>
+        <p>
+          <strong><%= tr.data_trattamento instanceof Date
+                     ? tr.data_trattamento.toISOString().split('T')[0]
+                     : (typeof tr.data_trattamento==='string'
+                        ? tr.data_trattamento.slice(0,10)
+                        : '')
+                  %>:</strong>
+          <% atts.forEach(a => { %>
+            <a href="<%= a.url %>" target="_blank" class="mx-1">🖼️</a>
+          <% }) %>
+        </p>
       <% }) %>
-    </tbody>
-  </table>
-<% } %>
-
-<h6 class="mt-4">Allegati per ogni terapia</h6>
-<% therapies.forEach(tr => {
-     const atts = attachments.filter(a => a.terapia_id === tr.id);
-%>
-  <p>
-    <strong><%= (tr.data_trattamento instanceof Date ? tr.data_trattamento.toISOString().split('T')[0] : (typeof tr.data_trattamento === 'string' ? tr.data_trattamento.slice(0,10) : '')) %>:</strong>
-    <% atts.forEach(a => { %>
-      <a href="<%= a.url %>" target="_blank" class="mx-1">🖼️</a>
-    <% }) %>
-  </p>
-<% }) %>
-```
+    <% } %>
 
   </div>
 </div>
 
-<!-- script per upload allegati -->
-
 <script>
-  document.querySelectorAll('.upload-attachments-form').forEach(form => {
-    const fileInput = form.querySelector('input[type="file"]');
-    const btnSubmit = form.querySelector('button[type="submit"]');
-    const btnCancel = form.querySelector('.btn-cancel-allegato');
-
-    fileInput.addEventListener('change', () => {
-      if (!fileInput.files.length) return;
-      btnSubmit.classList.remove('d-none');
+  // init photo-editor (invocata da parent)
+  function initPhotoEditor() {
+    const btnEdit   = document.getElementById('btn-edit-photo');
+    if (!btnEdit) return;
+    const btnSave   = document.getElementById('btn-save-photo');
+    const btnCancel = document.getElementById('btn-cancel-photo');
+    const inputFile = document.getElementById('foto-input');
+    const imgPreview= document.getElementById('profile-img');
+    btnEdit.addEventListener('click', ()=> {
+      inputFile.classList.remove('d-none');
+      btnEdit.classList.add('d-none');
+      btnSave.classList.remove('d-none');
       btnCancel.classList.remove('d-none');
     });
-
-    btnCancel.addEventListener('click', () => {
-      fileInput.value = '';
-      btnSubmit.classList.add('d-none');
+    btnCancel.addEventListener('click', ()=> {
+      inputFile.value = '';
+      inputFile.classList.add('d-none');
+      btnEdit.classList.remove('d-none');
+      btnSave.classList.add('d-none');
       btnCancel.classList.add('d-none');
+      imgPreview.src = imgPreview.getAttribute('src');
     });
-  });
-</script>
-
-<!-- script per modifica foto -->
-
-<script>
-  const btnEdit = document.getElementById('btn-edit-photo');
-  const btnSave = document.getElementById('btn-save-photo');
-  const btnCancel = document.getElementById('btn-cancel-photo');
-  const inputFile = document.getElementById('foto-input');
-  const imgPreview = document.getElementById('profile-img');
-
-  btnEdit.addEventListener('click', () => {
-    inputFile.classList.remove('d-none');
-    btnEdit.classList.add('d-none');
-    btnSave.classList.remove('d-none');
-    btnCancel.classList.remove('d-none');
-  });
-
-  btnCancel.addEventListener('click', () => {
-    inputFile.value = '';
-    inputFile.classList.add('d-none');
-r
-    btnEdit.classList.remove('d-none');
-    btnSave.classList.add('d-none');
-    btnCancel.classList.add('d-none');
-    imgPreview.src = fotoSrc; // reset
-  });
-
-  inputFile.addEventListener('change', () => {
-    const file = inputFile.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = e => imgPreview.src = e.target.result;
-    reader.readAsDataURL(file);
-  });
+    inputFile.addEventListener('change', ()=> {
+      const file = inputFile.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => imgPreview.src = e.target.result;
+      reader.readAsDataURL(file);
+    });
+  }
 </script>
