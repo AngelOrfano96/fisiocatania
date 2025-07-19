@@ -217,11 +217,32 @@ app.post('/anagrafica', async (req, res) => {
   }
 });
 
+// POST elimina anagrafica (e tutte le terapie collegate)
 app.post('/anagrafica/delete/:id', async (req, res) => {
   if (!req.session.user) return res.redirect('/');
-  await pool.query('DELETE FROM anagrafica WHERE id=$1', [req.params.id]);
-  res.redirect('/anagrafica');
+
+  const id = req.params.id;
+
+  try {
+    // 1) rimuovi tutte le terapie che hanno questa anagrafica
+    await pool.query(
+      'DELETE FROM terapie WHERE anagrafica_id = $1',
+      [id]
+    );
+
+    // 2) elimina l’anagrafica
+    await pool.query(
+      'DELETE FROM anagrafica WHERE id = $1',
+      [id]
+    );
+
+    res.redirect('/anagrafica');
+  } catch (err) {
+    console.error("Errore nella cancellazione:", err);
+    res.redirect('/anagrafica');
+  }
 });
+
 
 app.post('/anagrafica/update/:id', async (req, res) => {
   if (!req.session.user) return res.status(401).send('Non autorizzato');
