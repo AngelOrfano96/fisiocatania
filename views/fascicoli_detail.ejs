@@ -64,7 +64,7 @@
           </tr>
         </thead>
         <tbody>
-          <% therapies.forEach(tr => {
+          <% therapies.forEach(tr => { 
                const td = tr.data_trattamento;
                const tdStr = (typeof td === 'string' ? td.slice(0,10)
                               : td instanceof Date ? td.toISOString().split('T')[0]
@@ -76,15 +76,14 @@
               <td><%= tr.trattamento %></td>
               <td><%= tr.note || '—' %></td>
               <td>
-                <label class="btn btn-outline-primary btn-sm m-0 upload-trigger">
+                <label class="btn btn-outline-primary btn-sm upload-trigger">
                   📎
                   <input type="file"
-           accept="image/*"
-           class="d-none file-input"
-           required>
+                         accept="image/*"
+                         class="file-input d-none">
                 </label>
-                <button class="btn btn-sm btn-success btn-upload d-none">💾</button>
-                <button class="btn btn-sm btn-secondary btn-cancel-allegato d-none">↩️</button>
+                <button type="button" class="btn btn-sm btn-success btn-upload d-none">💾</button>
+                <button type="button" class="btn btn-sm btn-secondary btn-cancel-allegato d-none">↩️</button>
               </td>
             </tr>
           <% }) %>
@@ -93,163 +92,81 @@
     <% } %>
 
     <h6 class="mt-4">Allegati per ogni terapia</h6>
-    <% if ((attachments||[]).length === 0) { %>
+    <% if ((attachments || []).length === 0) { %>
       <p class="text-muted">Nessun allegato caricato.</p>
     <% } else { %>
       <% therapies.forEach(tr => {
-           const atts = attachments.filter(a=>a.terapia_id===tr.id);
+           const atts = attachments.filter(a => a.terapia_id === tr.id);
       %>
         <p>
-          <strong>
-            <%= (typeof tr.data_trattamento === 'string'
-                  ? tr.data_trattamento.slice(0,10)
-                  : tr.data_trattamento instanceof Date
-                    ? tr.data_trattamento.toISOString().split('T')[0]
-                    : '') %>:
-          </strong>
+          <strong><%= (typeof tr.data_trattamento === 'string'
+                        ? tr.data_trattamento.slice(0,10)
+                        : tr.data_trattamento instanceof Date
+                          ? tr.data_trattamento.toISOString().split('T')[0]
+                          : '') %>:</strong>
           <% atts.forEach(a => { %>
             <a href="<%= a.url %>" target="_blank" class="mx-1">🖼️</a>
           <% }) %>
         </p>
       <% }) %>
     <% } %>
+
   </div>
 </div>
 
 <script>
-  // 1) Upload allegati con fetch + toast di conferma
-  document.querySelectorAll('tbody tr').forEach(row => {
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('tbody tr[data-id]').forEach(row => {
     const therapyId = row.dataset.id;
-    const cell = row.querySelector('td:last-child'); // la cella "Allegati"
+    const cell      = row.querySelector('td:last-child');
+    const trigger   = cell.querySelector('.upload-trigger');
     const fileInput = cell.querySelector('.file-input');
     const btnUpload = cell.querySelector('.btn-upload');
     const btnCancel = cell.querySelector('.btn-cancel-allegato');
-    const trigger    = cell.querySelector('.upload-trigger');
 
-     trigger.addEventListener('click', e => {
-    e.stopPropagation();
-    fileInput.click();
-  });
-
-   fileInput.addEventListener('change', () => {
-    if (!fileInput.files.length) return;
-    btnUpload.classList.remove('d-none');
-    btnCancel.classList.remove('d-none');
-  });
-
-    btnCancel.addEventListener('click', () => {
-    fileInput.value = '';
-    btnUpload.classList.add('d-none');
-    btnCancel.classList.add('d-none');
-  });
-   
-btnUpload.addEventListener('click', () => {
-    const formData = new FormData();
-    formData.append('allegato', fileInput.files[0]);
-
-    fetch(`/terapie/${therapyId}/allegati`, {
-      method: 'POST',
-      body: formData
-    })
-    .then(res => {
-      if (!res.ok) throw new Error('Upload fallito');
-      return res.text();
-    })
-    .then(() => {
-      // toast di conferma
-      const toast = document.createElement('div');
-      toast.className = 'alert alert-success position-fixed bottom-0 end-0 m-3';
-      toast.textContent = 'Allegato caricato!';
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 3000);
-
-      // reset UI
-      fileInput.value = '';
-      btnUpload.classList.add('d-none');
-      btnCancel.classList.add('d-none');
-    })
-    .catch(err => alert(err.message));
-  });
-
-    /*
-    // click sull’icona per aprire file picker
-    cell.querySelector('.upload-trigger').addEventListener('click', e => {
+    trigger.addEventListener('click', e => {
       e.stopPropagation();
       fileInput.click();
     });
 
-    // quando scelgo un file, mostra Salva/Annulla
     fileInput.addEventListener('change', () => {
-      if (!fileInput.files.length) return;
-      btnUpload.classList.remove('d-none');
-      btnCancel.classList.remove('d-none');
+      if (fileInput.files.length) {
+        btnUpload.classList.remove('d-none');
+        btnCancel.classList.remove('d-none');
+      }
     });
 
-    // annulla selezione
     btnCancel.addEventListener('click', () => {
       fileInput.value = '';
       btnUpload.classList.add('d-none');
       btnCancel.classList.add('d-none');
     });
 
-    // upload vero e proprio
     btnUpload.addEventListener('click', () => {
-      const formData = new FormData();
-      formData.append('allegato', fileInput.files[0]);
+      const fd = new FormData();
+      fd.append('allegato', fileInput.files[0]);
 
       fetch(`/terapie/${therapyId}/allegati`, {
         method: 'POST',
-        body: formData
+        body: fd
       })
       .then(res => {
         if (!res.ok) throw new Error('Upload fallito');
         return res.text();
       })
       .then(() => {
-        // toast di conferma
         const toast = document.createElement('div');
         toast.className = 'alert alert-success position-fixed bottom-0 end-0 m-3';
         toast.textContent = 'Allegato caricato!';
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 3000);
 
-        // reset UI
         fileInput.value = '';
         btnUpload.classList.add('d-none');
         btnCancel.classList.add('d-none');
       })
       .catch(err => alert(err.message));
-    }); */
+    });
   });
-
-  // 2) Photo‑editor init
-  (function initPhotoEditor() {
-    const btnEdit   = document.getElementById('btn-edit-photo');
-    if (!btnEdit) return;
-    const btnSave   = document.getElementById('btn-save-photo');
-    const btnCancel = document.getElementById('btn-cancel-photo');
-    const inputFile = document.getElementById('foto-input');
-    const imgPreview= document.getElementById('profile-img');
-    btnEdit.addEventListener('click', ()=>{
-      inputFile.classList.remove('d-none');
-      btnEdit.classList.add('d-none');
-      btnSave.classList.remove('d-none');
-      btnCancel.classList.remove('d-none');
-    });
-    btnCancel.addEventListener('click', ()=>{
-      inputFile.value = '';
-      inputFile.classList.add('d-none');
-      btnEdit.classList.remove('d-none');
-      btnSave.classList.add('d-none');
-      btnCancel.classList.add('d-none');
-      imgPreview.src = imgPreview.getAttribute('src');
-    });
-    inputFile.addEventListener('change', ()=>{
-      const file = inputFile.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = e => imgPreview.src = e.target.result;
-      reader.readAsDataURL(file);
-    });
-  })();
+});
 </script>
