@@ -1,16 +1,16 @@
 <div class="card">
   <div class="card-body">
     <div class="d-flex align-items-center mb-4">
-      <% 
+      <%
         // sorgente immagine (upload o default)
-        const fotoSrc = anagrafica.foto 
-          ? anagrafica.foto 
+        const fotoSrc = anagrafica.foto
+          ? anagrafica.foto
           : defaultPhoto;
       %>
-      <form id="photo-form" 
-            action="/anagrafica/update-photo/<%= anagrafica.id %>" 
-            method="POST" 
-            enctype="multipart/form-data" 
+      <form id="photo-form"
+            action="/anagrafica/update-photo/<%= anagrafica.id %>"
+            method="POST"
+            enctype="multipart/form-data"
             class="d-flex align-items-center">
         <div class="position-relative me-3">
           <img id="profile-img"
@@ -18,10 +18,10 @@
                alt="Foto di <%= anagrafica.nome %> <%= anagrafica.cognome %>"
                class="img-thumbnail"
                style="width:100px; height:100px; object-fit:cover;">
-          <input id="foto-input" 
-                 type="file" 
-                 name="foto" 
-                 accept="image/*" 
+          <input id="foto-input"
+                 type="file"
+                 name="foto"
+                 accept="image/*"
                  class="form-control form-control-sm d-none"
                  style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0;">
         </div>
@@ -41,112 +41,114 @@
       </form>
     </div>
 
-    <% 
-      // data nascita
-      const dob = anagrafica.data_nascita;
-      const dobStr = dob instanceof Date
-        ? dob.toISOString().split('T')[0]
-        : (typeof dob === 'string' ? dob.slice(0,10) : '—');
-    %>
-    <p><strong>Data di nascita:</strong> <%= dobStr %></p>
-    <p><strong>Comune:</strong> <%= anagrafica.luogo_nascita %></p>
-    <p><strong>Cellulare:</strong> <%= anagrafica.cellulare %></p>
-    <p><strong>Note:</strong> <%= anagrafica.note || '—' %></p>
+```
+<%
+  // data nascita
+  const dob = anagrafica.data_nascita;
+  const dobStr = (dob instanceof Date)
+    ? dob.toISOString().split('T')[0]
+    : (typeof dob === 'string' ? dob.slice(0,10) : '—');
+%>
+<p><strong>Data di nascita:</strong> <%= dobStr %></p>
+<p><strong>Comune:</strong> <%= anagrafica.luogo_nascita %></p>
+<p><strong>Cellulare:</strong> <%= anagrafica.cellulare %></p>
+<p><strong>Note:</strong> <%= anagrafica.note || '—' %></p>
 
-    <hr>
+<hr>
 
-    <h5>Terapie collegate</h5>
-    <% if (therapies.length === 0) { %>
-      <p class="text-muted">Nessuna terapia registrata.</p>
-    <% } else { %>
-      <table class="table table-sm table-bordered">
-        <thead>
-          <tr>
-            <th>Data</th>
-            <th>Distretto</th>
-            <th>Trattamento</th>
-            <th>Note</th>
-            <th>Allegati</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% therapies.forEach(tr => { 
-               const td = tr.data_trattamento;
-               const tdStr = td instanceof Date
-                 ? td.toISOString().split('T')[0]
-                 : (typeof td === 'string' ? td.slice(0,10) : '');
-          %>
-            <tr>
-              <td><%= tdStr %></td>
-              <td><%= tr.distretto %></td>
-              <td><%= tr.trattamento %></td>
-              <td><%= tr.note || '—' %></td>
-               <td>                             <!-- NEW -->
-                <form class="upload-attachments-form"
-                      action="/terapie/<%= tr.id %>/allegati"
-                      method="POST"
-                      enctype="multipart/form-data">
-                  <label class="btn btn-outline-primary btn-sm m-0">
-                    📎
-                    <input type="file"
-                           name="allegato"
-                           accept="image/*"
-                           class="d-none"
-                           required>
-                  </label>
-                  <button type="submit"
-                          class="btn btn-sm btn-success d-none">
-                    💾
-                  </button>
-                  <button type="button"
-                          class="btn btn-sm btn-secondary btn-cancel-allegato d-none">
-                    ↩️
-                  </button>
-                </form>
-              </td>  
-            </tr>
-          <% }) %>
-        </tbody>
-      </table>
-    <% } %>
-    <h6 class="mt-4">Allegati per ogni terapia</h6>
+<h5>Terapie collegate</h5>
+<% if (therapies.length === 0) { %>
+  <p class="text-muted">Nessuna terapia registrata.</p>
+<% } else { %>
+  <table class="table table-sm table-bordered">
+    <thead>
+      <tr>
+        <th>Data</th>
+        <th>Distretto</th>
+        <th>Trattamento</th>
+        <th>Note</th>
+        <th>Allegati</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% therapies.forEach(tr => {
+           const td = tr.data_trattamento;
+           const tdStr = (td instanceof Date)
+             ? td.toISOString().split('T')[0]
+             : (typeof td === 'string' ? td.slice(0,10) : '');
+      %>
+        <tr>
+          <td><%= tdStr %></td>
+          <td><%= tr.distretto %></td>
+          <td><%= tr.trattamento %></td>
+          <td><%= tr.note || '—' %></td>
+          <td>
+            <form class="upload-attachments-form"
+                  action="/terapie/<%= tr.id %>/allegati"
+                  method="POST"
+                  enctype="multipart/form-data">
+              <label class="btn btn-outline-primary btn-sm m-0">
+                📎
+                <input type="file"
+                       name="allegato"
+                       accept="image/*"
+                       class="d-none">
+              </label>
+              <button type="submit"
+                      class="btn btn-sm btn-success d-none">
+                💾
+              </button>
+              <button type="button"
+                      class="btn btn-sm btn-secondary btn-cancel-allegato d-none">
+                ↩️
+              </button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+<% } %>
+
+<h6 class="mt-4">Allegati per ogni terapia</h6>
 <% therapies.forEach(tr => {
      const atts = attachments.filter(a => a.terapia_id === tr.id);
 %>
   <p>
-    <strong><%= tr.data_trattamento %>:</strong>
+    <strong><%= (tr.data_trattamento instanceof Date ? tr.data_trattamento.toISOString().split('T')[0] : (typeof tr.data_trattamento === 'string' ? tr.data_trattamento.slice(0,10) : '')) %>:</strong>
     <% atts.forEach(a => { %>
       <a href="<%= a.url %>" target="_blank" class="mx-1">🖼️</a>
     <% }) %>
   </p>
 <% }) %>
+```
 
-    
   </div>
-  <script>
+</div>
+
+<!-- script per upload allegati -->
+
+<script>
   document.querySelectorAll('.upload-attachments-form').forEach(form => {
     const fileInput = form.querySelector('input[type="file"]');
     const btnSubmit = form.querySelector('button[type="submit"]');
     const btnCancel = form.querySelector('.btn-cancel-allegato');
 
-    // Quando scelgo un file, mostro Save/Cancel
     fileInput.addEventListener('change', () => {
       if (!fileInput.files.length) return;
       btnSubmit.classList.remove('d-none');
       btnCancel.classList.remove('d-none');
     });
 
-    // Annulla selezione
     btnCancel.addEventListener('click', () => {
       fileInput.value = '';
       btnSubmit.classList.add('d-none');
       btnCancel.classList.add('d-none');
     });
-
-    // (il submit del form va al server)
   });
 </script>
-</div>
+
+<!-- script per modifica foto -->
 
 <script>
   const btnEdit = document.getElementById('btn-edit-photo');
@@ -165,10 +167,11 @@
   btnCancel.addEventListener('click', () => {
     inputFile.value = '';
     inputFile.classList.add('d-none');
+r
     btnEdit.classList.remove('d-none');
     btnSave.classList.add('d-none');
     btnCancel.classList.add('d-none');
-    imgPreview.src = imgPreview.getAttribute('src'); // reset preview
+    imgPreview.src = fotoSrc; // reset
   });
 
   inputFile.addEventListener('change', () => {
