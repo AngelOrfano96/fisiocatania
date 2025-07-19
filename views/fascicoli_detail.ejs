@@ -1,42 +1,63 @@
 <div class="card">
   <div class="card-body">
-    <% 
-      // Costruisci src per la foto
-      const fotoSrc = anagrafica.foto
-        ? '/uploads/' + encodeURIComponent(anagrafica.foto)
-        : defaultPhoto;
-    %>
-    <div class="d-flex mb-3">
-      <img src="<%= fotoSrc %>" 
-           alt="Foto di <%= anagrafica.nome %> <%= anagrafica.cognome %>" 
-           class="rounded me-3" 
-           style="width:120px;height:120px;object-fit:cover;"
+    <div class="d-flex align-items-center mb-4">
+      <% 
+        // calcolo src dell’immagine (upload o default)
+        const fotoSrc = anagrafica.foto 
+          ? anagrafica.foto 
+          : defaultPhoto;
+      %>
+      <img src="<%= fotoSrc %>"
+           alt="Foto di <%= anagrafica.nome %> <%= anagrafica.cognome %>"
+           class="img-thumbnail me-3"
+           style="width:100px; height:100px; object-fit:cover;"
            onerror="this.onerror=null;this.src='<%= defaultPhoto %>'">
-      <div>
-        <h5><%= anagrafica.nome %> <%= anagrafica.cognome %></h5>
-        <p><strong>Data di nascita:</strong> <%= anagrafica.data_nascita.toISOString().split('T')[0] %></p>
-        <p><strong>Comune:</strong> <%= anagrafica.luogo_nascita %></p>
-        <p><strong>Cellulare:</strong> <%= anagrafica.cellulare %></p>
-        <p><strong>Note:</strong> <%= anagrafica.note || '—' %></p>
-      </div>
+      <h5 class="mb-0"><%= anagrafica.nome %> <%= anagrafica.cognome %></h5>
     </div>
-    <h6 class="mt-4">Terapie collegate</h6>
-    <table class="table table-sm">
-      <thead>
-        <tr>
-          <th>Data</th><th>Distretto</th><th>Trattamento</th><th>Note</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% therapies.forEach(t => { %>
+
+    <% 
+      // renderizzo la data di nascita con fallback
+      const dob = anagrafica.data_nascita;
+      const dobStr = dob instanceof Date
+        ? dob.toISOString().split('T')[0]
+        : (typeof dob === 'string' ? dob.slice(0,10) : '—');
+    %>
+    <p><strong>Data di nascita:</strong> <%= dobStr %></p>
+    <p><strong>Comune:</strong> <%= anagrafica.luogo_nascita %></p>
+    <p><strong>Cellulare:</strong> <%= anagrafica.cellulare %></p>
+    <p><strong>Note:</strong> <%= anagrafica.note || '—' %></p>
+
+    <hr>
+
+    <h5>Terapie collegate</h5>
+    <% if (therapies.length === 0) { %>
+      <p class="text-muted">Nessuna terapia registrata.</p>
+    <% } else { %>
+      <table class="table table-sm table-bordered">
+        <thead>
           <tr>
-            <td><%= t.data_trattamento.toISOString().split('T')[0] %></td>
-            <td><%= t.distretto %></td>
-            <td><%= t.trattamento %></td>
-            <td><%= t.note || '—' %></td>
+            <th>Data</th>
+            <th>Distretto</th>
+            <th>Trattamento</th>
+            <th>Note</th>
           </tr>
-        <% }) %>
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          <% therapies.forEach(tr => { 
+               const td = tr.data_trattamento;
+               const tdStr = td instanceof Date
+                 ? td.toISOString().split('T')[0]
+                 : (typeof td === 'string' ? td.slice(0,10) : '');
+          %>
+            <tr>
+              <td><%= tdStr %></td>
+              <td><%= tr.distretto %></td>
+              <td><%= tr.trattamento %></td>
+              <td><%= tr.note || '—' %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
   </div>
 </div>
