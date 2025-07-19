@@ -2,25 +2,51 @@
   <div class="card-body">
     <div class="d-flex align-items-center mb-4">
       <% 
-        // URL immagine: se è già l’URL Cloudinary lo uso, altrimenti fallback
-        const fotoSrc = anagrafica.foto || defaultPhoto;
+        // sorgente immagine (upload o default)
+        const fotoSrc = anagrafica.foto 
+          ? anagrafica.foto 
+          : defaultPhoto;
       %>
-      <img
-        src="<%= fotoSrc %>"
-        alt="Foto di <%= anagrafica.nome %> <%= anagrafica.cognome %>"
-        class="img-thumbnail me-3"
-        style="width:100px; height:100px; object-fit:cover;"
-        onerror="this.onerror=null;this.src='<%= defaultPhoto %>'"
-      >
-      <h5 class="mb-0"><%= anagrafica.nome %> <%= anagrafica.cognome %></h5>
+      <form id="photo-form" 
+            action="/anagrafica/update-photo/<%= anagrafica.id %>" 
+            method="POST" 
+            enctype="multipart/form-data" 
+            class="d-flex align-items-center">
+        <div class="position-relative me-3">
+          <img id="profile-img"
+               src="<%= fotoSrc %>"
+               alt="Foto di <%= anagrafica.nome %> <%= anagrafica.cognome %>"
+               class="img-thumbnail"
+               style="width:100px; height:100px; object-fit:cover;">
+          <input id="foto-input" 
+                 type="file" 
+                 name="foto" 
+                 accept="image/*" 
+                 class="form-control form-control-sm d-none"
+                 style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0;">
+        </div>
+        <div>
+          <h5 class="mb-1"><%= anagrafica.nome %> <%= anagrafica.cognome %></h5>
+          <!-- pulsanti -->
+          <button id="btn-edit-photo" type="button" class="btn btn-sm btn-outline-primary mb-2">
+            Modifica foto
+          </button>
+          <button id="btn-save-photo" type="submit" class="btn btn-sm btn-success mb-2 d-none">
+            💾 Salva
+          </button>
+          <button id="btn-cancel-photo" type="button" class="btn btn-sm btn-secondary mb-2 d-none">
+            ↩️ Annulla
+          </button>
+        </div>
+      </form>
     </div>
 
     <% 
-      // Formatta data di nascita come stringa YYYY-MM-DD
-      const dobRaw = anagrafica.data_nascita;
-      const dobStr = typeof dobRaw === 'string'
-        ? dobRaw.slice(0,10)
-        : '—';
+      // data nascita
+      const dob = anagrafica.data_nascita;
+      const dobStr = dob instanceof Date
+        ? dob.toISOString().split('T')[0]
+        : (typeof dob === 'string' ? dob.slice(0,10) : '—');
     %>
     <p><strong>Data di nascita:</strong> <%= dobStr %></p>
     <p><strong>Comune:</strong> <%= anagrafica.luogo_nascita %></p>
@@ -43,11 +69,11 @@
           </tr>
         </thead>
         <tbody>
-          <% therapies.forEach(tr => {
-               const tdRaw = tr.data_trattamento;
-               const tdStr = typeof tdRaw === 'string'
-                 ? tdRaw.slice(0,10)
-                 : '';
+          <% therapies.forEach(tr => { 
+               const td = tr.data_trattamento;
+               const tdStr = td instanceof Date
+                 ? td.toISOString().split('T')[0]
+                 : (typeof td === 'string' ? td.slice(0,10) : '');
           %>
             <tr>
               <td><%= tdStr %></td>
@@ -61,3 +87,35 @@
     <% } %>
   </div>
 </div>
+
+<script>
+  const btnEdit = document.getElementById('btn-edit-photo');
+  const btnSave = document.getElementById('btn-save-photo');
+  const btnCancel = document.getElementById('btn-cancel-photo');
+  const inputFile = document.getElementById('foto-input');
+  const imgPreview = document.getElementById('profile-img');
+
+  btnEdit.addEventListener('click', () => {
+    inputFile.classList.remove('d-none');
+    btnEdit.classList.add('d-none');
+    btnSave.classList.remove('d-none');
+    btnCancel.classList.remove('d-none');
+  });
+
+  btnCancel.addEventListener('click', () => {
+    inputFile.value = '';
+    inputFile.classList.add('d-none');
+    btnEdit.classList.remove('d-none');
+    btnSave.classList.add('d-none');
+    btnCancel.classList.add('d-none');
+    imgPreview.src = imgPreview.getAttribute('src'); // reset preview
+  });
+
+  inputFile.addEventListener('change', () => {
+    const file = inputFile.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => imgPreview.src = e.target.result;
+    reader.readAsDataURL(file);
+  });
+</script>

@@ -360,6 +360,28 @@ app.post('/anagrafica/update/:id', async (req, res) => {
   }
 });
 
+// aggiorna solo la foto
+app.post('/anagrafica/update-photo/:id',
+  upload.single('foto'),
+  async (req, res) => {
+    if (!req.session.user) return res.redirect('/login');
+    const id = req.params.id;
+    const fotoUrl = req.file?.path ?? null;
+    try {
+      // se usi Supabase:
+      const { error } = await supabase
+        .from('anagrafica')
+        .update({ foto: fotoUrl })
+        .eq('id', id);
+      if (error) throw error;
+      res.redirect('/fascicoli?'); // rimanda a fascicoli o dove preferisci
+    } catch (err) {
+      console.error("Errore update-photo:", err);
+      res.status(500).send('Errore durante l’aggiornamento della foto');
+    }
+});
+
+
 
 // --- TERAPIE con filtri e join ---
 // … tutto quello che hai già sopra, fino a prima di app.get('/terapie' …
