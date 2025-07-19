@@ -5,6 +5,10 @@
 <% } %>
 
 <form method="POST" action="/anagrafica" enctype="multipart/form-data">
+   <div class="mb-3">
+    <label for="foto" class="form-label">Foto (opzionale)</label>
+    <input type="file" name="foto" id="foto" accept="image/*" class="form-control">
+  </div>
   <div class="mb-3"><input name="cognome" class="form-control" placeholder="Cognome" required></div>
   <div class="mb-3"><input name="nome" class="form-control" placeholder="Nome" required></div>
   <div class="mb-3"><input type="date" name="dataNascita" class="form-control" required></div>
