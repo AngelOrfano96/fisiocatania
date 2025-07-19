@@ -55,9 +55,13 @@ const USERS = { "admin@admin.com": "admin123" };
         data_nascita DATE,
         luogo_nascita TEXT,
         cellulare TEXT,
-        note TEXT,
-        foto TEXT
+        note TEXT
       );
+    `);
+    // se esiste già senza foto, la aggiungiamo
+    await pool.query(`
+      ALTER TABLE anagrafica
+        ADD COLUMN IF NOT EXISTS foto TEXT;
     `);
 
     // --- distretti
