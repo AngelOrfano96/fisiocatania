@@ -13,7 +13,7 @@
   <div class="mb-3"><textarea name="note" class="form-control" placeholder="Note"></textarea></div>
   <div class="mb-3">
     <label for="foto" class="form-label">Foto (opzionale)</label>
-    <input type="file" name="foto" id="foto" accept="image/*" class="form-control">
+    <input type="file" name="foto" id="foto" class="form-control" accept="image/*">
   </div>
   <button type="submit" class="btn btn-success">Salva</button>
 </form>
@@ -56,20 +56,34 @@
           </div>
         </td>
         <td class="data_nascita">
-          <span><%= g.data_nascita.toISOString().split('T')[0] %></span>
-          <input type="date" name="data_nascita" class="form-control form-control-sm d-none" value="<%= g.data_nascita.toISOString().split('T')[0] %>">
+          <% 
+            // Se è un Date, formatta con toISOString, altrimenti supponi sia già una stringa YYYY-MM-DD
+            let dataDisplay = (g.data_nascita instanceof Date)
+              ? g.data_nascita.toISOString().split('T')[0]
+              : (typeof g.data_nascita === 'string' ? g.data_nascita.slice(0,10) : '');
+          %>
+          <span><%= dataDisplay %></span>
+          <input type="date"
+                 name="data_nascita"
+                 class="form-control form-control-sm d-none"
+                 value="<%= dataDisplay %>">
         </td>
         <td class="luogo_nascita">
           <span><%= g.luogo_nascita %></span>
-          <input name="luogo_nascita" class="form-control form-control-sm d-none" value="<%= g.luogo_nascita %>">
+          <input name="luogo_nascita"
+                 class="form-control form-control-sm d-none"
+                 value="<%= g.luogo_nascita %>">
         </td>
         <td class="cellulare">
           <span><%= g.cellulare %></span>
-          <input name="cellulare" class="form-control form-control-sm d-none" value="<%= g.cellulare %>">
+          <input name="cellulare"
+                 class="form-control form-control-sm d-none"
+                 value="<%= g.cellulare %>">
         </td>
         <td class="note">
           <span><%= g.note %></span>
-          <textarea name="note" class="form-control form-control-sm d-none"><%= g.note %></textarea>
+          <textarea name="note"
+                    class="form-control form-control-sm d-none"><%= g.note %></textarea>
         </td>
         <td>
           <button type="button" class="btn btn-warning btn-sm btn-edit">✏️</button>
@@ -96,9 +110,7 @@
     $('#tabellaGiocatori').DataTable({
       pageLength: 10,
       lengthMenu: [5, 10, 20, 50],
-      language: {
-        url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/it-IT.json'
-      },
+      language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/it-IT.json' },
       columnDefs: [{ orderable: false, targets: [5, 6] }]
     });
 
@@ -111,7 +123,7 @@
     });
 
     $('.btn-cancel').click(function () {
-      location.reload(); // più semplice per ora
+      location.reload();
     });
 
     $('.btn-save').click(function () {
@@ -127,7 +139,7 @@
       };
 
       $.post(`/anagrafica/update/${id}`, data, function () {
-        location.reload(); // ricarica per ora, ma puoi anche aggiornare inline
+        location.reload();
       });
     });
   });
