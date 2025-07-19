@@ -41,7 +41,6 @@
   </thead>
   <tbody>
     <% anagrafiche.forEach(a => {
-         // preparo la foto e la data
          const fotoSrc = a.foto || defaultPhoto;
          const dataDisplay = typeof a.data_nascita === 'string'
            ? a.data_nascita.slice(0,10)
@@ -62,7 +61,7 @@
         <td><%= a.luogo_nascita %></td>
         <td><%= a.cellulare %></td>
         <td>
-          <!-- uso onclick inline per non sbagliare mai l'id -->
+          <!-- il nostro unico modo di passare l’ID, inline -->
           <button
             type="button"
             class="btn btn-sm btn-info"
@@ -74,10 +73,13 @@
   </tbody>
 </table>
 
+<!-- qui andrà iniettato il dettaglio -->
 <div id="fascicolo-detail" class="mt-4"></div>
 
 <script>
-  // funzione per fare il fetch del dettaglio e montare l'editor foto
+  /**
+   * 1) Richiama il partial di dettaglio via AJAX.
+   */
   async function caricaFascicolo(id) {
     if (!id || isNaN(id)) {
       return alert('ID non valido: ' + id);
@@ -87,16 +89,20 @@
       if (!res.ok) throw new Error('Errore nel caricamento del fascicolo');
       const html = await res.text();
       document.getElementById('fascicolo-detail').innerHTML = html;
+      // dopo aver iniettato l’HTML, aggancio i listener per edit foto
       initPhotoEditor();
     } catch (err) {
       alert(err.message);
     }
   }
 
-  // initPhotoEditor: aggancia i pulsanti modifica/salva/annulla alla foto
+  /**
+   * 2) Aggancia Modifica/Salva/Annulla alla foto del partial.
+   *    Viene chiamata **solo** dentro caricaFascicolo().
+   */
   function initPhotoEditor() {
-    const btnEdit = document.getElementById('btn-edit-photo');
-    if (!btnEdit) return; // se non esiste, niente da fare
+    const btnEdit   = document.getElementById('btn-edit-photo');
+    if (!btnEdit) return;  // se non c’è, niente da fare
     const btnSave   = document.getElementById('btn-save-photo');
     const btnCancel = document.getElementById('btn-cancel-photo');
     const inputFile = document.getElementById('foto-input');
