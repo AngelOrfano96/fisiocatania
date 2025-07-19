@@ -4,13 +4,17 @@
   <div class="alert alert-success"><%= message %></div>
 <% } %>
 
-<form method="POST" action="/anagrafica">
+<form method="POST" action="/anagrafica" enctype="multipart/form-data">
   <div class="mb-3"><input name="cognome" class="form-control" placeholder="Cognome" required></div>
   <div class="mb-3"><input name="nome" class="form-control" placeholder="Nome" required></div>
   <div class="mb-3"><input type="date" name="dataNascita" class="form-control" required></div>
   <div class="mb-3"><input name="luogoNascita" class="form-control" placeholder="Luogo di nascita" required></div>
   <div class="mb-3"><input name="cellulare" class="form-control" placeholder="Cellulare" required></div>
   <div class="mb-3"><textarea name="note" class="form-control" placeholder="Note"></textarea></div>
+  <div class="mb-3">
+    <label for="foto" class="form-label">Foto (opzionale)</label>
+    <input type="file" name="foto" id="foto" accept="image/*" class="form-control">
+  </div>
   <button type="submit" class="btn btn-success">Salva</button>
 </form>
 

@@ -3,9 +3,25 @@ const session = require('express-session');
 const path = require('path');
 const bodyParser = require('body-parser');
 const { Pool } = require('pg');
+const multer = require('multer');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Assicura la directory degli upload
+const uploadDir = path.join(__dirname, 'public/uploads');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+// Multer config
+const upload = multer({
+  dest: uploadDir,
+  fileFilter: (_, file, cb) => {
+    // accetta solo immagini
+    if (/^image\//.test(file.mimetype)) cb(null, true);
+    else cb(null, false);
+  }
+});
 
 // Connessione al database
 const pool = new Pool({
@@ -31,16 +47,18 @@ const USERS = { "admin@admin.com": "admin123" };
 ;(async () => {
   try {
     // --- anagrafica
-    await pool.query(`
+ await pool.query(`
       CREATE TABLE IF NOT EXISTS anagrafica (
         id SERIAL PRIMARY KEY,
-        cognome TEXT, nome TEXT,
+        cognome TEXT,
+        nome TEXT,
         data_nascita DATE,
         luogo_nascita TEXT,
         cellulare TEXT,
-        note TEXT
-      );`
-    );
+        note TEXT,
+        foto TEXT
+      );
+    `);
 
     // --- distretti
     await pool.query(`
@@ -201,19 +219,28 @@ app.get('/anagrafica', async (req, res) => {
   }
 });
 
-app.post('/anagrafica', async (req, res) => {
+// con quest’altra, che intercetta anche il file “foto”:
+app.post('/anagrafica', upload.single('foto'), async (req, res) => {
   const { cognome, nome, dataNascita, luogoNascita, cellulare, note } = req.body;
+  // se multer ha accettato un’immagine, ne ricava il path
+  const foto = req.file ? `/uploads/${req.file.filename}` : null;
+
   try {
     await pool.query(
       `INSERT INTO anagrafica
-        (cognome,nome,data_nascita,luogo_nascita,cellulare,note)
-       VALUES ($1,$2,$3,$4,$5,$6)`,
-      [cognome,nome,dataNascita,luogoNascita,cellulare,note]
+         (cognome, nome, data_nascita, luogo_nascita, cellulare, note, foto)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [cognome, nome, dataNascita, luogoNascita, cellulare, note, foto]
     );
     res.redirect('/anagrafica');
-  } catch (e) {
-    console.error(e);
-    res.redirect('/anagrafica');
+  } catch (err) {
+    console.error("Errore nel salvataggio:", err);
+    res.render('layout', {
+      page: 'anagrafica_content',
+      giocatori: [],
+      filters: { cognome: '', nome: '' },
+      message: 'Errore nel salvataggio.'
+    });
   }
 });
 
