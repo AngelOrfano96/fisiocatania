@@ -426,6 +426,72 @@ app.post('/terapie/delete/:id', async (req, res) => {
   }
 });
 
+// ROTTA FASCICOLI
+app.get('/fascicoli', async (req, res) => {
+  if (!req.session.user) return res.redirect('/');
+
+  const { cognome = '', nome = '' } = req.query;
+  let clauses = [], values = [];
+
+  if (cognome) {
+    values.push(`%${cognome}%`);
+    clauses.push(`cognome ILIKE $${values.length}`);
+  }
+  if (nome) {
+    values.push(`%${nome}%`);
+    clauses.push(`nome ILIKE $${values.length}`);
+  }
+  const whereSQL = clauses.length ? 'WHERE ' + clauses.join(' AND ') : '';
+
+  try {
+    // 1) prendi le anagrafiche filtrate
+    const anagRes = await pool.query(
+      `SELECT id, cognome, nome, data_nascita, luogo_nascita, cellulare, note, foto
+       FROM anagrafica
+       ${whereSQL}
+       ORDER BY cognome, nome`,
+      values
+    );
+
+    const ids = anagRes.rows.map(r => r.id);
+    // 2) prendi tutte le terapie per questi id
+    const therapyRes = ids.length
+      ? await pool.query(
+          `SELECT
+             t.anagrafica_id,
+             t.data_trattamento,
+             d.nome   AS distretto,
+             tr.nome  AS trattamento,
+             t.note
+           FROM terapie t
+           JOIN distretti d   ON t.distretto_id   = d.id
+           JOIN trattamenti tr ON t.trattamento_id = tr.id
+           WHERE t.anagrafica_id = ANY($1)
+           ORDER BY t.data_trattamento DESC`,
+          [ids]
+        )
+      : { rows: [] };
+
+    res.render('layout', {
+      page:        'fascicoli_content',
+      anagrafiche: anagRes.rows,
+      therapies:   therapyRes.rows,
+      filters:     { cognome, nome },
+      defaultPhoto: '/images/default.png'  // metti qui la tua foto di fallback
+    });
+  } catch (err) {
+    console.error("Errore nel caricamento fascicoli:", err);
+    res.render('layout', {
+      page:        'fascicoli_content',
+      anagrafiche: [],
+      therapies:   [],
+      filters:     { cognome:'', nome:'' },
+      defaultPhoto: '/images/default.png',
+      message:     'Errore nel caricamento dei fascicoli'
+    });
+  }
+});
+
 
 
 // Avvio server

@@ -1,0 +1,111 @@
+<h3>Fascicoli</h3>
+
+<% if (message) { %>
+  <div class="alert alert-danger"><%= message %></div>
+<% } %>
+
+<form method="GET" action="/fascicoli" class="row g-2 mb-3">
+  <div class="col-md-5">
+    <input type="text" name="cognome" class="form-control" placeholder="Filtra per Cognome"
+           value="<%= filters.cognome %>">
+  </div>
+  <div class="col-md-5">
+    <input type="text" name="nome" class="form-control" placeholder="Filtra per Nome"
+           value="<%= filters.nome %>">
+  </div>
+  <div class="col-md-2">
+    <button type="submit" class="btn btn-primary w-100">Cerca</button>
+  </div>
+</form>
+
+<table class="table table-bordered" id="tabellaFascicoli">
+  <thead>
+    <tr>
+      <th>Cognome</th>
+      <th>Nome</th>
+      <th>Fascicolo</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% anagrafiche.forEach(a => { %>
+      <tr data-id="<%= a.id %>">
+        <td><%= a.cognome %></td>
+        <td><%= a.nome %></td>
+        <td>
+          <button type="button"
+                  class="btn btn-sm btn-info btn-preview"
+                  data-id="<%= a.id %>">
+            Visiona
+          </button>
+        </td>
+      </tr>
+      <!-- dettaglio nascosto -->
+      <tr class="detail-row d-none" id="detail-<%= a.id %>">
+        <td colspan="3">
+          <div class="card mb-4">
+            <div class="row g-0">
+              <div class="col-auto">
+                <img src="<%= a.foto || defaultPhoto %>"
+                     class="img-thumbnail m-3"
+                     style="width:150px;height:150px;object-fit:cover;"
+                     alt="Foto <%= a.nome %>">
+              </div>
+              <div class="col">
+                <div class="card-body">
+                  <h5 class="card-title"><%= a.nome %> <%= a.cognome %></h5>
+                  <p class="card-text mb-2">
+                    <strong>Data nascita:</strong>
+                    <%= a.data_nascita.toISOString().split('T')[0] %><br>
+                    <strong>Luogo:</strong> <%= a.luogo_nascita %><br>
+                    <strong>Cellulare:</strong> <%= a.cellulare %><br>
+                    <strong>Note:</strong> <%= a.note %>
+                  </p>
+                  <h6>Terapie collegate:</h6>
+                  <table class="table table-sm table-striped">
+                    <thead>
+                      <tr>
+                        <th>Data</th>
+                        <th>Distretto</th>
+                        <th>Trattamento</th>
+                        <th>Note</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <% therapies
+                          .filter(t => t.anagrafica_id === a.id)
+                          .forEach(t => { %>
+                        <tr>
+                          <td><%= t.data_trattamento.toISOString().split('T')[0] %></td>
+                          <td><%= t.distretto %></td>
+                          <td><%= t.trattamento %></td>
+                          <td><%= t.note %></td>
+                        </tr>
+                      <% }) %>
+                      <% if (!therapies.some(t=>t.anagrafica_id===a.id)) { %>
+                        <tr>
+                          <td colspan="4" class="text-center fst-italic">
+                            Nessuna terapia registrata
+                          </td>
+                        </tr>
+                      <% } %>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>
+
+<script>
+  document.querySelectorAll('.btn-preview').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id  = btn.dataset.id;
+      const row = document.getElementById(`detail-${id}`);
+      row.classList.toggle('d-none');
+    });
+  });
+</script>
