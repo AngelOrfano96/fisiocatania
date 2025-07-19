@@ -46,6 +46,10 @@
           <% 
             // Se c’è un URL in a.foto lo uso, altrimenti il default
             const fotoSrc = a.foto || defaultPhoto;
+            // Estraggo YYYY-MM-DD dalla stringa
+            const dataDisplay = typeof a.data_nascita === 'string'
+              ? a.data_nascita.slice(0,10)
+              : '';
           %>
           <img
             src="<%= fotoSrc %>"
@@ -56,15 +60,7 @@
           >
         </td>
         <td><%= a.nome %> <%= a.cognome %></td>
-        <td>
-          <% 
-            // Estraggo i primi 10 caratteri di YYYY-MM-DD...
-            const dataDisplay = typeof a.data_nascita === 'string'
-              ? a.data_nascita.slice(0,10)
-              : '';
-          %>
-          <%= dataDisplay %>
-        </td>
+        <td><%= dataDisplay %></td>
         <td><%= a.luogo_nascita %></td>
         <td><%= a.cellulare %></td>
         <td>
@@ -82,14 +78,14 @@
 <div id="fascicolo-detail" class="mt-4"></div>
 
 <script>
-  // 1) funzione che inizializza il photo‑editor
+  // Funzione per attivare il photo‑editor nel dettaglio
   function initPhotoEditor() {
     const btnEdit   = document.querySelector('#fascicolo-detail #btn-edit-photo');
-    const btnSave   = document.querySelector('#fascicolo-detail #btn-save-photo');
-    const btnCancel = document.querySelector('#fascicolo-detail #btn-cancel-photo');
-    const inputFile = document.querySelector('#fascicolo-detail #foto-input');
-    const imgPreview= document.querySelector('#fascicolo-detail #profile-img');
-    if (!btnEdit) return; // esci se non siamo in un dettaglio
+    if (!btnEdit) return; // non siamo in un dettaglio
+    const btnSave   = document.getElementById('btn-save-photo');
+    const btnCancel = document.getElementById('btn-cancel-photo');
+    const inputFile = document.getElementById('foto-input');
+    const imgPreview= document.getElementById('profile-img');
 
     btnEdit.addEventListener('click', () => {
       inputFile.classList.remove('d-none');
@@ -103,6 +99,7 @@
       btnEdit.classList.remove('d-none');
       btnSave.classList.add('d-none');
       btnCancel.classList.add('d-none');
+      // ripristino preview
       imgPreview.src = imgPreview.getAttribute('src');
     });
     inputFile.addEventListener('change', () => {
@@ -114,23 +111,24 @@
     });
   }
 
-  // 2) al click sulla lente, carico il partial E poi chiamo initPhotoEditor
-  document.querySelectorAll('.btn-view').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.id;
-      if (!id) return alert('ID non valido');
-      fetch(`/fascicoli/${id}`)
-        .then(res => {
-          if (!res.ok) throw new Error('Errore nel caricamento del fascicolo');
-          return res.text();
-        })
-        .then(html => {
-          const container = document.getElementById('fascicolo-detail');
-          container.innerHTML = html;
-          initPhotoEditor();   // <-- qui attacchiamo i listener al nuovo DOM
-        })
-        .catch(err => alert(err.message));
+  // Attacco i listener sui pulsanti “👁️” **dopo** che il DOM è pronto
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.btn-view').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        if (!id) return alert('ID non valido per questa anagrafica');
+        fetch(`/fascicoli/${id}`)
+          .then(res => {
+            if (!res.ok) throw new Error('Errore nel caricamento del fascicolo');
+            return res.text();
+          })
+          .then(html => {
+            const container = document.getElementById('fascicolo-detail');
+            container.innerHTML = html;
+            initPhotoEditor();
+          })
+          .catch(err => alert(err.message));
+      });
     });
   });
 </script>
-
