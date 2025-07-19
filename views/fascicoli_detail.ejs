@@ -70,21 +70,21 @@
                               : td instanceof Date ? td.toISOString().split('T')[0]
                               : '');
           %>
-            <tr>
+            <tr data-id="<%= tr.id %>">
               <td><%= tdStr %></td>
               <td><%= tr.distretto %></td>
               <td><%= tr.trattamento %></td>
               <td><%= tr.note || '—' %></td>
               <td>
-                  <label class="btn btn-outline-primary btn-sm m-0 upload-trigger">
-    📎
-    <input type="file"
-           accept="image/*"
-           class="d-none file-input"
-           required>
-  </label>
-  <button class="btn btn-sm btn-success btn-upload d-none">💾</button>
-  <button class="btn btn-sm btn-secondary btn-cancel-allegato d-none">↩️</button>
+                <label class="btn btn-outline-primary btn-sm m-0 upload-trigger">
+                  📎
+                  <input type="file"
+                         accept="image/*"
+                         class="d-none file-input"
+                         required>
+                </label>
+                <button class="btn btn-sm btn-success btn-upload d-none">💾</button>
+                <button class="btn btn-sm btn-secondary btn-cancel-allegato d-none">↩️</button>
               </td>
             </tr>
           <% }) %>
@@ -93,37 +93,42 @@
     <% } %>
 
     <h6 class="mt-4">Allegati per ogni terapia</h6>
-    <% if (attachments.length === 0) { %>
+    <% if ((attachments||[]).length === 0) { %>
       <p class="text-muted">Nessun allegato caricato.</p>
     <% } else { %>
       <% therapies.forEach(tr => {
            const atts = attachments.filter(a=>a.terapia_id===tr.id);
       %>
         <p>
-          <strong><%= tr.data_trattamento instanceof Date
-                     ? tr.data_trattamento.toISOString().split('T')[0]
-                     : (typeof tr.data_trattamento==='string'
-                        ? tr.data_trattamento.slice(0,10)
-                        : '')
-                  %>:</strong>
+          <strong>
+            <%= (typeof tr.data_trattamento === 'string'
+                  ? tr.data_trattamento.slice(0,10)
+                  : tr.data_trattamento instanceof Date
+                    ? tr.data_trattamento.toISOString().split('T')[0]
+                    : '') %>:
+          </strong>
           <% atts.forEach(a => { %>
             <a href="<%= a.url %>" target="_blank" class="mx-1">🖼️</a>
           <% }) %>
         </p>
       <% }) %>
     <% } %>
-
   </div>
 </div>
-<script>
-  document.querySelectorAll('td .upload-trigger').forEach(td => {
-    const fileInput  = td.querySelector('.file-input');
-    const btnUpload  = td.parentElement.querySelector('.btn-upload');
-    const btnCancel  = td.parentElement.querySelector('.btn-cancel-allegato');
-    const therapyId  = <%= tr.id %>; // fai attenzione al contesto dentro il forEach
 
-    // click sull’icona apre il file picker
-    td.addEventListener('click', () => fileInput.click());
+<script>
+  // 1) Upload allegati con fetch + toast di conferma
+  document.querySelectorAll('tbody tr').forEach(row => {
+    const therapyId = row.dataset.id;
+    const fileInput = row.querySelector('.file-input');
+    const btnUpload = row.querySelector('.btn-upload');
+    const btnCancel = row.querySelector('.btn-cancel-allegato');
+
+    // apri file picker
+    row.querySelector('.upload-trigger').addEventListener('click', e => {
+      e.stopPropagation();
+      fileInput.click();
+    });
 
     fileInput.addEventListener('change', () => {
       if (!fileInput.files.length) return;
@@ -150,44 +155,36 @@
         return res.text();
       })
       .then(() => {
-        // feedback all’utente
+        // toast di conferma
         const toast = document.createElement('div');
         toast.className = 'alert alert-success position-fixed bottom-0 end-0 m-3';
         toast.textContent = 'Allegato caricato!';
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 3000);
-
         // reset UI
         fileInput.value = '';
         btnUpload.classList.add('d-none');
         btnCancel.classList.add('d-none');
-
-        // (opzionale) ricarica solo la sezione allegati
-        // location.reload(); 
       })
-      .catch(err => {
-        alert(err.message);
-      });
+      .catch(err => alert(err.message));
     });
   });
-</script>
 
-<script>
-  // init photo-editor (invocata da parent)
-  function initPhotoEditor() {
+  // 2) Photo‑editor init
+  (function initPhotoEditor() {
     const btnEdit   = document.getElementById('btn-edit-photo');
     if (!btnEdit) return;
     const btnSave   = document.getElementById('btn-save-photo');
     const btnCancel = document.getElementById('btn-cancel-photo');
     const inputFile = document.getElementById('foto-input');
     const imgPreview= document.getElementById('profile-img');
-    btnEdit.addEventListener('click', ()=> {
+    btnEdit.addEventListener('click', ()=>{
       inputFile.classList.remove('d-none');
       btnEdit.classList.add('d-none');
       btnSave.classList.remove('d-none');
       btnCancel.classList.remove('d-none');
     });
-    btnCancel.addEventListener('click', ()=> {
+    btnCancel.addEventListener('click', ()=>{
       inputFile.value = '';
       inputFile.classList.add('d-none');
       btnEdit.classList.remove('d-none');
@@ -195,12 +192,12 @@
       btnCancel.classList.add('d-none');
       imgPreview.src = imgPreview.getAttribute('src');
     });
-    inputFile.addEventListener('change', ()=> {
+    inputFile.addEventListener('change', ()=>{
       const file = inputFile.files[0];
       if (!file) return;
       const reader = new FileReader();
       reader.onload = e => imgPreview.src = e.target.result;
       reader.readAsDataURL(file);
     });
-  }
+  })();
 </script>
