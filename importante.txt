@@ -1,0 +1,5 @@
+storage file:
+https://console.cloudinary.com/app/c-4e72201ec915c79961d210d873707b/image/getting-started
+
+database:
+https://supabase.com/dashboard/project/qhavcjmmupjuiyjbcbkk/database/tables

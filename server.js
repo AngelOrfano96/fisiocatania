@@ -253,27 +253,38 @@ app.get('/anagrafica', async (req, res) => {
 // POST /anagrafica  (con Cloudinary + multer-storage)
 app.post('/anagrafica', upload.single('foto'), async (req, res) => {
   if (!req.session.user) return res.redirect('/');
+
   const { cognome, nome, dataNascita, luogoNascita, cellulare, note } = req.body;
+  // Multer‑Cloudinary ti mette l’URL dell’immagine in req.file.path
   const foto = req.file?.path || null;
+
   try {
     const { error } = await supabase
       .from('anagrafica')
-      .insert({ cognome, nome,
-                data_nascita: dataNascita,
-                luogo_nascita: luogoNascita,
-                cellulare, note, foto });
+      .insert({
+        cognome,
+        nome,
+        data_nascita:  dataNascita,
+        luogo_nascita: luogoNascita,
+        cellulare,
+        note,
+        foto
+      });
+
     if (error) throw error;
-    res.redirect('/anagrafica');
+    return res.redirect('/anagrafica');
   } catch (err) {
-    console.error(err);
-    res.render('layout', {
-      page:    'anagrafica_content',
-      giocatori: [],
-      filters: { cognome: '', nome: '' },
-      message: 'Errore nel salvataggio'
+    console.error("Errore nel salvataggio via Supabase:", err);
+    // Ricarica la pagina di inserimento mostrando l’errore
+    return res.render('layout', {
+      page:     'anagrafica_content',
+      giocatori: [],                       // non mostriamo la lista in caso di errore
+      filters:   { cognome: '', nome: '' },
+      message:   err.message || 'Errore nel salvataggio'
     });
   }
 });
+
 
 
 /*
