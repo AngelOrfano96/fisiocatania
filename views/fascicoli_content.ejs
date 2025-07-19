@@ -82,15 +82,14 @@
 <div id="fascicolo-detail" class="mt-4"></div>
 
 <script>
-  // 1) definisci una funzione che associa i listener
+  // 1) funzione che inizializza il photo‑editor
   function initPhotoEditor() {
-    const btnEdit = document.querySelector('#fascicolo-detail #btn-edit-photo');
-    const btnSave = document.querySelector('#fascicolo-detail #btn-save-photo');
+    const btnEdit   = document.querySelector('#fascicolo-detail #btn-edit-photo');
+    const btnSave   = document.querySelector('#fascicolo-detail #btn-save-photo');
     const btnCancel = document.querySelector('#fascicolo-detail #btn-cancel-photo');
     const inputFile = document.querySelector('#fascicolo-detail #foto-input');
-    const imgPreview = document.querySelector('#fascicolo-detail #profile-img');
-
-    if (!btnEdit) return; // niente da fare se non c'è
+    const imgPreview= document.querySelector('#fascicolo-detail #profile-img');
+    if (!btnEdit) return; // esci se non siamo in un dettaglio
 
     btnEdit.addEventListener('click', () => {
       inputFile.classList.remove('d-none');
@@ -104,7 +103,6 @@
       btnEdit.classList.remove('d-none');
       btnSave.classList.add('d-none');
       btnCancel.classList.add('d-none');
-      // ripristina src originale
       imgPreview.src = imgPreview.getAttribute('src');
     });
     inputFile.addEventListener('change', () => {
@@ -116,10 +114,11 @@
     });
   }
 
-  // 2) quando clicchi sulla lente, dopo aver inserito HTML chiami initPhotoEditor
+  // 2) al click sulla lente, carico il partial E poi chiamo initPhotoEditor
   document.querySelectorAll('.btn-view').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.dataset.id;
+      if (!id) return alert('ID non valido');
       fetch(`/fascicoli/${id}`)
         .then(res => {
           if (!res.ok) throw new Error('Errore nel caricamento del fascicolo');
@@ -128,9 +127,10 @@
         .then(html => {
           const container = document.getElementById('fascicolo-detail');
           container.innerHTML = html;
-          initPhotoEditor();        // <— associa i listener
+          initPhotoEditor();   // <-- qui attacchiamo i listener al nuovo DOM
         })
         .catch(err => alert(err.message));
     });
   });
 </script>
+
