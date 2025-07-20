@@ -76,15 +76,12 @@
               <td><%= tr.trattamento %></td>
               <td><%= tr.note || '—' %></td>
               <td>
-                <label class="btn btn-outline-primary btn-sm upload-trigger">
-                  📎
-                  <input type="file"
-                         accept="image/*"
-                         class="file-input d-none">
-                </label>
-                <button type="button" class="btn btn-sm btn-success btn-upload d-none">💾</button>
-                <button type="button" class="btn btn-sm btn-secondary btn-cancel-allegato d-none">↩️</button>
-              </td>
+  <a href="/terapie/<%= tr.id %>/allegati" 
+     class="btn btn-outline-secondary btn-sm">
+    📎 Allegati
+  </a>
+</td>
+
             </tr>
           <% }) %>
         </tbody>

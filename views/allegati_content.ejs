@@ -1,0 +1,33 @@
+<h3>Allegati per terapia</h3>
+
+<p>
+  <strong>Terapia del:</strong>
+  <%= therapy.data_trattamento.slice(0,10) %> —
+  <%= therapy.anagrafica.nome %> <%= therapy.anagrafica.cognome %>
+</p>
+
+<hr>
+
+<h5>Upload nuovo allegato</h5>
+<form method="POST" action="/terapie/<%= therapy.id %>/allegati" 
+      enctype="multipart/form-data">
+  <div class="input-group mb-3" style="max-width:400px;">
+    <input type="file" name="allegato" class="form-control" required>
+    <button class="btn btn-primary" type="submit">Carica</button>
+  </div>
+</form>
+
+<h5>Allegati esistenti</h5>
+<% if (attachments.length === 0) { %>
+  <p class="text-muted">Nessun allegato caricato.</p>
+<% } else { %>
+  <ul>
+  <% attachments.forEach(a => { %>
+    <li>
+      <a href="<%= a.url %>" target="_blank">🖼️ <%= a.url.split('/').pop() %></a>
+    </li>
+  <% }) %>
+  </ul>
+<% } %>
+
+<p><a href="javascript:history.back()" class="btn btn-secondary btn-sm">← Indietro</a></p>

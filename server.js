@@ -691,6 +691,49 @@ app.get('/fascicoli/:id', async (req, res) => {
   }
 });
 
+// Lista e upload allegati per una singola terapia
+app.get('/terapie/:id/allegati', async (req, res) => {
+  if (!req.session.user) return res.redirect('/login');
+  const therapyId = req.params.id;
+
+  // 1) Prendo i dati della terapia
+  const { data: row, error: errTher } = await supabase
+    .from('terapie')
+    .select(`id, data_trattamento, anagrafica (nome, cognome)`)
+    .eq('id', therapyId)
+    .single();
+  if (errTher || !row) return res.status(404).send('Terapia non trovata');
+
+  // 2) Prendo gli allegati esistenti
+  const { data: attachments = [], error: errAtt } = await supabase
+    .from('allegati')
+    .select('*')
+    .eq('terapia_id', therapyId);
+
+  if (errAtt) console.error(errAtt);
+
+  res.render('allegati_content', {
+    therapy: row,
+    attachments,
+    defaultPhoto: '/images/default.png'
+  });
+});
+
+app.post('/terapie/:id/allegati', upload.single('allegato'), async (req, res) => {
+  if (!req.session.user) return res.redirect('/login');
+  const therapyId = req.params.id;
+  if (!req.file) return res.redirect('back');
+
+  const url = req.file.path;  // Cloudinary URL
+
+  const { error } = await supabase
+    .from('allegati')
+    .insert({ terapia_id: therapyId, url });
+  if (error) console.error(error);
+
+  res.redirect('back');
+});
+
 
 // Avvio server
 app.listen(PORT, () => {
