@@ -503,8 +503,9 @@ app.get('/terapie/:id/allegati', async (req, res) => {
   if (errAtt) console.error(errAtt);
 
   // 3) Render della view degli allegati
-  return res.render('allegati_content', {
-    therapy:     row,
+ res.render('layout', {
+    page:         'allegati_content',
+    therapy,
     attachments,
     defaultPhoto: '/images/default.png'
   });
