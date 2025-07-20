@@ -41,19 +41,6 @@ const upload = require('multer')({ storage });
 const uploadDir = path.join(__dirname, 'public/uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-// Database connection
-/*typeof process.env.DATABASE_URL === 'undefined' && console.warn('⚠️ DATABASE_URL not set');
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-}); */
-
-// Connessione al database
-/*const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-}); */
-
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -67,135 +54,6 @@ app.use(session({
 }));
 
 const USERS = { "admin@admin.com": "admin123" };
-
-/*
-// Creazione tabelle e popolamento iniziale
-;(async () => {
-  try {
-    // --- anagrafica
- await pool.query(`
-      CREATE TABLE IF NOT EXISTS anagrafica (
-        id SERIAL PRIMARY KEY,
-        cognome TEXT,
-        nome TEXT,
-        data_nascita DATE,
-        luogo_nascita TEXT,
-        cellulare TEXT,
-        note TEXT
-      );
-    `);
-    // se esiste già senza foto, la aggiungiamo
-    await pool.query(`
-      ALTER TABLE anagrafica
-        ADD COLUMN IF NOT EXISTS foto TEXT;
-    `);
-
-    // --- distretti
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS distretti (
-        id     SERIAL PRIMARY KEY,
-        nome   TEXT UNIQUE,
-        coords TEXT
-      );`
-    );
-        // Assicura che esista un indice UNIQUE su nome, anche se la tabella era già lì senza constraint
-        await pool.query(`
-          CREATE UNIQUE INDEX IF NOT EXISTS idx_distretti_nome 
-          ON distretti (nome);
-        `);
-    
-
-    // lista dei distretti + coords
-    const distrettiDaInserire = [
-      ['adduttore dx',       '282,500'],
-      ['adduttore sx',       '309,500'],
-      ['alluce sx',          '305,810'],
-      ['anca dx',            '221,438'],
-      ['anca sx',            '368,438'],
-      ['caviglia dx',        '267,780'],
-      ['caviglia sx',        '324,780'],
-      ['cervicale',          '565,200'],
-      ['dorsale',            '565,270'],
-      ['fascia alata',       '300,380'],
-      ['fascia plantare',    '530,815'],
-      ['flessore dx',        '600,530'],
-      ['flessore sx',        '530,530'],
-      ['ginocchio dx',       '267,615'],
-      ['ginocchio sx',       '324,615'],
-      ['gluteo dx',          '600,420'],
-      ['gluteo sx',          '530,420'],
-      ['lombare',            '565,380'],
-      ['polpaccio dx',       '600,690'],
-      ['polpaccio sx',       '530,690'],
-      ['pube',               '300,410'],
-      ['quadricipite dx',    '267,550'],
-      ['quadricipite sx',    '324,550'],
-      ['spalla dx',          '655,210'],
-      ['spalla sx',          '474,210'],
-      ['tendine d\'achille dx','585,775'],
-      ['tendine d\'achille sx','545,775'],
-      ['tibiale dx',         '264,710'],
-      ['tibiale sx',         '327,710']
-    ];
-
-    // upsert per ogni distretto
-    for (const [nome, coords] of distrettiDaInserire) {
-      await pool.query(
-        `INSERT INTO distretti (nome, coords)
-         VALUES ($1, $2)
-         ON CONFLICT (nome) DO UPDATE
-           SET coords = EXCLUDED.coords`,
-        [nome, coords]
-      );
-    }
-
-    // --- trattamenti
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS trattamenti (
-        id   SERIAL PRIMARY KEY,
-        nome TEXT
-      );`
-    );
-
-    const cnt = await pool.query(`SELECT COUNT(*) FROM trattamenti`);
-    if (+cnt.rows[0].count === 0) {
-      await pool.query(`
-        INSERT INTO trattamenti (nome) VALUES
-        ('Massaggio decontratturante'),
-        ('TENS'),
-        ('Tecarterapia'),
-        ('Ultrasuoni'),
-        ('Crioterapia'),
-        ('Esercizi di rinforzo'),
-        ('Stretching passivo'),
-        ('Manipolazioni vertebrali');`
-      );
-      console.log("✅ Tabella trattamenti popolata");
-    }
-
-    // --- terapie
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS terapie (
-        id              SERIAL PRIMARY KEY,
-        anagrafica_id   INTEGER REFERENCES anagrafica(id),
-        distretto_id    INTEGER REFERENCES distretti(id),
-        trattamento_id  INTEGER REFERENCES trattamenti(id),
-        data_trattamento DATE,
-        note            TEXT
-      );`
-    );
-
-    await pool.query(`
-      ALTER TABLE terapie
-        ADD COLUMN IF NOT EXISTS operatore TEXT,
-        ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT now();
-    `);
-
-    console.log("✅ Tutte le tabelle pronte e popolate");
-  } catch (err) {
-    console.error("❌ Errore nella creazione delle tabelle:", err);
-  }
-})();  */
 
 // Rotte di base e autenticazione
 app.get('/', (req, res) => {
@@ -287,37 +145,6 @@ app.post('/anagrafica', upload.single('foto'), async (req, res) => {
   }
 });
 
-
-
-/*
-// creazione con upload Cloudinary
-app.post('/anagrafica', upload.single('foto'), async (req, res) => {
-  const { cognome, nome, dataNascita, luogoNascita, cellulare, note } = req.body;
-  // CloudinaryStorage ti mette qui l’URL
-  const fotoUrl = req.file?.path ?? null;
-
-  try {
-    // usa Supabase per l'insert
-    const { error } = await supabase
-      .from('anagrafica')
-      .insert({
-        cognome,
-        nome,
-        data_nascita: dataNascita,
-        luogo_nascita: luogoNascita,
-        cellulare,
-        note,
-        foto: fotoUrl
-      });
-    if (error) throw error;
-    res.redirect('/anagrafica');
-  } catch (err) {
-    console.error("Errore nel salvataggio:", err);
-    res.redirect('/anagrafica');
-  }
-}); */
-
-
 // POST /anagrafica/delete/:id
 app.post('/anagrafica/delete/:id', async (req, res) => {
   if (!req.session.user) return res.redirect('/');
@@ -381,13 +208,6 @@ app.post('/anagrafica/update-photo/:id',
     }
 });
 
-
-
-// --- TERAPIE con filtri e join ---
-// … tutto quello che hai già sopra, fino a prima di app.get('/terapie' …
-
-// ROTTE TERAPIE
-// … tutto quello che hai già sopra …
 
 // ROTTE TERAPIE
 app.get('/terapie', async (req, res) => {
@@ -592,44 +412,6 @@ app.get('/fascicoli', async (req, res) => {
   }
 });
 
-
-// dettaglio di un singolo fascicolo (partial HTML)
-/*app.get('/fascicoli/:id', async (req, res) => {
-  if (!req.session.user) return res.status(401).send('Non autorizzato');
-  const { id } = req.params;
-  try {
-    // 1) prendi l’anagrafica
-    const aRes = await pool.query(`
-      SELECT id, nome, cognome, data_nascita, luogo_nascita, cellulare, note, foto
-      FROM anagrafica
-      WHERE id = $1
-    `, [id]);
-    if (aRes.rowCount === 0) return res.status(404).send('Non trovato');
-
-    const a = aRes.rows[0];
-
-    // 2) tutte le terapie relative
-    const tRes = await pool.query(`
-      SELECT data_trattamento, d.nome AS distretto, tr.nome AS trattamento, note
-      FROM terapie t
-      JOIN distretti d   ON t.distretto_id   = d.id
-      JOIN trattamenti tr ON t.trattamento_id = tr.id
-      WHERE t.anagrafica_id = $1
-      ORDER BY t.data_trattamento DESC
-    `, [id]);
-
-    // 3) render di un partial (lo creiamo subito qui di seguito)
-    res.render('fascicolo_detail', {
-      a,
-      therapies: tRes.rows,
-      defaultPhoto: '/images/default.png'
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Errore interno');
-  }
-}); */
-
 // dettaglio di un singolo fascicolo (partial HTML)
 app.get('/fascicoli/:id', async (req, res) => {
   if (!req.session.user) return res.status(401).send('Non autorizzato');
@@ -720,21 +502,6 @@ app.get('/terapie/:id/allegati', async (req, res) => {
 });
 
 app.post('/terapie/:id/allegati', upload.single('allegato'), async (req, res) => {
-  if (!req.session.user) return res.redirect('/login');
-  const therapyId = req.params.id;
-  if (!req.file) return res.redirect('back');
-
-  const url = req.file.path;  // Cloudinary URL
-
-  const { error } = await supabase
-    .from('allegati')
-    .insert({ terapia_id: therapyId, url });
-  if (error) console.error(error);
-
-  res.redirect('back');
-});
-
-app.post('/terapie/:id/allegati', upload.single('allegato'), async (req, res) => {
   if (!req.session.user) return res.status(401).send('Non autorizzato');
   const therapyId = req.params.id;
   if (!req.file) return res.status(400).send('Nessun file caricato');
@@ -754,8 +521,6 @@ app.post('/terapie/:id/allegati', upload.single('allegato'), async (req, res) =>
   // mostrare il toast / pulire i controlli
   res.sendStatus(200);
 });
-
-
 
 
 // Avvio server
