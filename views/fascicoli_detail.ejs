@@ -49,97 +49,77 @@
     <p><strong>Note:</strong> <%= anagrafica.note || '—' %></p>
 
     <hr>
-    <h5>Terapie collegate</h5>
-    <% if (therapies.length === 0) { %>
-      <p class="text-muted">Nessuna terapia registrata.</p>
-    <% } else { %>
-      <table class="table table-sm table-bordered">
-        <thead>
-          <tr>
-            <th>Data</th>
-            <th>Distretto</th>
-            <th>Trattamento</th>
-            <th>Note</th>
-            <th>Allegati</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% therapies.forEach(tr => { 
-               const td = tr.data_trattamento;
-               const tdStr = (typeof td === 'string' ? td.slice(0,10)
-                              : td instanceof Date ? td.toISOString().split('T')[0]
-                              : '');
-          %>
-            <tr data-id="<%= tr.id %>">
-              <td><%= tdStr %></td>
-              <td><%= tr.distretto %></td>
-              <td><%= tr.trattamento %></td>
-              <td><%= tr.note || '—' %></td>
-              <td>
-  <a href="/terapie/<%= tr.id %>/allegati" 
-     class="btn btn-outline-secondary btn-sm">
-    📎 Allegati
-  </a>
-</td>
-
-            </tr>
-          <% }) %>
-        </tbody>
-      </table>
-    <% } %>
-
-    <h6 class="mt-4">Allegati per ogni terapia</h6>
-    <% if ((attachments || []).length === 0) { %>
-      <p class="text-muted">Nessun allegato caricato.</p>
-    <% } else { %>
+ <h5>Terapie collegate</h5>
+<% if (therapies.length === 0) { %>
+  <p class="text-muted">Nessuna terapia registrata.</p>
+<% } else { %>
+  <table class="table table-sm table-bordered">
+    <thead>
+      <tr>
+        <th>Data</th>
+        <th>Distretto</th>
+        <th>Trattamento</th>
+        <th>Note</th>
+        <th>Allegati</th>
+      </tr>
+    </thead>
+    <tbody>
       <% therapies.forEach(tr => {
-           const atts = attachments.filter(a => a.terapia_id === tr.id);
+           const td = tr.data_trattamento;
+           const tdStr = (typeof td==='string' ? td.slice(0,10)
+                         : td instanceof Date ? td.toISOString().split('T')[0]
+                         : '');
       %>
-        <p>
-          <strong><%= (typeof tr.data_trattamento === 'string'
-                        ? tr.data_trattamento.slice(0,10)
-                        : tr.data_trattamento instanceof Date
-                          ? tr.data_trattamento.toISOString().split('T')[0]
-                          : '') %>:</strong>
-          <% atts.forEach(a => { %>
-            <a href="<%= a.url %>" target="_blank" class="mx-1">🖼️</a>
-          <% }) %>
-        </p>
+        <tr data-id="<%= tr.id %>">
+          <td><%= tdStr %></td>
+          <td><%= tr.distretto %></td>
+          <td><%= tr.trattamento %></td>
+          <td><%= tr.note||'—' %></td>
+          <td>
+            <!-- upload-trigger + file-input -->
+            <button type="button" class="btn btn-outline-primary btn-sm btn-trigger">📎</button>
+            <input type="file"
+                   accept="image/*"
+                   class="d-none file-input">
+          </td>
+        </tr>
       <% }) %>
-    <% } %>
+    </tbody>
+  </table>
+<% } %>
 
-  </div>
-</div>
+<h6 class="mt-4">Allegati per ogni terapia</h6>
+<% if (!attachments.length) { %>
+  <p class="text-muted">Nessun allegato caricato.</p>
+<% } else { %>
+  <% therapies.forEach(tr => {
+       const atts = attachments.filter(a=>a.terapia_id===tr.id);
+  %>
+    <p>
+      <strong>
+        <%= (typeof tr.data_trattamento==='string'
+            ? tr.data_trattamento.slice(0,10)
+            : tr.data_trattamento instanceof Date
+              ? tr.data_trattamento.toISOString().split('T')[0]
+              : '') %>:
+      </strong>
+      <% atts.forEach(a => { %>
+        <a href="<%= a.url %>" target="_blank" class="mx-1">🖼️</a>
+      <% }) %>
+    </p>
+  <% }) %>
+<% } %>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('tbody tr[data-id]').forEach(row => {
+  document.querySelectorAll('tbody tr').forEach(row => {
     const therapyId = row.dataset.id;
-    const cell      = row.querySelector('td:last-child');
-    const trigger   = cell.querySelector('.upload-trigger');
-    const fileInput = cell.querySelector('.file-input');
-    const btnUpload = cell.querySelector('.btn-upload');
-    const btnCancel = cell.querySelector('.btn-cancel-allegato');
+    const btnTrigger = row.querySelector('.btn-trigger');
+    const fileInput  = row.querySelector('.file-input');
 
-    trigger.addEventListener('click', e => {
-      e.stopPropagation();
-      fileInput.click();
-    });
+    btnTrigger.addEventListener('click', () => fileInput.click());
 
     fileInput.addEventListener('change', () => {
-      if (fileInput.files.length) {
-        btnUpload.classList.remove('d-none');
-        btnCancel.classList.remove('d-none');
-      }
-    });
-
-    btnCancel.addEventListener('click', () => {
-      fileInput.value = '';
-      btnUpload.classList.add('d-none');
-      btnCancel.classList.add('d-none');
-    });
-
-    btnUpload.addEventListener('click', () => {
+      if (!fileInput.files.length) return;
       const fd = new FormData();
       fd.append('allegato', fileInput.files[0]);
 
@@ -149,21 +129,16 @@ document.addEventListener('DOMContentLoaded', () => {
       })
       .then(res => {
         if (!res.ok) throw new Error('Upload fallito');
-        return res.text();
-      })
-      .then(() => {
+        // mostro toast di conferma
         const toast = document.createElement('div');
         toast.className = 'alert alert-success position-fixed bottom-0 end-0 m-3';
         toast.textContent = 'Allegato caricato!';
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 3000);
-
+        // ripulisco input
         fileInput.value = '';
-        btnUpload.classList.add('d-none');
-        btnCancel.classList.add('d-none');
       })
       .catch(err => alert(err.message));
     });
   });
-});
 </script>
