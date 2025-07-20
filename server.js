@@ -7,9 +7,9 @@ const multer = require('multer');
 const fs = require('fs');
 const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
-const pdf = require('html-pdf');
-const ejs = require('ejs');
-const puppeteer = require('puppeteer');
+const htmlPdf = require('html-pdf');
+const ejs     = require('ejs');
+const path    = require('path');
 
 
 
@@ -636,7 +636,6 @@ app.post('/allegati/:id/delete', async (req, res) => {
 
 app.get('/fascicoli/:anagID/export/:therapyID', async (req, res) => {
   if (!req.session.user) return res.redirect('/login');
-
   const anagID    = parseInt(req.params.anagID, 10);
   const therapyID = parseInt(req.params.therapyID, 10);
   if (isNaN(anagID) || isNaN(therapyID)) {
@@ -644,7 +643,7 @@ app.get('/fascicoli/:anagID/export/:therapyID', async (req, res) => {
   }
 
   try {
-    // 1) Recupera anagrafica
+    // 🔹 1) Prendi anagrafica
     const { data: anag, error: errA } = await supabase
       .from('anagrafica')
       .select('*')
@@ -652,7 +651,7 @@ app.get('/fascicoli/:anagID/export/:therapyID', async (req, res) => {
       .single();
     if (errA || !anag) throw errA || new Error('Anagrafica non trovata');
 
-    // 2) Recupera terapia
+    // 🔹 2) Prendi terapia
     const { data: th, error: errT } = await supabase
       .from('terapie')
       .select(`
@@ -664,43 +663,39 @@ app.get('/fascicoli/:anagID/export/:therapyID', async (req, res) => {
       .single();
     if (errT || !th) throw errT || new Error('Terapia non trovata');
 
-    // 3) Recupera allegati
+    // 🔹 3) Prendi allegati
     const { data: attachments = [], error: errAtt } = await supabase
       .from('allegati')
       .select('*')
       .eq('terapia_id', therapyID);
     if (errAtt) console.error(errAtt);
 
-    // 4) Render HTML con EJS (usa views/export_template.ejs)
+    // 🔹 4) Genera HTML con EJS
     const html = await ejs.renderFile(
       path.join(__dirname, 'views', 'export_template.ejs'),
       { anagrafica: anag, therapy: th, attachments, defaultPhoto: '/images/default.png' }
     );
 
-    // 5) Genera PDF con Puppeteer
-    const browser = await puppeteer.launch();
-    const page    = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: { top: '20mm', bottom: '20mm', left: '10mm', right: '10mm' }
-    });
-    await browser.close();
-
-    // 6) Invia PDF
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="Fascicolo_${anag.cognome}_${therapyID}.pdf"`
-    );
-    res.send(pdfBuffer);
-
+    // 🔹 5) Crea PDF con html-pdf
+    htmlPdf.create(html, { format: 'A4', border: '10mm' })
+      .toBuffer((err, buffer) => {
+        if (err) {
+          console.error('Errore generazione PDF:', err);
+          return res.status(500).send('Errore generazione PDF');
+        }
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename="Fascicolo_${anag.cognome}_${therapyID}.pdf"`
+        );
+        res.send(buffer);
+      });
   } catch (err) {
     console.error('Errore nell’esportazione:', err);
     res.status(500).send('Errore nell’esportazione');
   }
 });
+
 
 // Avvio server
 app.listen(PORT, () => {
