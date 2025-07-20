@@ -554,6 +554,33 @@ app.post('/terapie/:therapyId/allegati/:id/delete', async (req, res) => {
   }
 });
 
+// Upload di un singolo allegato per una terapia
+app.post('/terapie/:id/allegati', upload.single('allegato'), async (req, res) => {
+  if (!req.session.user) return res.status(401).send('Non autorizzato');
+  const therapyId = parseInt(req.params.id, 10);
+  if (isNaN(therapyId)) return res.status(400).send('ID terapia non valido');
+  if (!req.file)             return res.status(400).send('Nessun file caricato');
+
+  const url      = req.file.path;      // url completo
+  const publicId = req.file.filename;  // public_id in Cloudinary
+
+  try {
+    const { error } = await supabase
+      .from('allegati')
+      .insert({
+        terapia_id: therapyId,
+        url,
+        public_id: publicId
+      });
+    if (error) throw error;
+    // redirect indietro per ricaricare la pagina degli allegati
+    return res.redirect(req.get('Referer') || `/terapie/${therapyId}/allegati`);
+  } catch (err) {
+    console.error('Errore upload allegato:', err);
+    return res.status(500).send('Upload fallito');
+  }
+});
+
 
 // Elimina un allegato sia da Supabase che da Cloudinary
 app.post('/allegati/:id/delete', async (req, res) => {
