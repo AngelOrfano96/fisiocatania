@@ -1,42 +1,59 @@
-<h3>Allegati per terapia</h3>
-
-<p>
-  <strong>Terapia del:</strong>
-  <%= therapy.data_trattamento.slice(0,10) %> — 
-  <%= therapy.anagrafica.nome %> <%= therapy.anagrafica.cognome %>
-</p>
-
-<hr>
-
-<h5>Upload nuovo allegato</h5>
-<form method="POST" action="/terapie/<%= therapy.id %>/allegati" 
-      enctype="multipart/form-data" class="mb-4">
-  <div class="input-group" style="max-width:400px;">
-    <input type="file" name="allegato" class="form-control" required>
-    <button class="btn btn-primary" type="submit">Carica</button>
+<div class="container py-4">
+  <h3 class="mb-4">Allegati per Terapia</h3>
+  <div class="card mb-4 shadow-sm">
+    <div class="card-body">
+      <div class="row align-items-center">
+        <div class="col-md-8">
+          <p class="mb-1"><strong>Data terapia:</strong> <%= therapy.data_trattamento.slice(0,10) %></p>
+          <p class="mb-0"><strong>Giocatore:</strong> <%= therapy.anagrafica.nome %> <%= therapy.anagrafica.cognome %></p>
+        </div>
+      </div>
+    </div>
   </div>
-</form>
 
-<h5>Allegati esistenti</h5>
-<% if (attachments.length === 0) { %>
-  <p class="text-muted">Nessun allegato caricato.</p>
-<% } else { %>
-  <ul class="list-group">
-    <% attachments.forEach(a => { 
-         // estraggo il nome del file dall'URL
-         const filename = a.url.split('/').pop();
-    %>
-      <li class="list-group-item d-flex justify-content-between align-items-center">
-        <a href="<%= a.url %>" target="_blank">🖼️ <%= filename %></a>
-        <form method="POST" action="/allegati/<%= a.id %>/delete" 
-              onsubmit="return confirm('Eliminare questo allegato?')">
-          <button type="submit" class="btn btn-sm btn-danger">🗑️</button>
-        </form>
-      </li>
-    <% }) %>
-  </ul>
-<% } %>
+  <div class="card mb-4 shadow-sm">
+    <div class="card-body">
+      <h5 class="card-title">Carica Nuovo Allegato</h5>
+      <form method="POST" action="/terapie/<%= therapy.id %>/allegati" enctype="multipart/form-data" class="row g-3 align-items-center">
+        <div class="col-sm-8">
+          <input type="file" name="allegato" class="form-control" required>
+        </div>
+        <div class="col-sm-4">
+          <button class="btn btn-primary w-100" type="submit">📎 Carica Allegato</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
-<p class="mt-4">
-  <a href="javascript:history.back()" class="btn btn-secondary btn-sm">← Indietro</a>
-</p>
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h5 class="card-title">Allegati Esistenti</h5>
+      <% if (attachments.length === 0) { %>
+        <p class="text-muted">Nessun allegato presente.</p>
+      <% } else { %>
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-3">
+          <% attachments.forEach(a => { %>
+            <div class="col">
+              <div class="card h-100">
+                <img src="<%= a.url %>" class="card-img-top" alt="Allegato">
+                <div class="card-body d-flex flex-column">
+                  <h6 class="card-text text-truncate"><%= a.url.split('/').pop() %></h6>
+                  <div class="mt-auto d-flex justify-content-between">
+                    <a href="<%= a.url %>" target="_blank" class="btn btn-sm btn-outline-primary">💬 Apri</a>
+                    <form method="POST" action="/allegati/delete/<%= a.id %>" onsubmit="return confirm('Eliminare questo allegato?');">
+                      <button type="submit" class="btn btn-sm btn-outline-danger">🗑️ Elimina</button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="mt-4 text-center">
+    <a href="/fascicoli" class="btn btn-secondary">← Torna a Fascicoli</a>
+  </div>
+</div>
