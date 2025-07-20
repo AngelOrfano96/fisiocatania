@@ -361,9 +361,11 @@ app.post('/terapie/:id/allegati', upload.single('allegato'), async (req, res) =>
 // ROTTA FASCICOLI
 app.get('/fascicoli', async (req, res) => {
   if (!req.session.user) return res.redirect('/');
+
   const { cognome = '', nome = '' } = req.query;
 
   try {
+    // --- la tua logica di query a Supabase qui ---
     let query = supabase
       .from('anagrafica')
       .select('id,cognome,nome,data_nascita,luogo_nascita,cellulare,note,foto')
@@ -374,8 +376,7 @@ app.get('/fascicoli', async (req, res) => {
     const { data: anagrafiche, error: e1 } = await query;
     if (e1) throw e1;
 
-    // prendo tutte le terapie per gli id filtrati
-    const ids = anagrafiche.map(a=>a.id);
+    const ids = anagrafiche.map(a => a.id);
     let therapies = [];
     if (ids.length) {
       const { data: th, error: e2 } = await supabase
@@ -393,18 +394,29 @@ app.get('/fascicoli', async (req, res) => {
       }));
     }
 
+    // *** Qui dentro ***, **all’interno del try**, chiamiamo res.render
+    return res.render('layout', {
+      page:         'fascicoli_content',
+      anagrafiche,
+      therapies,
+      filters: { cognome, nome },
+      defaultPhoto: '/images/default.png',
+      message: null
+    });
 
   } catch (err) {
     console.error(err);
-    res.render('layout',{
+    return res.render('layout', {
       page:         'fascicoli_content',
-      anagrafiche: [], therapies: [],
-      filters:{cognome:'',nome:''},
-      defaultPhoto:'/images/default.png',
-      message:    'Errore nel caricamento dei fascicoli'
+      anagrafiche:  [],
+      therapies:    [],
+      filters:      { cognome:'', nome:'' },
+      defaultPhoto: '/images/default.png',
+      message:      'Errore nel caricamento dei fascicoli'
     });
   }
-});
+});  // ← assicurati di avere questa parentesi e punto e virgola
+
 
 // dettaglio di un singolo fascicolo (partial HTML)
 app.get('/fascicoli/:id', async (req, res) => {
