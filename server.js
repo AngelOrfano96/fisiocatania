@@ -520,6 +520,8 @@ app.post('/terapie/:id/allegati', upload.single('allegato'), async (req, res) =>
   // Invece di redirect, rispondi con 200 OK e lascia che sia il client JS a
   // mostrare il toast / pulire i controlli
   res.sendStatus(200);
+  res.redirect(req.get('Referer') || '/fascicoli');
+
 });
 
 
