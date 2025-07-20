@@ -485,31 +485,33 @@ app.get('/fascicoli/:id', async (req, res) => {
 // Lista e upload allegati per una singola terapia
 app.get('/terapie/:id/allegati', async (req, res) => {
   if (!req.session.user) return res.redirect('/login');
-  const therapyId = req.params.id;
+  const therapyId = parseInt(req.params.id, 10);
+  if (isNaN(therapyId)) return res.status(400).send('ID terapia non valido');
 
   // 1) Prendo i dati della terapia
-  const { data: row, error: errTher } = await supabase
+  const { data: therapy, error: errTher } = await supabase
     .from('terapie')
     .select(`id, data_trattamento, anagrafica (nome, cognome)`)
     .eq('id', therapyId)
     .single();
-  if (errTher || !row) return res.status(404).send('Terapia non trovata');
+  if (errTher || !therapy) return res.status(404).send('Terapia non trovata');
 
   // 2) Prendo gli allegati esistenti
   const { data: attachments = [], error: errAtt } = await supabase
     .from('allegati')
-    .select('*')
+    .select('id, terapia_id, url, public_id')
     .eq('terapia_id', therapyId);
   if (errAtt) console.error(errAtt);
 
-  // 3) Render della view degli allegati
- res.render('layout', {
+  // 3) Renderizzo usando il layout principale
+  res.render('layout', {
     page:         'allegati_content',
-    therapy,
+    therapy,             // qui passiamo therapy
     attachments,
     defaultPhoto: '/images/default.png'
   });
-});  // <- qui chiudiamo la callback di app.get
+});
+ // <- qui chiudiamo la callback di app.get
 
 
 /*
