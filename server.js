@@ -406,14 +406,6 @@ app.get('/fascicoli', async (req, res) => {
   }
 });
 
-    res.render('layout',{
-      page:         'fascicoli_content',
-      anagrafiche, therapies,
-      filters:{cognome,nome},
-      defaultPhoto: '/images/default.png',
-      message: null
-    });
-
 // dettaglio di un singolo fascicolo (partial HTML)
 app.get('/fascicoli/:id', async (req, res) => {
   if (!req.session.user) return res.status(401).send('Non autorizzato');
