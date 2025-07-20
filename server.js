@@ -500,7 +500,7 @@ app.get('/terapie/:id/allegati', async (req, res) => {
     defaultPhoto: '/images/default.png'
   });
 });
-
+/*
 app.post('/terapie/:id/allegati', upload.single('allegato'), async (req, res) => {
   if (!req.session.user) return res.status(401).send('Non autorizzato');
   const therapyId = req.params.id;
@@ -522,7 +522,70 @@ app.post('/terapie/:id/allegati', upload.single('allegato'), async (req, res) =>
   //res.sendStatus(200);
   res.redirect(req.get('Referer') || '/fascicoli');
 
+}); */
+
+app.post('/terapie/:id/allegati', upload.single('allegato'), async (req, res) => {
+  if (!req.session.user) return res.status(401).send('Non autorizzato');
+  const therapyId = parseInt(req.params.id, 10);
+  if (isNaN(therapyId)) return res.status(400).send('ID terapia non valido');
+  if (!req.file)             return res.status(400).send('Nessun file caricato');
+
+  // multer-storage-cloudinary espone .path (URL) e .filename (public_id)
+  const url      = req.file.path;
+  const publicId = req.file.filename;
+
+  try {
+    const { error } = await supabase
+      .from('allegati')
+      .insert({
+        terapia_id: therapyId,
+        url,
+        public_id: publicId
+      });
+
+    if (error) throw error;
+
+    // restituisci 200 per il tuo JS client che mostra il toast
+    return res.sendStatus(200);
+  } catch (err) {
+    console.error('Errore upload allegato:', err);
+    return res.status(500).send('Upload fallito');
+  }
 });
+
+
+// Delete di un allegato: rimuove riga in Supabase e cancella da Cloudinary
+app.post('/allegati/:id/delete', async (req, res) => {
+  if (!req.session.user) return res.status(401).send('Non autorizzato');
+  const attId = parseInt(req.params.id, 10);
+  if (isNaN(attId)) return res.status(400).send('ID non valido');
+
+  try {
+    // 1) recupera il record per avere public_id
+    const { data:[att], error:errFetch } = await supabase
+      .from('allegati')
+      .select('public_id')
+      .eq('id', attId)
+      .single();
+    if (errFetch || !att) throw errFetch || new Error('Allegato non trovato');
+
+    // 2) cancella da Cloudinary
+    await cloudinary.uploader.destroy(att.public_id);
+
+    // 3) cancella in Supabase
+    const { error:errDel } = await supabase
+      .from('allegati')
+      .delete()
+      .eq('id', attId);
+    if (errDel) throw errDel;
+
+    return res.redirect('back');
+  } catch (err) {
+    console.error('Errore delete allegato:', err);
+    return res.status(500).send('Eliminazione fallita');
+  }
+});
+
 
 
 // Avvio server
