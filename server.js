@@ -735,26 +735,26 @@ app.post('/terapie/:id/allegati', upload.single('allegato'), async (req, res) =>
 });
 
 app.post('/terapie/:id/allegati', upload.single('allegato'), async (req, res) => {
-  if (!req.session.user) return res.redirect('/login');
+  if (!req.session.user) return res.status(401).send('Non autorizzato');
   const therapyId = req.params.id;
-  if (!req.file) {
-    return res.status(400).send('Nessun file caricato');
+  if (!req.file) return res.status(400).send('Nessun file caricato');
+
+  const url = req.file.path;  // URL Cloudinary
+
+  // Salvo in Supabase
+  const { error } = await supabase
+    .from('allegati')
+    .insert({ terapia_id: therapyId, url });
+  if (error) {
+    console.error('Errore upload allegato:', error);
+    return res.status(500).send('Upload fallito');
   }
 
-  const url = req.file.path;  // URL Cloudinary o percorso
-  try {
-    const { error } = await supabase
-      .from('allegati')
-      .insert({ terapia_id: therapyId, url });
-    if (error) throw error;
-  } catch (err) {
-    console.error('Errore upload allegato:', err);
-    // qui potresti voler mostrare un messaggio d’errore
-  }
-
-  // anziché "back", ridirige esplicitamente alla pagina degli allegati
-  res.redirect(`/terapie/${therapyId}/allegati`);
+  // Invece di redirect, rispondi con 200 OK e lascia che sia il client JS a
+  // mostrare il toast / pulire i controlli
+  res.sendStatus(200);
 });
+
 
 
 
