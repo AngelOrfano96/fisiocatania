@@ -9,6 +9,7 @@ const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const pdf = require('html-pdf');
 const ejs = require('ejs');
+const puppeteer = require('puppeteer');
 
 
 
@@ -639,7 +640,7 @@ app.get('/fascicoli/:anagID/export/:therapyID', async (req, res) => {
   if (isNaN(anagID) || isNaN(therapyID)) return res.status(400).send('ID non valido');
 
   try {
-    // 1) Anagrafica
+    // 1) Carica anagrafica
     const { data: anag, error: errA } = await supabase
       .from('anagrafica')
       .select('*')
@@ -647,7 +648,7 @@ app.get('/fascicoli/:anagID/export/:therapyID', async (req, res) => {
       .single();
     if (errA || !anag) throw errA || new Error('Anagrafica non trovata');
 
-    // 2) Terapia
+    // 2) Carica la terapia
     const { data: th, error: errT } = await supabase
       .from('terapie')
       .select(`
@@ -659,28 +660,35 @@ app.get('/fascicoli/:anagID/export/:therapyID', async (req, res) => {
       .single();
     if (errT || !th) throw errT || new Error('Terapia non trovata');
 
-    // 3) Allegati
+    // 3) Carica gli allegati
     const { data: attachments = [] } = await supabase
       .from('allegati')
       .select('*')
       .eq('terapia_id', therapyID);
 
-    // 4) Render HTML da template EJS
+    // 4) Render di un template EJS in HTML (crea views/fascicoli_pdf.ejs)
     const html = await ejs.renderFile(
-      path.join(__dirname, 'views', 'export_template.ejs'),
+      path.join(__dirname, 'views', 'fascicoli_pdf.ejs'),
       { anagrafica: anag, therapy: th, attachments, defaultPhoto: '/images/default.png' }
     );
 
-    // 5) Genera PDF e invia
-    pdf.create(html, { format: 'A4' }).toStream((err, stream) => {
-      if (err) return res.status(500).send('Errore generazione PDF');
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader(
-        'Content-Disposition',
-        `attachment; filename="Fascicolo_${anag.cognome}_${therapyID}.pdf"`
-      );
-      stream.pipe(res);
+    // 5) Puppeteer per generare il PDF
+    const browser = await puppeteer.launch();
+    const page    = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '20mm', bottom: '20mm', left: '10mm', right: '10mm' }
     });
+    await browser.close();
+
+    // 6) Invia il PDF
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="Fascicolo_${anag.cognome}_${therapyID}.pdf"`
+    });
+    res.send(pdfBuffer);
 
   } catch (err) {
     console.error(err);
