@@ -734,6 +734,29 @@ app.post('/terapie/:id/allegati', upload.single('allegato'), async (req, res) =>
   res.redirect('back');
 });
 
+app.post('/terapie/:id/allegati', upload.single('allegato'), async (req, res) => {
+  if (!req.session.user) return res.redirect('/login');
+  const therapyId = req.params.id;
+  if (!req.file) {
+    return res.status(400).send('Nessun file caricato');
+  }
+
+  const url = req.file.path;  // URL Cloudinary o percorso
+  try {
+    const { error } = await supabase
+      .from('allegati')
+      .insert({ terapia_id: therapyId, url });
+    if (error) throw error;
+  } catch (err) {
+    console.error('Errore upload allegato:', err);
+    // qui potresti voler mostrare un messaggio d’errore
+  }
+
+  // anziché "back", ridirige esplicitamente alla pagina degli allegati
+  res.redirect(`/terapie/${therapyId}/allegati`);
+});
+
+
 
 // Avvio server
 app.listen(PORT, () => {
