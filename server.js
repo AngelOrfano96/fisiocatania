@@ -668,7 +668,7 @@ app.get('/fascicoli/:anagID/export/:therapyID', async (req, res) => {
 
     // 4) Render di un template EJS in HTML (crea views/fascicoli_pdf.ejs)
     const html = await ejs.renderFile(
-      path.join(__dirname, 'views', 'fascicoli_pdf.ejs'),
+      path.join(__dirname, 'views', 'export_template.ejs'),
       { anagrafica: anag, therapy: th, attachments, defaultPhoto: '/images/default.png' }
     );
 
