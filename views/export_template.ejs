@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: sans-serif; margin: 2em; }
+    .header { text-align: center; margin-bottom: 1.5em; }
+    .foto { float: right; width: 100px; height: 100px; object-fit:cover; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1em; }
+    th, td { border: 1px solid #444; padding: 0.5em; }
+    h2, h3 { margin-bottom: 0.5em; }
+    .section { page-break-inside: avoid; margin-top: 1.5em; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Fascicolo</h1>
+  </div>
+
+  <img src="<%= anagrafica.foto || defaultPhoto %>" class="foto">
+  <h2><%= anagrafica.nome %> <%= anagrafica.cognome %></h2>
+  <p><strong>Data di nascita:</strong> <%= anagrafica.data_nascita.slice(0,10) %></p>
+  <p><strong>Luogo:</strong> <%= anagrafica.luogo_nascita %></p>
+  <p><strong>Cellulare:</strong> <%= anagrafica.cellulare %></p>
+  <p><strong>Note:</strong> <%= anagrafica.note || '—' %></p>
+
+  <div class="section">
+    <h3>Dati Terapia</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Data</th><th>Operatore</th><th>Distretto</th><th>Trattamento</th><th>Note</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><%= therapy.data_trattamento.slice(0,10) %></td>
+          <td><%= therapy.operatore || '—' %></td>
+          <td><%= therapy.distretti.nome %></td>
+          <td><%= therapy.trattamenti.nome %></td>
+          <td><%= therapy.note || '—' %></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <% if (attachments.length) { %>
+    <div class="section">
+      <h3>Allegati</h3>
+      <% attachments.forEach(att => { %>
+        <div style="margin-bottom:1em;">
+          <img src="<%= att.url %>" style="width:200px;"/><br>
+          <em><%= att.url.split('/').pop() %></em>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</body>
+</html>

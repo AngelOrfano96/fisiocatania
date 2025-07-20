@@ -7,6 +7,9 @@ const multer = require('multer');
 const fs = require('fs');
 const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const pdf = require('html-pdf');
+const ejs = require('ejs');
+
 
 
 const app = express();
@@ -629,6 +632,61 @@ app.post('/allegati/:id/delete', async (req, res) => {
   }
 });
 
+app.get('/fascicoli/:anagID/export/:therapyID', async (req, res) => {
+  if (!req.session.user) return res.redirect('/login');
+  const anagID    = parseInt(req.params.anagID, 10);
+  const therapyID = parseInt(req.params.therapyID, 10);
+  if (isNaN(anagID) || isNaN(therapyID)) return res.status(400).send('ID non valido');
+
+  try {
+    // 1) Anagrafica
+    const { data: anag, error: errA } = await supabase
+      .from('anagrafica')
+      .select('*')
+      .eq('id', anagID)
+      .single();
+    if (errA || !anag) throw errA || new Error('Anagrafica non trovata');
+
+    // 2) Terapia
+    const { data: th, error: errT } = await supabase
+      .from('terapie')
+      .select(`
+        id, data_trattamento, note, operatore,
+        distretti(nome),
+        trattamenti(nome)
+      `)
+      .eq('id', therapyID)
+      .single();
+    if (errT || !th) throw errT || new Error('Terapia non trovata');
+
+    // 3) Allegati
+    const { data: attachments = [] } = await supabase
+      .from('allegati')
+      .select('*')
+      .eq('terapia_id', therapyID);
+
+    // 4) Render HTML da template EJS
+    const html = await ejs.renderFile(
+      path.join(__dirname, 'views', 'export_template.ejs'),
+      { anagrafica: anag, therapy: th, attachments, defaultPhoto: '/images/default.png' }
+    );
+
+    // 5) Genera PDF e invia
+    pdf.create(html, { format: 'A4' }).toStream((err, stream) => {
+      if (err) return res.status(500).send('Errore generazione PDF');
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="Fascicolo_${anag.cognome}_${therapyID}.pdf"`
+      );
+      stream.pipe(res);
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Errore nell’esportazione');
+  }
+});
 
 // Avvio server
 app.listen(PORT, () => {

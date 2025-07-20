@@ -60,7 +60,7 @@
             <th>Distretto</th>
             <th>Trattamento</th>
             <th>Note</th>
-            <th>Allegati</th>
+            <th class="text-center">Azioni</th>
           </tr>
         </thead>
         <tbody>
@@ -75,11 +75,15 @@
               <td><%= tr.distretto %></td>
               <td><%= tr.trattamento %></td>
               <td><%= tr.note || '—' %></td>
-              <td>
+              <td class="text-center">
+                <!-- Allegati -->
                 <a href="/terapie/<%= tr.id %>/allegati" 
-                   class="btn btn-outline-secondary btn-sm">
-                  📎 Allegati
-                </a>
+                   class="btn btn-outline-secondary btn-sm"
+                   title="Gestisci allegati">📎</a>
+                <!-- Export PDF -->
+                <a href="/fascicoli/<%= anagrafica.id %>/export/<%= tr.id %>"
+                   class="btn btn-outline-primary btn-sm ms-1"
+                   title="Esporta questo fascicolo + terapia in PDF">📄</a>
               </td>
             </tr>
           <% }) %>
@@ -94,24 +98,30 @@
       <% therapies.forEach(tr => {
            const atts = attachments.filter(a => a.terapia_id === tr.id);
       %>
-        <p>
+        <div class="mb-3">
           <strong><%= (typeof tr.data_trattamento === 'string'
                         ? tr.data_trattamento.slice(0,10)
                         : tr.data_trattamento instanceof Date
                           ? tr.data_trattamento.toISOString().split('T')[0]
                           : '') %>:</strong>
           <% atts.forEach(a => { %>
-            <a href="<%= a.url %>" target="_blank" class="mx-1">🖼️</a>
+            <a href="<%= a.url %>" target="_blank" class="mx-2">🖼️</a>
           <% }) %>
-        </p>
+        </div>
       <% }) %>
     <% } %>
 
+    <p>
+      <a href="/fascicoli?cognome=<%= filters.cognome %>&nome=<%= filters.nome %>" 
+         class="btn btn-secondary btn-sm">
+        ← Torna ai fascicoli
+      </a>
+    </p>
   </div>
 </div>
 
 <script>
-  // solo per inizializzare il photo-editor quando viene caricato questo partial
+  // init photo‑editor su questo partial
   (function initPhotoEditor() {
     const btnEdit   = document.getElementById('btn-edit-photo');
     if (!btnEdit) return;
