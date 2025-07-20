@@ -8,8 +8,7 @@ const fs = require('fs');
 const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const htmlPdf = require('html-pdf');
-const ejs     = require('ejs');
-const path    = require('path');
+const ejs = require('ejs');
 
 
 
