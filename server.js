@@ -13,6 +13,7 @@ const puppeteer = require('puppeteer');
 
 
 
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -635,12 +636,15 @@ app.post('/allegati/:id/delete', async (req, res) => {
 
 app.get('/fascicoli/:anagID/export/:therapyID', async (req, res) => {
   if (!req.session.user) return res.redirect('/login');
+
   const anagID    = parseInt(req.params.anagID, 10);
   const therapyID = parseInt(req.params.therapyID, 10);
-  if (isNaN(anagID) || isNaN(therapyID)) return res.status(400).send('ID non valido');
+  if (isNaN(anagID) || isNaN(therapyID)) {
+    return res.status(400).send('ID non valido');
+  }
 
   try {
-    // 1) Carica anagrafica
+    // 1) Recupera anagrafica
     const { data: anag, error: errA } = await supabase
       .from('anagrafica')
       .select('*')
@@ -648,7 +652,7 @@ app.get('/fascicoli/:anagID/export/:therapyID', async (req, res) => {
       .single();
     if (errA || !anag) throw errA || new Error('Anagrafica non trovata');
 
-    // 2) Carica la terapia
+    // 2) Recupera terapia
     const { data: th, error: errT } = await supabase
       .from('terapie')
       .select(`
@@ -660,19 +664,20 @@ app.get('/fascicoli/:anagID/export/:therapyID', async (req, res) => {
       .single();
     if (errT || !th) throw errT || new Error('Terapia non trovata');
 
-    // 3) Carica gli allegati
-    const { data: attachments = [] } = await supabase
+    // 3) Recupera allegati
+    const { data: attachments = [], error: errAtt } = await supabase
       .from('allegati')
       .select('*')
       .eq('terapia_id', therapyID);
+    if (errAtt) console.error(errAtt);
 
-    // 4) Render di un template EJS in HTML (crea views/fascicoli_pdf.ejs)
+    // 4) Render HTML con EJS (usa views/export_template.ejs)
     const html = await ejs.renderFile(
       path.join(__dirname, 'views', 'export_template.ejs'),
       { anagrafica: anag, therapy: th, attachments, defaultPhoto: '/images/default.png' }
     );
 
-    // 5) Puppeteer per generare il PDF
+    // 5) Genera PDF con Puppeteer
     const browser = await puppeteer.launch();
     const page    = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
@@ -683,15 +688,16 @@ app.get('/fascicoli/:anagID/export/:therapyID', async (req, res) => {
     });
     await browser.close();
 
-    // 6) Invia il PDF
-    res.set({
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="Fascicolo_${anag.cognome}_${therapyID}.pdf"`
-    });
+    // 6) Invia PDF
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="Fascicolo_${anag.cognome}_${therapyID}.pdf"`
+    );
     res.send(pdfBuffer);
 
   } catch (err) {
-    console.error(err);
+    console.error('Errore nell’esportazione:', err);
     res.status(500).send('Errore nell’esportazione');
   }
 });
