@@ -546,7 +546,8 @@ app.post('/terapie/:id/allegati', upload.single('allegato'), async (req, res) =>
     if (error) throw error;
 
     // restituisci 200 per il tuo JS client che mostra il toast
-    return res.sendStatus(200);
+   // return res.sendStatus(200);
+   res.redirect(req.get('Referer') || '/fascicoli');
   } catch (err) {
     console.error('Errore upload allegato:', err);
     return res.status(500).send('Upload fallito');
@@ -554,37 +555,39 @@ app.post('/terapie/:id/allegati', upload.single('allegato'), async (req, res) =>
 });
 
 
-// Delete di un allegato: rimuove riga in Supabase e cancella da Cloudinary
+// Elimina un allegato sia da Supabase che da Cloudinary
 app.post('/allegati/:id/delete', async (req, res) => {
-  if (!req.session.user) return res.status(401).send('Non autorizzato');
-  const attId = parseInt(req.params.id, 10);
-  if (isNaN(attId)) return res.status(400).send('ID non valido');
+  if (!req.session.user) return res.redirect('/login');
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).send('ID non valido');
 
   try {
-    // 1) recupera il record per avere public_id
-    const { data:[att], error:errFetch } = await supabase
+    // 1) Leggi il public_id e la terapia di riferimento
+    const { data: att, error: fetchErr } = await supabase
       .from('allegati')
-      .select('public_id')
-      .eq('id', attId)
+      .select('public_id, terapia_id')
+      .eq('id', id)
       .single();
-    if (errFetch || !att) throw errFetch || new Error('Allegato non trovato');
+    if (fetchErr || !att) throw fetchErr || new Error('Allegato non trovato');
 
-    // 2) cancella da Cloudinary
+    // 2) Rimuovi da Cloudinary
     await cloudinary.uploader.destroy(att.public_id);
 
-    // 3) cancella in Supabase
-    const { error:errDel } = await supabase
+    // 3) Rimuovi da Supabase
+    const { error: delErr } = await supabase
       .from('allegati')
       .delete()
-      .eq('id', attId);
-    if (errDel) throw errDel;
+      .eq('id', id);
+    if (delErr) throw delErr;
 
-    return res.redirect('back');
+    // 4) Ritorna alla pagina degli allegati per quella terapia
+    res.redirect(`/terapie/${att.terapia_id}/allegati`);
   } catch (err) {
-    console.error('Errore delete allegato:', err);
-    return res.status(500).send('Eliminazione fallita');
+    console.error('Errore eliminazione allegato:', err);
+    res.status(500).send('Errore durante eliminazione allegato');
   }
 });
+
 
 
 
