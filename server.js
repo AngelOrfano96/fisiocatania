@@ -324,7 +324,7 @@ app.post('/terapie/delete/:id', async (req, res) => {
     res.redirect('/terapie');
   }
 });
-
+/*
 // Upload di un singolo allegato per una terapia (usando Supabase)
 app.post('/terapie/:id/allegati', upload.single('allegato'), async (req, res) => {
   if (!req.session.user) return res.redirect('/login');
@@ -354,7 +354,7 @@ app.post('/terapie/:id/allegati', upload.single('allegato'), async (req, res) =>
     console.error('Errore upload allegato via Supabase:', err);
     res.status(500).send('Errore interno durante il salvataggio dell\'allegato');
   }
-});
+}); */
 
 
 
