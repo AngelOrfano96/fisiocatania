@@ -365,17 +365,18 @@ app.get('/fascicoli', async (req, res) => {
   const { cognome = '', nome = '' } = req.query;
 
   try {
-    // --- la tua logica di query a Supabase qui ---
+    // 1) Prendo le anagrafiche filtrate
     let query = supabase
       .from('anagrafica')
       .select('id,cognome,nome,data_nascita,luogo_nascita,cellulare,note,foto')
-      .order('cognome',{ascending:true})
-      .order('nome',{ascending:true});
+      .order('cognome', { ascending: true })
+      .order('nome',   { ascending: true });
     if (cognome) query = query.ilike('cognome', `%${cognome}%`);
     if (nome)     query = query.ilike('nome',     `%${nome}%`);
     const { data: anagrafiche, error: e1 } = await query;
     if (e1) throw e1;
 
+    // 2) Prendo tutte le terapie relative
     const ids = anagrafiche.map(a => a.id);
     let therapies = [];
     if (ids.length) {
@@ -383,8 +384,9 @@ app.get('/fascicoli', async (req, res) => {
         .from('terapie')
         .select(`anagrafica_id,data_trattamento,note,distretti(nome),trattamenti(nome)`)
         .in('anagrafica_id', ids)
-        .order('data_trattamento',{ascending:false});
+        .order('data_trattamento', { ascending: false });
       if (e2) throw e2;
+
       therapies = th.map(t => ({
         anagrafica_id:    t.anagrafica_id,
         data_trattamento: t.data_trattamento,
@@ -394,28 +396,29 @@ app.get('/fascicoli', async (req, res) => {
       }));
     }
 
-    // *** Qui dentro ***, **all’interno del try**, chiamiamo res.render
+    // 3) Render in caso di successo
     return res.render('layout', {
       page:         'fascicoli_content',
       anagrafiche,
       therapies,
-      filters: { cognome, nome },
+      filters:      { cognome, nome },
       defaultPhoto: '/images/default.png',
-      message: null
+      message:      null
     });
 
   } catch (err) {
-    console.error(err);
+    console.error("Errore nel caricamento dei fascicoli:", err);
+    // Render in caso di errore
     return res.render('layout', {
       page:         'fascicoli_content',
       anagrafiche:  [],
       therapies:    [],
-      filters:      { cognome:'', nome:'' },
+      filters:      { cognome: '', nome: '' },
       defaultPhoto: '/images/default.png',
       message:      'Errore nel caricamento dei fascicoli'
     });
   }
-});  // ← assicurati di avere questa parentesi e punto e virgola
+});
 
 
 // dettaglio di un singolo fascicolo (partial HTML)
