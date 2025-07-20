@@ -524,33 +524,33 @@ app.post('/terapie/:id/allegati', upload.single('allegato'), async (req, res) =>
 
 }); */
 
-app.post('/terapie/:id/allegati', upload.single('allegato'), async (req, res) => {
-  if (!req.session.user) return res.status(401).send('Non autorizzato');
-  const therapyId = parseInt(req.params.id, 10);
-  if (isNaN(therapyId)) return res.status(400).send('ID terapia non valido');
-  if (!req.file)             return res.status(400).send('Nessun file caricato');
-
-  // multer-storage-cloudinary espone .path (URL) e .filename (public_id)
-  const url      = req.file.path;
-  const publicId = req.file.filename;
+app.post('/terapie/:therapyId/allegati/:id/delete', async (req, res) => {
+  if (!req.session.user) return res.redirect('/login');
+  const { therapyId, id } = req.params;
 
   try {
-    const { error } = await supabase
+    // 1) recupera record per avere public_id
+    const { data, error: fetchErr } = await supabase
       .from('allegati')
-      .insert({
-        terapia_id: therapyId,
-        url,
-        public_id: publicId
-      });
+      .select('public_id')
+      .eq('id', id)
+      .single();
+    if (fetchErr) throw fetchErr;
 
-    if (error) throw error;
+    // 2) cancella da Cloudinary
+    await cloudinary.uploader.destroy(data.public_id);
 
-    // restituisci 200 per il tuo JS client che mostra il toast
-   // return res.sendStatus(200);
-   res.redirect(req.get('Referer') || '/fascicoli');
+    // 3) cancella da Supabase
+    const { error: delErr } = await supabase
+      .from('allegati')
+      .delete()
+      .eq('id', id);
+    if (delErr) throw delErr;
+
+    return res.redirect(`/terapie/${therapyId}/allegati`);
   } catch (err) {
-    console.error('Errore upload allegato:', err);
-    return res.status(500).send('Upload fallito');
+    console.error('Errore eliminazione allegato:', err);
+    return res.status(500).send('Errore durante l’eliminazione allegato');
   }
 });
 
