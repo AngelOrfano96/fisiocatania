@@ -494,11 +494,12 @@ app.get('/terapie/:id/allegati', async (req, res) => {
 
   if (errAtt) console.error(errAtt);
 
-  res.render('allegati_content', {
-    therapy: row,
-    attachments,
-    defaultPhoto: '/images/default.png'
-  });
+res.render('layout', {
+  page:            'allegati_content',
+  therapy:         row,
+  attachments,
+  defaultPhoto:    '/images/default.png',
+  user:            req.session.user   // se te lo aspetti nel layout
 });
 /*
 app.post('/terapie/:id/allegati', upload.single('allegato'), async (req, res) => {
