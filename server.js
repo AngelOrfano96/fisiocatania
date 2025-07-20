@@ -493,16 +493,17 @@ app.get('/terapie/:id/allegati', async (req, res) => {
     .from('allegati')
     .select('*')
     .eq('terapia_id', therapyId);
-
   if (errAtt) console.error(errAtt);
 
-res.render('layout', {
-  page:            'allegati_content',
-  therapy:         row,
-  attachments,
-  defaultPhoto:    '/images/default.png',
-  user:            req.session.user   // se te lo aspetti nel layout
-});
+  // 3) Render della view degli allegati
+  return res.render('allegati_content', {
+    therapy:     row,
+    attachments,
+    defaultPhoto: '/images/default.png'
+  });
+});  // <- qui chiudiamo la callback di app.get
+
+
 /*
 app.post('/terapie/:id/allegati', upload.single('allegato'), async (req, res) => {
   if (!req.session.user) return res.status(401).send('Non autorizzato');
@@ -617,8 +618,6 @@ app.post('/allegati/:id/delete', async (req, res) => {
     res.status(500).send('Errore durante eliminazione allegato');
   }
 });
-
-
 
 
 // Avvio server
