@@ -7,8 +7,7 @@ const multer = require('multer');
 const fs = require('fs');
 const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
-const puppeteer = require('puppeteer');    // <— qui usiamo la versione completa
-const ejs = require('ejs');
+const PDFDocument = require('pdfkit');
 
 
 
@@ -638,12 +637,11 @@ app.get('/fascicoli/:anagID/export/:therapyID', async (req, res) => {
   if (!req.session.user) return res.redirect('/login');
   const anagID    = parseInt(req.params.anagID,   10);
   const therapyID = parseInt(req.params.therapyID, 10);
-  if (isNaN(anagID) || isNaN(therapyID)) {
+  if (isNaN(anagID) || isNaN(therapyID))
     return res.status(400).send('ID non valido');
-  }
 
   try {
-    // 1) Anagrafica
+    // 1) Prendi anagrafica
     const { data: anag, error: errA } = await supabase
       .from('anagrafica')
       .select('*')
@@ -651,52 +649,69 @@ app.get('/fascicoli/:anagID/export/:therapyID', async (req, res) => {
       .single();
     if (errA || !anag) throw errA || new Error('Anagrafica non trovata');
 
-    // 2) Terapia
+    // 2) Prendi la terapia
     const { data: th, error: errT } = await supabase
       .from('terapie')
       .select(`
         id, data_trattamento, note, operatore,
-        distretti(nome),
-        trattamenti(nome)
+        distretti(nome), trattamenti(nome)
       `)
       .eq('id', therapyID)
       .single();
     if (errT || !th) throw errT || new Error('Terapia non trovata');
 
-    // 3) Allegati
-    const { data: attachments = [], error: errAtt } = await supabase
+    // 3) Prendi gli allegati (i loro URL)
+    const { data: attachments = [] } = await supabase
       .from('allegati')
-      .select('*')
+      .select('url')
       .eq('terapia_id', therapyID);
-    if (errAtt) console.error(errAtt);
 
-    // 4) Genera HTML da template EJS
-    const html = await ejs.renderFile(
-      path.join(__dirname, 'views', 'export_template.ejs'),
-      { anagrafica: anag, therapy: th, attachments, defaultPhoto: '/images/default.png' }
-    );
-
-    // 5) Avvia Puppeteer (con Chromium incluso)
-    const browser = await puppeteer.launch();
-    const page    = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: { top: '20mm', bottom: '20mm', left: '10mm', right: '10mm' }
-    });
-    await browser.close();
-
-    // 6) Spedisci il PDF
+    // 4) Componi il PDF con PDFKit
+    const doc = new PDFDocument({ margin: 40, size: 'A4' });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
       `attachment; filename="Fascicolo_${anag.cognome}_${therapyID}.pdf"`
     );
-    res.send(pdfBuffer);
+    doc.pipe(res);
+
+    doc.fontSize(20).text(`Fascicolo di ${anag.nome} ${anag.cognome}`, { underline: true });
+    doc.moveDown();
+
+    // Dati anagrafica
+    doc.fontSize(12)
+       .text(`Data di nascita: ${String(anag.data_nascita).slice(0,10)}`)
+       .text(`Comune: ${anag.luogo_nascita}`)
+       .text(`Cellulare: ${anag.cellulare}`)
+       .moveDown();
+
+    // Terapia
+    doc.fontSize(16).text('Dettagli della terapia', { underline: true });
+    doc.moveDown(0.5);
+    doc.fontSize(12)
+       .text(`Data trattamento: ${String(th.data_trattamento).slice(0,10)}`)
+       .text(`Distretto: ${th.distretti.nome}`)
+       .text(`Trattamento: ${th.trattamenti.nome}`)
+       .text(`Operatore: ${th.operatore}`)
+       .text(`Note: ${th.note || '—'}`)
+       .moveDown();
+
+    // Allegati
+    if (attachments.length) {
+      doc.fontSize(16).text('Allegati', { underline: true });
+      doc.moveDown(0.5);
+      for (let { url } of attachments) {
+        // PDFKit supporta immagini via URL se hai un modulo aggiuntivo o devi scaricarle prima.
+        // Per semplicità qui mettiamo solo il link testuale:
+        doc.fontSize(12).fillColor('blue').text(url, { link: url, underline: true });
+        doc.fillColor('black').moveDown(0.5);
+      }
+    }
+
+    doc.end();
 
   } catch (err) {
-    console.error('Errore nell’esportazione:', err);
+    console.error('Errore nell’esportazione PDF:', err);
     res.status(500).send('Errore nell’esportazione');
   }
 });
