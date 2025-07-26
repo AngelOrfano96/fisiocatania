@@ -91,6 +91,14 @@
   <% if (page === 'dashboard_content') { %>
     <script>
       // 👇 appena il DOM è pronto, inizializzo tutti i grafici
+
+      function randomColor() {
+    const r = Math.floor(Math.random()*200) + 20;
+    const g = Math.floor(Math.random()*200) + 20;
+    const b = Math.floor(Math.random()*200) + 20;
+    return `rgb(${r},${g},${b})`;
+  }
+
       const periodSelect = document.getElementById('period-select');
       const charts = {
         distretti:   new Chart(document.getElementById('chart-distretti'),   { type:'pie', data:{labels:[],datasets:[{data:[]}]} }),
@@ -99,23 +107,28 @@
         giocatori:   new Chart(document.getElementById('chart-giocatori'),   { type:'pie', data:{labels:[],datasets:[{data:[]}]} }),
       };
 
-      async function loadChart(type) {
-        const res = await fetch(`/api/dashboard/${type}?period=${periodSelect.value}`);
-        if (!res.ok) return;
-        const { labels, counts } = await res.json();
-        const c = charts[type];
-        c.data.labels = labels;
-        c.data.datasets[0].data = counts;
-        c.update();
-      }
+  async function loadChart(type) {
+    const res = await fetch(`/api/dashboard/${type}?period=${periodSelect.value}`);
+    if (!res.ok) return;
+    const { labels, counts } = await res.json();
+    const chart = charts[type];
 
-      function reloadAll() {
-        ['distretti','trattamenti','operatori','giocatori'].forEach(loadChart);
-      }
+    // genera tanti colori quanti sono i label
+    const colors = labels.map(_ => randomColor());
 
-      periodSelect.addEventListener('change', reloadAll);
-      document.addEventListener('DOMContentLoaded', reloadAll);
-    </script>
+    chart.data.labels = labels;
+    chart.data.datasets[0].data = counts;
+    chart.data.datasets[0].backgroundColor = colors;
+    chart.update();
+  }
+
+  function reloadAll() {
+    ['distretti','trattamenti','operatori','giocatori'].forEach(loadChart);
+  }
+
+  periodSelect.addEventListener('change', reloadAll);
+  document.addEventListener('DOMContentLoaded', reloadAll);
+</script>
   <% } %>
 </body>
 </html>
