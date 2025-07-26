@@ -1,0 +1,84 @@
+<h3>Distretti Anatomici</h3>
+
+<% if (message) { %>
+  <div class="alert alert-danger"><%= message %></div>
+<% } %>
+
+<!-- Sezione Creazione -->
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="POST" action="/distretti" class="row g-2 align-items-end">
+      <div class="col-md-8">
+        <label for="nomeDistretto" class="form-label">Nome del distretto</label>
+        <input type="text" name="nome" id="nomeDistretto"
+               class="form-control" placeholder="Es. anca dx" required>
+      </div>
+      <div class="col-md-4 text-end">
+        <button type="submit" class="btn btn-success w-100">Crea</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Sezione Lista -->
+<div class="card">
+  <div class="card-body">
+    <table class="table table-bordered table-striped">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th style="width:120px">Modifica</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% distretti.forEach(d => { %>
+          <tr data-id="<%= d.id %>">
+            <td class="nome-cell">
+              <span><%= d.nome %></span>
+              <input type="text" class="form-control form-control-sm d-none"
+                     value="<%= d.nome %>">
+            </td>
+            <td>
+              <button type="button" class="btn btn-warning btn-sm btn-edit">✏️</button>
+              <button type="button" class="btn btn-success btn-sm btn-save d-none">💾</button>
+              <button type="button" class="btn btn-secondary btn-sm btn-cancel d-none">↩️</button>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('.btn-edit').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const row = btn.closest('tr');
+      row.querySelector('span').classList.add('d-none');
+      row.querySelector('input').classList.remove('d-none');
+      btn.classList.add('d-none');
+      row.querySelector('.btn-save, .btn-cancel')
+         .forEach(b => b.classList.remove('d-none'));
+    });
+  });
+
+  document.querySelectorAll('.btn-cancel').forEach(btn => {
+    btn.addEventListener('click', () => location.reload());
+  });
+
+  document.querySelectorAll('.btn-save').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const row = btn.closest('tr');
+      const id = row.dataset.id;
+      const nome = row.querySelector('input').value.trim();
+      if (!nome) return alert('Inserisci un nome valido');
+      const res = await fetch(`/distretti/${id}/update`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ nome })
+      });
+      if (res.ok) location.reload();
+      else alert('Errore salvataggio');
+    });
+  });
+</script>

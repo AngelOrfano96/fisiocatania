@@ -716,6 +716,76 @@ app.get('/fascicoli/:anagID/export/:therapyID', async (req, res) => {
   }
 });
 
+// ===== ROTTE DISTRETTI ANATOMICI =====
+
+// Mostra la pagina con form + tabella
+app.get('/distretti', async (req, res) => {
+  if (!req.session.user) return res.redirect('/');
+  try {
+    const { data: distretti, error } = await supabase
+      .from('distretti')
+      .select('id, nome')
+      .order('nome', { ascending: true });
+    if (error) throw error;
+    res.render('layout', {
+      page:        'distretti_content',
+      distretti,
+      message:     null
+    });
+  } catch (err) {
+    console.error('Errore caricamento distretti:', err);
+    res.render('layout', {
+      page:       'distretti_content',
+      distretti:  [],
+      message:    'Errore nel caricamento dei distretti'
+    });
+  }
+});
+
+// Crea un nuovo distretto
+app.post('/distretti', async (req, res) => {
+  if (!req.session.user) return res.redirect('/');
+  const { nome } = req.body;
+  try {
+    const { error } = await supabase
+      .from('distretti')
+      .insert({ nome });
+    if (error) throw error;
+    res.redirect('/distretti');
+  } catch (err) {
+    console.error('Errore creazione distretto:', err);
+    // ripropongo lista + messaggio
+    const { data: distretti } = await supabase
+      .from('distretti')
+      .select('id, nome')
+      .order('nome', { ascending: true });
+    res.render('layout', {
+      page:       'distretti_content',
+      distretti,
+      message:    'Impossibile creare il distretto: ' + err.message
+    });
+  }
+});
+
+// Modifica nome di un distretto
+app.post('/distretti/:id/update', async (req, res) => {
+  if (!req.session.user) return res.redirect('/');
+  const id = parseInt(req.params.id, 10);
+  const { nome } = req.body;
+  try {
+    const { error } = await supabase
+      .from('distretti')
+      .update({ nome })
+      .eq('id', id);
+    if (error) throw error;
+    res.sendStatus(200);
+  } catch (err) {
+    console.error('Errore aggiornamento distretto:', err);
+    res.sendStatus(500);
+  }
+});
+
+
 // Avvio server
 app.listen(PORT, () => {
   console.log(`Server in ascolto su http://localhost:${PORT}`);
