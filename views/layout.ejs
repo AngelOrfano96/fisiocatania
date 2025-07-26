@@ -12,23 +12,12 @@
   <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
 
   <style>
-    body {
-      margin: 0;
-    }
-    #content {
-      padding: 2rem;
-      margin-left: 200px;
-    }
+    body { margin: 0; }
+    #content { padding: 2rem; margin-left: 200px; }
     @media (max-width: 767.98px) {
-      #content {
-        margin-left: 0;
-        padding: 1rem;
-      }
+      #content { margin-left: 0; padding: 1rem; }
     }
-    .nav-link.active {
-      font-weight: bold;
-      color: #0d6efd !important;
-    }
+    .nav-link.active { font-weight: bold; color: #0d6efd !important; }
   </style>
 
 </head>
@@ -44,30 +33,14 @@
         <img src="/images/Logo_CATANIA_FC.svg.png" alt="Logo Catania" style="max-width:120px;">
       </div>
       <ul class="nav flex-column">
-        <li class="nav-item">
-          <a href="/dashboard" class="nav-link <%= page === 'dashboard_content' ? 'active' : '' %>">Dashboard</a>
-        </li>
-        <li class="nav-item">
-          <a href="/anagrafica" class="nav-link <%= page === 'anagrafica_content' ? 'active' : '' %>">Anagrafica</a>
-        </li>
-        <li class="nav-item">
-          <a href="/fascicoli" class="nav-link <%= page === 'fascicoli_content' ? 'active' : '' %>">Fascicoli</a>
-        </li>
-        <li class="nav-item">
-          <a href="/terapie" class="nav-link <%= page === 'terapie_content' ? 'active' : '' %>">Terapie</a>
-        </li>
-        <li class="nav-item">
-          <a href="/distretti" class="nav-link <%= page === 'distretti_content' ? 'active' : '' %>">Distretti Anatomici</a>
-        </li>
-        <li class="nav-item">
-          <a href="/trattamenti" class="nav-link <%= page === 'trattamenti_content' ? 'active' : '' %>">Trattamenti</a>
-        </li>
-        <li class="nav-item">
-          <a href="/operatori" class="nav-link <%= page === 'operatori_content' ? 'active' : '' %>">Operatori</a>
-        </li>
-        <li class="nav-item mt-3">
-          <a href="/logout" class="nav-link text-danger">Logout</a>
-        </li>
+        <li class="nav-item"><a href="/dashboard" class="nav-link <%= page==='dashboard_content'?'active':'' %>">Dashboard</a></li>
+        <li class="nav-item"><a href="/anagrafica" class="nav-link <%= page==='anagrafica_content'?'active':'' %>">Anagrafica</a></li>
+        <li class="nav-item"><a href="/fascicoli" class="nav-link <%= page==='fascicoli_content'?'active':'' %>">Fascicoli</a></li>
+        <li class="nav-item"><a href="/terapie" class="nav-link <%= page==='terapie_content'?'active':'' %>">Terapie</a></li>
+        <li class="nav-item"><a href="/distretti" class="nav-link <%= page==='distretti_content'?'active':'' %>">Distretti Anatomici</a></li>
+        <li class="nav-item"><a href="/trattamenti" class="nav-link <%= page==='trattamenti_content'?'active':'' %>">Trattamenti</a></li>
+        <li class="nav-item"><a href="/operatori" class="nav-link <%= page==='operatori_content'?'active':'' %>">Operatori</a></li>
+        <li class="nav-item mt-3"><a href="/logout" class="nav-link text-danger">Logout</a></li>
       </ul>
     </div>
   </div>
@@ -76,9 +49,7 @@
 
   <nav class="navbar navbar-light bg-light d-md-none">
     <div class="container-fluid">
-      <button class="btn btn-outline-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">
-        ☰
-      </button>
+      <button class="btn btn-outline-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">☰</button>
       <span class="navbar-brand mx-auto">FisioCatania</span>
     </div>
   </nav>
@@ -90,30 +61,14 @@
       <img src="/images/Logo_CATANIA_FC.svg.png" alt="Logo Catania" style="max-width:120px;">
     </div>
     <ul class="nav flex-column">
-      <li class="nav-item">
-        <a href="/dashboard" class="nav-link <%= page === 'dashboard_content' ? 'active' : '' %>">Dashboard</a>
-      </li>
-      <li class="nav-item">
-        <a href="/anagrafica" class="nav-link <%= page === 'anagrafica_content' ? 'active' : '' %>">Anagrafica</a>
-      </li>
-      <li class="nav-item">
-        <a href="/fascicoli" class="nav-link <%= page === 'fascicoli_content' ? 'active' : '' %>">Fascicoli</a>
-      </li>
-      <li class="nav-item">
-        <a href="/terapie" class="nav-link <%= page === 'terapie_content' ? 'active' : '' %>">Terapie</a>
-      </li>
-      <li class="nav-item">
-        <a href="/distretti" class="nav-link <%= page === 'distretti_content' ? 'active' : '' %>">Distretti Anatomici</a>
-      </li>
-      <li class="nav-item">
-        <a href="/trattamenti" class="nav-link <%= page === 'trattamenti_content' ? 'active' : '' %>">Trattamenti</a>
-      </li>
-      <li class="nav-item">
-        <a href="/operatori" class="nav-link <%= page === 'operatori_content' ? 'active' : '' %>">Operatori</a>
-      </li>
-      <li class="nav-item mt-3">
-        <a href="/logout" class="nav-link text-danger">Logout</a>
-      </li>
+      <li class="nav-item"><a href="/dashboard" class="nav-link <%= page==='dashboard_content'?'active':'' %>">Dashboard</a></li>
+      <li class="nav-item"><a href="/anagrafica" class="nav-link <%= page==='anagrafica_content'?'active':'' %>">Anagrafica</a></li>
+      <li class="nav-item"><a href="/fascicoli" class="nav-link <%= page==='fascicoli_content'?'active':'' %>">Fascicoli</a></li>
+      <li class="nav-item"><a href="/terapie" class="nav-link <%= page==='terapie_content'?'active':'' %>">Terapie</a></li>
+      <li class="nav-item"><a href="/distretti" class="nav-link <%= page==='distretti_content'?'active':'' %>">Distretti Anatomici</a></li>
+      <li class="nav-item"><a href="/trattamenti" class="nav-link <%= page==='trattamenti_content'?'active':'' %>">Trattamenti</a></li>
+      <li class="nav-item"><a href="/operatori" class="nav-link <%= page==='operatori_content'?'active':'' %>">Operatori</a></li>
+      <li class="nav-item mt-3"><a href="/logout" class="nav-link text-danger">Logout</a></li>
     </ul>
   </div>
 
@@ -138,27 +93,19 @@
   <script>
     const periodSelect = document.getElementById('period-select');
     const charts = {
-      distretti:    new Chart(document.getElementById('chart-distretti'),    { type:'pie', data:{ labels:[], datasets:[{ data:[] }]} }),
-      trattamenti:  new Chart(document.getElementById('chart-trattamenti'),  { type:'pie', data:{ labels:[], datasets:[{ data:[] }]} }),
-      operatori:    new Chart(document.getElementById('chart-operatori'),    { type:'pie', data:{ labels:[], datasets:[{ data:[] }]} }),
-      giocatori:    new Chart(document.getElementById('chart-giocatori'),    { type:'pie', data:{ labels:[], datasets:[{ data:[] }]} }),
+      distretti: new Chart(document.getElementById('chart-distretti'), { type:'pie', data:{labels:[],datasets:[{data:[]}]} }),
+      trattamenti: new Chart(document.getElementById('chart-trattamenti'), { type:'pie', data:{labels:[],datasets:[{data:[]}]} }),
+      operatori: new Chart(document.getElementById('chart-operatori'), { type:'pie', data:{labels:[],datasets:[{data:[]}]} }),
+      giocatori: new Chart(document.getElementById('chart-giocatori'), { type:'pie', data:{labels:[],datasets:[{data:[]}]} }),
     };
-
     async function loadChart(type) {
       const period = periodSelect.value;
-      const res    = await fetch(`/api/dashboard/${type}?period=${period}`);
+      const res = await fetch(`/api/dashboard/${type}?period=${period}`);
       if (!res.ok) return;
       const { labels, counts } = await res.json();
-      const c = charts[type];
-      c.data.labels             = labels;
-      c.data.datasets[0].data   = counts;
-      c.update();
+      const c = charts[type]; c.data.labels = labels; c.data.datasets[0].data = counts; c.update();
     }
-
-    function reloadAll() {
-      ['distretti','trattamenti','operatori','giocatori'].forEach(loadChart);
-    }
-
+    function reloadAll() { ['distretti','trattamenti','operatori','giocatori'].forEach(loadChart); }
     periodSelect.addEventListener('change', reloadAll);
     document.addEventListener('DOMContentLoaded', reloadAll);
   </script>
