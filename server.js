@@ -25,12 +25,12 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY   // lato server usa la service-role key
 );
 
-function getSinceDate(period) {
-  const now = new Date();
-  if (period === 'week')  now.setDate(now.getDate() - 7);
-  if (period === 'month') now.setMonth(now.getMonth() - 1);
-  if (period === 'year')  now.setFullYear(now.getFullYear() - 1);
-  return now.toISOString();
+function getSinceDate(period = 'month') {
+  const d = new Date();
+  if (period === 'week')  d.setDate(d.getDate() - 7);
+  if (period === 'month') d.setMonth(d.getMonth() - 1);
+  if (period === 'year')  d.setFullYear(d.getFullYear() - 1);
+  return d.toISOString();
 }
 
 // Cloudinary configuration
@@ -990,68 +990,76 @@ app.post('/operatori/delete/:id', async (req, res) => {
 app.get('/api/dashboard/:metric', async (req, res) => {
   if (!req.session.user) return res.status(401).end();
   const { metric } = req.params;
-  const since = getSinceDate(req.query.period || 'month');
+  const since = getSinceDate(req.query.period);
 
   try {
-    let query;
-    switch(metric) {
-      case 'distretti':
-        query = supabase
-          .from('terapie')
-          .select('distretti(nome)', { count:'exact' })
-          .gt('data_trattamento', since)
-          .group('distretti.nome');
-        break;
-      case 'trattamenti':
-        query = supabase
-          .from('terapie')
-          .select('trattamenti(nome)', { count:'exact' })
-          .gt('data_trattamento', since)
-          .group('trattamenti.nome');
-        break;
-      case 'operatori':
-        query = supabase
-          .from('terapie')
-          .select('operatore', { count:'exact' })
-          .gt('data_trattamento', since)
-          .group('operatore');
-        break;
-      case 'giocatori':
-        query = supabase
-          .from('terapie')
-          .select('anagrafica_id', { count:'exact' })
-          .gt('data_trattamento', since)
-          .group('anagrafica_id');
-        break;
-      default:
-        return res.status(400).end();
-    }
+    // 1) fetch all therapies in window, with the fields we need
+    const { data: therapies, error } = await supabase
+      .from('terapie')
+      .select(`
+        id,
+        data_trattamento,
+        distretti ( nome ),
+        trattamenti ( nome ),
+        operatore,
+        anagrafica_id
+      `)
+      .gt('data_trattamento', since);
 
-    const { data, error } = await query;
     if (error) throw error;
 
-    const labels = data.map(r => {
-      if (metric === 'giocatori') {
-        // recupera nome cognome
-        return r.anagrafica_id; // poi si può espandere con join
-      } else if (metric === 'operatori') {
-        return r.operatore;
-      } else {
-        // distretti.nome o trattamenti.nome
-        const key = Object.keys(r).find(k=>k!=='count');
-        return r[key].nome;
+    // 2) reduce() to group & count
+    const counter = therapies.reduce((acc, t) => {
+      let key;
+      switch (metric) {
+        case 'distretti':
+          key = t.distretti.nome;
+          break;
+        case 'trattamenti':
+          key = t.trattamenti.nome;
+          break;
+        case 'operatori':
+          key = t.operatore;
+          break;
+        case 'giocatori':
+          key = String(t.anagrafica_id); // we'll translate later
+          break;
+        default:
+          return acc;
       }
-    });
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
 
-    const counts = data.map(r=>r.count);
+    // 3) create arrays
+    const labels = Object.keys(counter);
+    const counts = labels.map(l => counter[l]);
 
-    res.json({ labels, counts });
+    // 4) if “giocatori”, fetch names for the IDs
+    if (metric === 'giocatori' && labels.length) {
+      // fetch all involved players at once
+      const ids = labels.map(id => parseInt(id,10));
+      const { data: players } = await supabase
+        .from('anagrafica')
+        .select('id,nome,cognome')
+        .in('id', ids);
+      const nameMap = players.reduce((m,p) => {
+        m[p.id] = `${p.nome} ${p.cognome}`;
+        return m;
+      }, {});
+      // replace labels
+      for (let i=0; i<labels.length; i++) {
+        const id = parseInt(labels[i],10);
+        labels[i] = nameMap[id] || labels[i];
+      }
+    }
+
+    return res.json({ labels, counts });
   } catch (err) {
-    console.error(err);
-    res.status(500).end();
+    console.error('Dashboard API error:', err);
+    return res.status(500).end();
   }
 });
-
 // Avvio server
 app.listen(PORT, () => {
   console.log(`Server in ascolto su http://localhost:${PORT}`);
