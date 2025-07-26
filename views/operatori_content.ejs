@@ -43,14 +43,17 @@
   <tbody>
     <% operatori.forEach(op => { %>
       <tr data-id="<%= op.id %>">
-        <td class="nome"><span><%= op.nome %></span>
-          <input type="text" name="nome" class="form-control form-control-sm d-none" value="<%= op.nome %>">
+        <td class="nome">
+          <span class="static"><%= op.nome %></span>
+          <input type="text" name="nome" class="form-control form-control-sm editable d-none" value="<%= op.nome %>">
         </td>
-        <td class="cognome"><span><%= op.cognome %></span>
-          <input type="text" name="cognome" class="form-control form-control-sm d-none" value="<%= op.cognome %>">
+        <td class="cognome">
+          <span class="static"><%= op.cognome %></span>
+          <input type="text" name="cognome" class="form-control form-control-sm editable d-none" value="<%= op.cognome %>">
         </td>
-        <td class="email"><span><%= op.email %></span>
-          <input type="email" name="email" class="form-control form-control-sm d-none" value="<%= op.email %>">
+        <td class="email">
+          <span class="static"><%= op.email %></span>
+          <input type="email" name="email" class="form-control form-control-sm editable d-none" value="<%= op.email %>">
         </td>
         <td>
           <span>••••••••</span>
@@ -69,31 +72,41 @@
   </tbody>
 </table>
 
+<!-- Includi jQuery PRIMA di questo script -->
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+
 <script>
-  $(function(){
-    $('.btn-edit').click(function(){
-      const row = $(this).closest('tr');
-      row.find('span').addClass('d-none');
-      row.find('input').removeClass('d-none');
-      row.find('.btn-edit').addClass('d-none');
-      row.find('.btn-save, .btn-cancel').removeClass('d-none');
-    });
-    $('.btn-cancel').click(()=> location.reload());
-    $('.btn-save').click(function(){
-      const row = $(this).closest('tr');
-      const id  = row.data('id');
-      // chiedo password per conferma
-      const pwd = prompt('Per confermare la modifica, inserisci la PASSWORD di questo operatore:');
-      if (!pwd) return alert('Modifica annullata');
-      const data = {
-        nome: row.find('input[name=nome]').val(),
-        cognome: row.find('input[name=cognome]').val(),
-        email: row.find('input[name=email]').val(),
-        passwordConfirm: pwd
-      };
-      $.post(`/operatori/update/${id}`, data)
-        .done(()=> location.reload())
-        .fail(err=> alert(err.responseText || 'Password errata'));
-    });
+$(function(){
+  $('.btn-edit').click(function(){
+    const row = $(this).closest('tr');
+    row.find('.static').addClass('d-none');
+    row.find('.editable').removeClass('d-none');
+    row.find('.btn-edit').addClass('d-none');
+    row.find('.btn-save, .btn-cancel').removeClass('d-none');
   });
+
+  $('.btn-cancel').click(function(){
+    // semplicemente reload per tornare allo stato iniziale
+    location.reload();
+  });
+
+  $('.btn-save').click(function(){
+    const row = $(this).closest('tr');
+    const id  = row.data('id');
+    // chiedo password per conferma
+    const pwd = prompt('Per confermare la modifica, inserisci la PASSWORD di questo operatore:');
+    if (!pwd) return alert('Modifica annullata');
+
+    const data = {
+      nome: row.find('input[name=nome]').val(),
+      cognome: row.find('input[name=cognome]').val(),
+      email: row.find('input[name=email]').val(),
+      passwordConfirm: pwd
+    };
+
+    $.post(`/operatori/update/${id}`, data)
+      .done(() => location.reload())
+      .fail(err => alert(err.responseText || 'Password errata'));
+  });
+});
 </script>
