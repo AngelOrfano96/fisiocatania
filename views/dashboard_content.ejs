@@ -1,80 +1,116 @@
-<h3>Benvenuto, <%= user %></h3>
+<!DOCTYPE html>
 
-<div class="mb-4">
-  <label for="period-select" class="form-label">Intervallo:</label>
-  <select id="period-select" class="form-select w-auto d-inline-block">
-    <option value="week">Ultima settimana</option>
-    <option value="month" selected>Ultimo mese</option>
-    <option value="year">Ultimo anno</option>
-  </select>
-</div>
+<html>
+<head>
+  <title>FisioCatania</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<div class="row gy-4">
-  <!-- Distretto -->
-  <div class="col-12 col-md-6 col-lg-3">
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <h5 class="card-title">Distretti (terapie)</h5>
-        <canvas id="chart-distretti"></canvas>
+  <!-- Bootstrap CSS -->
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- DataTables Bootstrap5 CSS -->
+  <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+
+  <style>
+    body { margin: 0; }
+    #content { padding: 2rem; margin-left: 200px; }
+    @media (max-width: 767.98px) {
+      #content { margin-left: 0; padding: 1rem; }
+    }
+    .nav-link.active { font-weight: bold; color: #0d6efd !important; }
+  </style>
+
+</head>
+<body>
+  <!-- Offcanvas for small screens -->
+  <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasMenu" aria-labelledby="offcanvasMenuLabel">
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title" id="offcanvasMenuLabel">Menù</h5>
+      <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body p-0">
+      <div class="text-center my-3">
+        <img src="/images/Logo_CATANIA_FC.svg.png" alt="Logo Catania" style="max-width:120px;">
       </div>
+      <ul class="nav flex-column">
+        <li class="nav-item"><a href="/dashboard" class="nav-link <%= page==='dashboard_content'?'active':'' %>">Dashboard</a></li>
+        <li class="nav-item"><a href="/anagrafica" class="nav-link <%= page==='anagrafica_content'?'active':'' %>">Anagrafica</a></li>
+        <li class="nav-item"><a href="/fascicoli" class="nav-link <%= page==='fascicoli_content'?'active':'' %>">Fascicoli</a></li>
+        <li class="nav-item"><a href="/terapie" class="nav-link <%= page==='terapie_content'?'active':'' %>">Terapie</a></li>
+        <li class="nav-item"><a href="/distretti" class="nav-link <%= page==='distretti_content'?'active':'' %>">Distretti Anatomici</a></li>
+        <li class="nav-item"><a href="/trattamenti" class="nav-link <%= page==='trattamenti_content'?'active':'' %>">Trattamenti</a></li>
+        <li class="nav-item"><a href="/operatori" class="nav-link <%= page==='operatori_content'?'active':'' %>">Operatori</a></li>
+        <li class="nav-item mt-3"><a href="/logout" class="nav-link text-danger">Logout</a></li>
+      </ul>
     </div>
   </div>
-  <!-- Trattamenti -->
-  <div class="col-12 col-md-6 col-lg-3">
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <h5 class="card-title">Trattamenti</h5>
-        <canvas id="chart-trattamenti"></canvas>
-      </div>
+
+  <!-- Top navbar for small screens -->
+
+  <nav class="navbar navbar-light bg-light d-md-none">
+    <div class="container-fluid">
+      <button class="btn btn-outline-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">☰</button>
+      <span class="navbar-brand mx-auto">FisioCatania</span>
     </div>
-  </div>
-  <!-- Operatori -->
-  <div class="col-12 col-md-6 col-lg-3">
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <h5 class="card-title">Operatori</h5>
-        <canvas id="chart-operatori"></canvas>
-      </div>
+  </nav>
+
+  <!-- Sidebar for md+ -->
+
+  <div id="menu" class="d-none d-md-block position-fixed top-0 start-0 h-100 bg-light border-end p-3" style="width:200px;">
+    <div class="text-center mb-4">
+      <img src="/images/Logo_CATANIA_FC.svg.png" alt="Logo Catania" style="max-width:120px;">
     </div>
+    <ul class="nav flex-column">
+      <li class="nav-item"><a href="/dashboard" class="nav-link <%= page==='dashboard_content'?'active':'' %>">Dashboard</a></li>
+      <li class="nav-item"><a href="/anagrafica" class="nav-link <%= page==='anagrafica_content'?'active':'' %>">Anagrafica</a></li>
+      <li class="nav-item"><a href="/fascicoli" class="nav-link <%= page==='fascicoli_content'?'active':'' %>">Fascicoli</a></li>
+      <li class="nav-item"><a href="/terapie" class="nav-link <%= page==='terapie_content'?'active':'' %>">Terapie</a></li>
+      <li class="nav-item"><a href="/distretti" class="nav-link <%= page==='distretti_content'?'active':'' %>">Distretti Anatomici</a></li>
+      <li class="nav-item"><a href="/trattamenti" class="nav-link <%= page==='trattamenti_content'?'active':'' %>">Trattamenti</a></li>
+      <li class="nav-item"><a href="/operatori" class="nav-link <%= page==='operatori_content'?'active':'' %>">Operatori</a></li>
+      <li class="nav-item mt-3"><a href="/logout" class="nav-link text-danger">Logout</a></li>
+    </ul>
   </div>
-  <!-- Giocatori -->
-  <div class="col-12 col-md-6 col-lg-3">
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <h5 class="card-title">Giocatori</h5>
-        <canvas id="chart-giocatori"></canvas>
-      </div>
-    </div>
+
+  <div id="content">
+    <%- include(page) %>
   </div>
-</div>
 
-<script>
-  const periodSelect = document.getElementById('period-select');
+  <!-- Scripts -->
 
-  // inizializza tutti i grafici con dati vuoti
-  const charts = {
-    distretti: new Chart(document.getElementById('chart-distretti'), { type:'pie', data:{labels:[],datasets:[{data:[]}]} }),
-    trattamenti: new Chart(document.getElementById('chart-trattamenti'), { type:'pie', data:{labels:[],datasets:[{data:[]}]} }),
-    operatori: new Chart(document.getElementById('chart-operatori'), { type:'pie', data:{labels:[],datasets:[{data:[]}]} }),
-    giocatori: new Chart(document.getElementById('chart-giocatori'), { type:'pie', data:{labels:[],datasets:[{data:[]}]} }),
-  };
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 
-  async function loadChart(type) {
-    const period = periodSelect.value;
-    const res = await fetch(`/api/dashboard/${type}?period=${period}`);
-    if (!res.ok) return;
-    const { labels, counts } = await res.json();
-    const c = charts[type];
-    c.data.labels = labels;
-    c.data.datasets[0].data = counts;
-    c.update();
-  }
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-  function reloadAll() {
-    ['distretti','trattamenti','operatori','giocatori'].forEach(loadChart);
-  }
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 
-  periodSelect.addEventListener('change', reloadAll);
-  document.addEventListener('DOMContentLoaded', reloadAll);
-</script>
+  <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
+
+<% if (page === 'dashboard\_content') { %>
+
+  <script>
+    const periodSelect = document.getElementById('period-select');
+    const charts = {
+      distretti: new Chart(document.getElementById('chart-distretti'), { type:'pie', data:{labels:[],datasets:[{data:[]}]} }),
+      trattamenti: new Chart(document.getElementById('chart-trattamenti'), { type:'pie', data:{labels:[],datasets:[{data:[]}]} }),
+      operatori: new Chart(document.getElementById('chart-operatori'), { type:'pie', data:{labels:[],datasets:[{data:[]}]} }),
+      giocatori: new Chart(document.getElementById('chart-giocatori'), { type:'pie', data:{labels:[],datasets:[{data:[]}]} }),
+    };
+    async function loadChart(type) {
+      const period = periodSelect.value;
+      const res = await fetch(`/api/dashboard/${type}?period=${period}`);
+      if (!res.ok) return;
+      const { labels, counts } = await res.json();
+      const c = charts[type]; c.data.labels = labels; c.data.datasets[0].data = counts; c.update();
+    }
+    function reloadAll() { ['distretti','trattamenti','operatori','giocatori'].forEach(loadChart); }
+    periodSelect.addEventListener('change', reloadAll);
+    document.addEventListener('DOMContentLoaded', reloadAll);
+  </script>
+
+<% } %>
+
+</body>
+</html>
