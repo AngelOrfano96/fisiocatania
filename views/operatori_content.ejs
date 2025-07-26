@@ -1,0 +1,99 @@
+<h3>Crea Profilo Operatore</h3>
+
+<% if (message) { %>
+  <div class="alert alert-<%= message.type %>"><%= message.text %></div>
+<% } %>
+
+<form id="create-operator-form" method="POST" action="/operatori">
+  <div class="row g-3 mb-3">
+    <div class="col-sm-3">
+      <input type="text" name="nome" class="form-control" placeholder="Nome" required>
+    </div>
+    <div class="col-sm-3">
+      <input type="text" name="cognome" class="form-control" placeholder="Cognome" required>
+    </div>
+    <div class="col-sm-3">
+      <input type="email" name="email" class="form-control" placeholder="Email" required>
+    </div>
+    <div class="col-sm-3">
+      <input type="password" name="password" class="form-control" placeholder="Password" required>
+    </div>
+    <div class="col-sm-3">
+      <input type="password" name="passwordConfirm" class="form-control" placeholder="Conferma Password" required>
+    </div>
+    <div class="col-sm-3">
+      <button class="btn btn-success w-100">Salva</button>
+    </div>
+  </div>
+</form>
+
+<hr>
+
+<h4>Lista Operatori</h4>
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Nome</th>
+      <th>Cognome</th>
+      <th>Email</th>
+      <th>Password</th>
+      <th>Azioni</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% operatori.forEach(op => { %>
+      <tr data-id="<%= op.id %>">
+        <td class="nome"><span><%= op.nome %></span>
+          <input type="text" name="nome" class="form-control form-control-sm d-none" value="<%= op.nome %>">
+        </td>
+        <td class="cognome"><span><%= op.cognome %></span>
+          <input type="text" name="cognome" class="form-control form-control-sm d-none" value="<%= op.cognome %>">
+        </td>
+        <td class="email"><span><%= op.email %></span>
+          <input type="email" name="email" class="form-control form-control-sm d-none" value="<%= op.email %>">
+        </td>
+        <td>
+          <span>••••••••</span>
+        </td>
+        <td>
+          <button class="btn btn-sm btn-warning btn-edit">✏️</button>
+          <button class="btn btn-sm btn-success btn-save d-none">💾</button>
+          <button class="btn btn-sm btn-secondary btn-cancel d-none">↩️</button>
+          <form method="POST" action="/operatori/delete/<%= op.id %>" class="d-inline"
+                onsubmit="return confirm('⚠️ Se elimini questo operatore verranno eliminate anche tutte le terapie a lui associate. Prosegui?')">
+            <button class="btn btn-sm btn-danger">🗑️</button>
+          </form>
+        </td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>
+
+<script>
+  $(function(){
+    $('.btn-edit').click(function(){
+      const row = $(this).closest('tr');
+      row.find('span').addClass('d-none');
+      row.find('input').removeClass('d-none');
+      row.find('.btn-edit').addClass('d-none');
+      row.find('.btn-save, .btn-cancel').removeClass('d-none');
+    });
+    $('.btn-cancel').click(()=> location.reload());
+    $('.btn-save').click(function(){
+      const row = $(this).closest('tr');
+      const id  = row.data('id');
+      // chiedo password per conferma
+      const pwd = prompt('Per confermare la modifica, inserisci la PASSWORD di questo operatore:');
+      if (!pwd) return alert('Modifica annullata');
+      const data = {
+        nome: row.find('input[name=nome]').val(),
+        cognome: row.find('input[name=cognome]').val(),
+        email: row.find('input[name=email]').val(),
+        passwordConfirm: pwd
+      };
+      $.post(`/operatori/update/${id}`, data)
+        .done(()=> location.reload())
+        .fail(err=> alert(err.responseText || 'Password errata'));
+    });
+  });
+</script>

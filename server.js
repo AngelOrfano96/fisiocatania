@@ -8,6 +8,8 @@ const fs = require('fs');
 const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const PDFDocument = require('pdfkit');
+const crypto = require('crypto');
+
 
 
 
@@ -39,6 +41,13 @@ const storage = new CloudinaryStorage({
 });
 const upload = require('multer')({ storage });
 
+// Utility per generare l’hash SHA‑256 di una stringa
+function sha256(text) {
+  return crypto
+    .createHash('sha256')
+    .update(text)
+    .digest('hex');
+}
 
 
 // Assicura la directory degli upload
@@ -57,7 +66,7 @@ app.use(session({
   saveUninitialized: true
 }));
 
-const USERS = { "admin@admin.com": "admin123" };
+//const USERS = { "admin@admin.com": "admin123" };
 
 // Rotte di base e autenticazione
 app.get('/', (req, res) => {
@@ -65,14 +74,37 @@ app.get('/', (req, res) => {
   res.render('login', { error: null });
 });
 
-app.post('/login', (req, res) => {
+// POST /login — autentica contro la tabella operatori
+app.post('/login', async (req, res) => {
   const { email, password } = req.body;
-  if (USERS[email] && USERS[email] === password) {
+  try {
+    // 1) Cerco l’operatore
+    const { data: op, error } = await supabase
+      .from('operatori')
+      .select('id, nome, cognome, password_hash')
+      .eq('email', email)
+      .single();
+    if (error || !op) {
+      return res.render('login', { error: 'Credenziali errate' });
+    }
+
+    // 2) Calcolo hash della password inviata e confronto
+    const hash = crypto.createHash('sha256')
+                       .update(password)
+                       .digest('hex');
+    if (hash !== op.password_hash) {
+      return res.render('login', { error: 'Credenziali errate' });
+    }
+
+    // 3) Autenticato: salvo in sessione solo l’email (o anche id/nome se ti serve)
     req.session.user = email;
     return res.redirect('/dashboard');
+  } catch (err) {
+    console.error('Errore autenticazione:', err);
+    return res.render('login', { error: 'Errore interno, riprova più tardi' });
   }
-  res.render('login', { error: 'Credenziali errate' });
 });
+
 
 app.get('/logout', (req, res) => {
   req.session.destroy();
@@ -328,39 +360,6 @@ app.post('/terapie/delete/:id', async (req, res) => {
     res.redirect('/terapie');
   }
 });
-/*
-// Upload di un singolo allegato per una terapia (usando Supabase)
-app.post('/terapie/:id/allegati', upload.single('allegato'), async (req, res) => {
-  if (!req.session.user) return res.redirect('/login');
-  const therapyId = parseInt(req.params.id, 10);
-
-  if (!req.file) {
-    // nessun file selezionato: torna indietro con errore
-    return res.status(400).send('Nessun file caricato');
-  }
-
-  // req.file.path contiene l'URL Cloudinary
-  const url = req.file.path;
-
-  try {
-    const { error } = await supabase
-      .from('allegati')
-      .insert({
-        terapia_id: therapyId,
-        url
-      });
-
-    if (error) throw error;
-
-    // torno indietro alla pagina di fascicoli (o alla stessa view)
-    res.redirect('back');
-  } catch (err) {
-    console.error('Errore upload allegato via Supabase:', err);
-    res.status(500).send('Errore interno durante il salvataggio dell\'allegato');
-  }
-}); */
-
-
 
 // ROTTA FASCICOLI
 app.get('/fascicoli', async (req, res) => {
@@ -516,31 +515,6 @@ app.get('/terapie/:id/allegati', async (req, res) => {
   });
 });
  // <- qui chiudiamo la callback di app.get
-
-
-/*
-app.post('/terapie/:id/allegati', upload.single('allegato'), async (req, res) => {
-  if (!req.session.user) return res.status(401).send('Non autorizzato');
-  const therapyId = req.params.id;
-  if (!req.file) return res.status(400).send('Nessun file caricato');
-
-  const url = req.file.path;  // URL Cloudinary
-
-  // Salvo in Supabase
-  const { error } = await supabase
-    .from('allegati')
-    .insert({ terapia_id: therapyId, url });
-  if (error) {
-    console.error('Errore upload allegato:', error);
-    return res.status(500).send('Upload fallito');
-  }
-
-  // Invece di redirect, rispondi con 200 OK e lascia che sia il client JS a
-  // mostrare il toast / pulire i controlli
-  //res.sendStatus(200);
-  res.redirect(req.get('Referer') || '/fascicoli');
-
-}); */
 
 app.post('/terapie/:therapyId/allegati/:id/delete', async (req, res) => {
   if (!req.session.user) return res.redirect('/login');
@@ -896,6 +870,114 @@ app.post('/trattamenti/:id/delete', async (req, res) => {
     console.error('Errore eliminazione trattamento + terapie:', err);
     res.redirect('/trattamenti');
   }
+});
+
+// GET /operatori
+app.get('/operatori', async (req, res) => {
+  if (!req.session.user) return res.redirect('/');
+  const { data: operatori, error } = await supabase
+    .from('operatori')
+    .select('*')
+    .order('id', { ascending: false });
+  if (error) console.error(error);
+  res.render('layout', {
+    page: 'operatori_content',
+    operatori,
+    message: null
+  });
+});
+
+// POST crea nuovo operatore
+app.post('/operatori', async (req, res) => {
+  const { nome, cognome, email, password, passwordConfirm } = req.body;
+  // Verifica corrispondenza password
+  if (password !== passwordConfirm) {
+    // Ricarico la lista per non passare array vuoto
+    const { data: operatori = [], error: errOp } = await supabase
+      .from('operatori')
+      .select('*')
+      .order('id', { ascending: false });
+    return res.render('layout', {
+      page: 'operatori_content',
+      operatori,
+      message: { type: 'danger', text: 'Le password non corrispondono' }
+    });
+  }
+
+  // Inserimento
+  const { error: errInsert } = await supabase
+    .from('operatori')
+    .insert({ nome, cognome, email, password_hash: sha256(password) });
+
+  if (errInsert) {
+    console.error('Errore creazione operatore:', errInsert);
+    const { data: operatori = [] } = await supabase
+      .from('operatori')
+      .select('*')
+      .order('id', { ascending: false });
+    return res.render('layout', {
+      page: 'operatori_content',
+      operatori,
+      message: { type: 'danger', text: 'Errore creazione operatore' }
+    });
+  }
+
+  // Se tutto ok, torna alla lista
+  res.redirect('/operatori');
+});
+
+// POST modifica operatore (inline, verifica password corrente)
+app.post('/operatori/update/:id', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const { nome, cognome, email, passwordConfirm } = req.body;
+
+  // Recupero l’hash salvato
+  const { data: [op], error: errFetch } = await supabase
+    .from('operatori')
+    .select('password_hash')
+    .eq('id', id);
+
+  if (errFetch || !op) {
+    console.error('Operatore non trovato:', errFetch);
+    return res.status(404).send('Operatore non trovato');
+  }
+
+  // Verifico che la password inserita corrisponda
+  if (sha256(passwordConfirm) !== op.password_hash) {
+    return res.status(401).send('Password errata');
+  }
+
+  // Se ok, aggiorno i dati
+  const { error: errUpdate } = await supabase
+    .from('operatori')
+    .update({ nome, cognome, email })
+    .eq('id', id);
+
+  if (errUpdate) {
+    console.error('Errore aggiornamento operatore:', errUpdate);
+    return res.status(500).send('Errore salvataggio');
+  }
+
+  res.sendStatus(200);
+});
+
+// POST elimina operatore (con warning JS già impostato)
+app.post('/operatori/delete/:id', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+
+  // Elimino tutte le terapie collegate a quell’operatore (campo operatore è email o id a tua scelta)
+  await supabase
+    .from('terapie')
+    .delete()
+    .eq('operatore', id);
+
+  // Elimino l’operatore
+  await supabase
+    .from('operatori')
+    .delete()
+    .eq('id', id);
+
+  res.redirect('/operatori');
 });
 
 
