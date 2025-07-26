@@ -1,49 +1,154 @@
-<h3>Benvenuto, <%= user %></h3>
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex align-items-center mb-4">
+      <% 
+        const fotoSrc = anagrafica.foto || defaultPhoto;
+      %>
+      <form id="photo-form"
+            action="/anagrafica/update-photo/<%= anagrafica.id %>"
+            method="POST"
+            enctype="multipart/form-data"
+            class="d-flex align-items-center">
+        <div class="position-relative me-3">
+          <img id="profile-img"
+               src="<%= fotoSrc %>"
+               alt="Foto di <%= anagrafica.nome %> <%= anagrafica.cognome %>"
+               class="img-thumbnail"
+               style="width:100px; height:100px; object-fit:cover;">
+          <input id="foto-input"
+                 type="file"
+                 name="foto"
+                 accept="image/*"
+                 class="form-control form-control-sm d-none"
+                 style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0;">
+        </div>
+        <div>
+          <h5 class="mb-1"><%= anagrafica.nome %> <%= anagrafica.cognome %></h5>
+          <button id="btn-edit-photo" type="button" class="btn btn-sm btn-outline-primary mb-2">
+            Modifica foto
+          </button>
+          <button id="btn-save-photo" type="submit" class="btn btn-sm btn-success mb-2 d-none">
+            💾 Salva
+          </button>
+          <button id="btn-cancel-photo" type="button" class="btn btn-sm btn-secondary mb-2 d-none">
+            ↩️ Annulla
+          </button>
+        </div>
+      </form>
+    </div>
 
-<div class="mb-4">
-  <label for="period-select" class="form-label">Intervallo:</label>
-  <select id="period-select" class="form-select w-auto d-inline-block">
-    <option value="week">Ultima settimana</option>
-    <option value="month" selected>Ultimo mese</option>
-    <option value="year">Ultimo anno</option>
-  </select>
+    <% 
+      const dob = anagrafica.data_nascita;
+      const dobStr = (typeof dob === 'string' ? dob.slice(0,10)
+                      : dob instanceof Date ? dob.toISOString().split('T')[0]
+                      : '—');
+    %>
+    <p><strong>Data di nascita:</strong> <%= dobStr %></p>
+    <p><strong>Comune:</strong> <%= anagrafica.luogo_nascita %></p>
+    <p><strong>Cellulare:</strong> <%= anagrafica.cellulare %></p>
+    <p><strong>Note:</strong> <%= anagrafica.note || '—' %></p>
+
+    <hr>
+    <h5>Terapie collegate</h5>
+    <% if (therapies.length === 0) { %>
+      <p class="text-muted">Nessuna terapia registrata.</p>
+    <% } else { %>
+      <table class="table table-sm table-bordered">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Distretto</th>
+            <th>Trattamento</th>
+            <th>Note</th>
+            <th class="text-center">Azioni</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% therapies.forEach(tr => { 
+               const td = tr.data_trattamento;
+               const tdStr = (typeof td === 'string' ? td.slice(0,10)
+                              : td instanceof Date ? td.toISOString().split('T')[0]
+                              : '');
+          %>
+            <tr data-id="<%= tr.id %>">
+              <td><%= tdStr %></td>
+              <td><%= tr.distretto %></td>
+              <td><%= tr.trattamento %></td>
+              <td><%= tr.note || '—' %></td>
+              <td class="text-center">
+                <!-- Allegati -->
+                <a href="/terapie/<%= tr.id %>/allegati" 
+                   class="btn btn-outline-secondary btn-sm"
+                   title="Gestisci allegati">📎</a>
+                <!-- Export PDF -->
+                <a href="/fascicoli/<%= anagrafica.id %>/export/<%= tr.id %>"
+                   class="btn btn-outline-primary btn-sm ms-1"
+                   title="Esporta questo fascicolo + terapia in PDF">📄</a>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
+
+    <h6 class="mt-4">Allegati per ogni terapia</h6>
+    <% if ((attachments || []).length === 0) { %>
+      <p class="text-muted">Nessun allegato caricato.</p>
+    <% } else { %>
+      <% therapies.forEach(tr => {
+           const atts = attachments.filter(a => a.terapia_id === tr.id);
+      %>
+        <div class="mb-3">
+          <strong><%= (typeof tr.data_trattamento === 'string'
+                        ? tr.data_trattamento.slice(0,10)
+                        : tr.data_trattamento instanceof Date
+                          ? tr.data_trattamento.toISOString().split('T')[0]
+                          : '') %>:</strong>
+          <% atts.forEach(a => { %>
+            <a href="<%= a.url %>" target="_blank" class="mx-2">🖼️</a>
+          <% }) %>
+        </div>
+      <% }) %>
+    <% } %>
+
+    <p>
+      <a href="/fascicoli" class="btn btn-secondary btn-sm">
+        ← Torna ai fascicoli
+      </a>
+    </p>
+  </div>
 </div>
 
-<div class="row gy-4">
-  <!-- Distretto -->
-  <div class="col-12 col-md-6 col-lg-3">
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <h5 class="card-title">Distretti (terapie)</h5>
-        <canvas id="chart-distretti"></canvas>
-      </div>
-    </div>
-  </div>
-  <!-- Trattamenti -->
-  <div class="col-12 col-md-6 col-lg-3">
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <h5 class="card-title">Trattamenti</h5>
-        <canvas id="chart-trattamenti"></canvas>
-      </div>
-    </div>
-  </div>
-  <!-- Operatori -->
-  <div class="col-12 col-md-6 col-lg-3">
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <h5 class="card-title">Operatori</h5>
-        <canvas id="chart-operatori"></canvas>
-      </div>
-    </div>
-  </div>
-  <!-- Giocatori -->
-  <div class="col-12 col-md-6 col-lg-3">
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <h5 class="card-title">Giocatori</h5>
-        <canvas id="chart-giocatori"></canvas>
-      </div>
-    </div>
-  </div>
-</div>
+<script>
+  // init photo‑editor su questo partial
+  (function initPhotoEditor() {
+    const btnEdit   = document.getElementById('btn-edit-photo');
+    if (!btnEdit) return;
+    const btnSave   = document.getElementById('btn-save-photo');
+    const btnCancel = document.getElementById('btn-cancel-photo');
+    const inputFile = document.getElementById('foto-input');
+    const imgPreview= document.getElementById('profile-img');
+
+    btnEdit.addEventListener('click', ()=> {
+      inputFile.classList.remove('d-none');
+      btnEdit.classList.add('d-none');
+      btnSave.classList.remove('d-none');
+      btnCancel.classList.remove('d-none');
+    });
+    btnCancel.addEventListener('click', ()=> {
+      inputFile.value = '';
+      inputFile.classList.add('d-none');
+      btnEdit.classList.remove('d-none');
+      btnSave.classList.add('d-none');
+      btnCancel.classList.add('d-none');
+      imgPreview.src = imgPreview.getAttribute('src');
+    });
+    inputFile.addEventListener('change', ()=> {
+      const file = inputFile.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => imgPreview.src = e.target.result;
+      reader.readAsDataURL(file);
+    });
+  })();
+</script>
