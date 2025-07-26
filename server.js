@@ -785,6 +785,23 @@ app.post('/distretti/:id/update', async (req, res) => {
   }
 });
 
+// Elimina un distretto
+app.post('/distretti/:id/delete', async (req, res) => {
+  if (!req.session.user) return res.redirect('/');
+  const id = parseInt(req.params.id, 10);
+  try {
+    const { error } = await supabase
+      .from('distretti')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    res.redirect('/distretti');
+  } catch (err) {
+    console.error('Errore eliminazione distretto:', err);
+    res.redirect('/distretti');
+  }
+});
+
 
 // Avvio server
 app.listen(PORT, () => {

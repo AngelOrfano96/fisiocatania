@@ -4,7 +4,6 @@
   <div class="alert alert-danger"><%= message %></div>
 <% } %>
 
-<!-- Sezione Creazione -->
 <div class="card mb-4">
   <div class="card-body">
     <form method="POST" action="/distretti" class="row g-2 align-items-end">
@@ -20,28 +19,37 @@
   </div>
 </div>
 
-<!-- Sezione Lista -->
 <div class="card">
   <div class="card-body">
-    <table class="table table-bordered table-striped">
+    <table class="table table-bordered table-striped align-middle">
       <thead>
         <tr>
           <th>Nome</th>
-          <th style="width:120px">Modifica</th>
+          <th style="width:180px">Azioni</th>
         </tr>
       </thead>
       <tbody>
         <% distretti.forEach(d => { %>
           <tr data-id="<%= d.id %>">
             <td class="nome-cell">
-              <span><%= d.nome %></span>
-              <input type="text" class="form-control form-control-sm d-none"
+              <span class="static"><%= d.nome %></span>
+              <input type="text"
+                     class="form-control form-control-sm editable d-none"
                      value="<%= d.nome %>">
             </td>
             <td>
-              <button type="button" class="btn btn-warning btn-sm btn-edit">✏️</button>
-              <button type="button" class="btn btn-success btn-sm btn-save d-none">💾</button>
-              <button type="button" class="btn btn-secondary btn-sm btn-cancel d-none">↩️</button>
+              <button type="button"
+                      class="btn btn-warning btn-sm btn-edit">✏️</button>
+              <button type="button"
+                      class="btn btn-success btn-sm btn-save d-none">💾</button>
+              <button type="button"
+                      class="btn btn-secondary btn-sm btn-cancel d-none">↩️</button>
+              <form method="POST"
+                    action="/distretti/<%= d.id %>/delete"
+                    class="d-inline"
+                    onsubmit="return confirm('Confermi eliminazione?')">
+                <button class="btn btn-danger btn-sm">🗑️</button>
+              </form>
             </td>
           </tr>
         <% }) %>
@@ -54,16 +62,17 @@
   document.querySelectorAll('.btn-edit').forEach(btn => {
     btn.addEventListener('click', () => {
       const row = btn.closest('tr');
-      row.querySelector('span').classList.add('d-none');
-      row.querySelector('input').classList.remove('d-none');
-      btn.classList.add('d-none');
-      row.querySelector('.btn-save, .btn-cancel')
-         .forEach(b => b.classList.remove('d-none'));
+      row.querySelector('.static').classList.add('d-none');
+      row.querySelector('.editable').classList.remove('d-none');
+      row.querySelector('.btn-edit').classList.add('d-none');
+      row.querySelectorAll('.btn-save, .btn-cancel').forEach(b => b.classList.remove('d-none'));
     });
   });
 
   document.querySelectorAll('.btn-cancel').forEach(btn => {
-    btn.addEventListener('click', () => location.reload());
+    btn.addEventListener('click', () => {
+      location.reload();
+    });
   });
 
   document.querySelectorAll('.btn-save').forEach(btn => {
@@ -78,7 +87,7 @@
         body: JSON.stringify({ nome })
       });
       if (res.ok) location.reload();
-      else alert('Errore salvataggio');
+      else alert('Errore nel salvataggio');
     });
   });
 </script>
