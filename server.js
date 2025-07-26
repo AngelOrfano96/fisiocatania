@@ -813,6 +813,90 @@ app.post('/distretti/:id/delete', async (req, res) => {
   }
 });
 
+// Mostra pagina Trattamenti
+app.get('/trattamenti', async (req, res) => {
+  if (!req.session.user) return res.redirect('/');
+  try {
+    const { data: trattamenti, error } = await supabase
+      .from('trattamenti')
+      .select('*')
+      .order('nome', { ascending: true });
+    if (error) throw error;
+    res.render('layout', {
+      page: 'trattamenti_content',
+      trattamenti,
+      message: null
+    });
+  } catch (err) {
+    console.error('Errore caricamento trattamenti:', err);
+    res.render('layout', {
+      page: 'trattamenti_content',
+      trattamenti: [],
+      message: 'Errore nel caricamento'
+    });
+  }
+});
+
+// Crea nuovo trattamento
+app.post('/trattamenti', async (req, res) => {
+  if (!req.session.user) return res.redirect('/');
+  const { nome } = req.body;
+  try {
+    const { error } = await supabase
+      .from('trattamenti')
+      .insert({ nome });
+    if (error) throw error;
+    res.redirect('/trattamenti');
+  } catch (err) {
+    console.error('Errore creazione trattamento:', err);
+    res.redirect('/trattamenti');
+  }
+});
+
+// Update inline di un trattamento
+app.post('/trattamenti/:id/update', async (req, res) => {
+  if (!req.session.user) return res.sendStatus(401);
+  const id = parseInt(req.params.id, 10);
+  const { nome } = req.body;
+  if (isNaN(id)) return res.sendStatus(400);
+  try {
+    const { error } = await supabase
+      .from('trattamenti')
+      .update({ nome })
+      .eq('id', id);
+    if (error) throw error;
+    res.sendStatus(200);
+  } catch (err) {
+    console.error('Errore update trattamento:', err);
+    res.sendStatus(500);
+  }
+});
+
+// Elimina trattamento + terapie collegate
+app.post('/trattamenti/:id/delete', async (req, res) => {
+  if (!req.session.user) return res.redirect('/');
+  const id = parseInt(req.params.id, 10);
+  try {
+    // 1) elimina terapie
+    let { error: errT } = await supabase
+      .from('terapie')
+      .delete()
+      .eq('trattamento_id', id);
+    if (errT) throw errT;
+
+    // 2) elimina trattamento
+    let { error: errD } = await supabase
+      .from('trattamenti')
+      .delete()
+      .eq('id', id);
+    if (errD) throw errD;
+
+    res.redirect('/trattamenti');
+  } catch (err) {
+    console.error('Errore eliminazione trattamento + terapie:', err);
+    res.redirect('/trattamenti');
+  }
+});
 
 
 // Avvio server

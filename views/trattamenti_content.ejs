@@ -1,0 +1,98 @@
+<h3>Gestione Trattamenti</h3>
+
+<% if (typeof message !== 'undefined' && message) { %>
+  <div class="alert alert-danger"><%= message %></div>
+<% } %>
+
+<!-- Sezione Aggiungi Nuovo Trattamento -->
+<form method="POST" action="/trattamenti" class="row g-2 mb-4">
+  <div class="col-md-8">
+    <input name="nome" class="form-control" placeholder="Nome nuovo trattamento" required>
+  </div>
+  <div class="col-md-4">
+    <button type="submit" class="btn btn-success w-100">Salva</button>
+  </div>
+</form>
+
+<!-- Tabella Trattamenti -->
+<table id="tabellaTrattamenti" class="table table-bordered align-middle">
+  <thead>
+    <tr>
+      <th>Nome</th>
+      <th>Modifica</th>
+      <th>Elimina</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% trattamenti.forEach(t => { %>
+      <tr data-id="<%= t.id %>">
+        <td class="nome">
+          <span><%= t.nome %></span>
+          <input type="text"
+                 name="nome"
+                 class="form-control form-control-sm d-none"
+                 value="<%= t.nome %>">
+        </td>
+        <td>
+          <button type="button" class="btn btn-warning btn-sm btn-edit">✏️</button>
+          <button type="button" class="btn btn-success btn-sm d-none btn-save">💾</button>
+          <button type="button" class="btn btn-secondary btn-sm d-none btn-cancel">↩️</button>
+        </td>
+        <td>
+          <form method="POST"
+                action="/trattamenti/<%= t.id %>/delete"
+                class="d-inline"
+                onsubmit="return confirm(
+                  '⚠️ Attenzione: se elimini questo trattamento verranno eliminate ' +
+                  'anche TUTTE le terapie collegate. Sei sicuro di voler continuare?'
+                )">
+            <button class="btn btn-danger btn-sm">🗑️</button>
+          </form>
+        </td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>
+
+<script>
+  // Inline-edit handlers
+  document.querySelectorAll('#tabellaTrattamenti tbody tr').forEach(row => {
+    const span   = row.querySelector('td.nome span');
+    const input  = row.querySelector('td.nome input');
+    const btnEdit   = row.querySelector('.btn-edit');
+    const btnSave   = row.querySelector('.btn-save');
+    const btnCancel = row.querySelector('.btn-cancel');
+    const id = row.dataset.id;
+
+    btnEdit.addEventListener('click', () => {
+      span.classList.add('d-none');
+      input.classList.remove('d-none');
+      btnEdit.classList.add('d-none');
+      btnSave.classList.remove('d-none');
+      btnCancel.classList.remove('d-none');
+    });
+
+    btnCancel.addEventListener('click', () => {
+      span.classList.remove('d-none');
+      input.classList.add('d-none');
+      btnEdit.classList.remove('d-none');
+      btnSave.classList.add('d-none');
+      btnCancel.classList.add('d-none');
+      input.value = span.textContent;
+    });
+
+    btnSave.addEventListener('click', () => {
+      fetch(`/trattamenti/${id}/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: input.value })
+      })
+      .then(res => {
+        if (!res.ok) throw new Error('Errore durante il salvataggio');
+        span.textContent = input.value;
+        btnCancel.click();
+      })
+      .catch(err => alert(err.message));
+    });
+  });
+</script>
