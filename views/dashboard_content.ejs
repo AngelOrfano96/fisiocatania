@@ -1,2 +1,80 @@
 <h3>Benvenuto, <%= user %></h3>
-<p>Seleziona una voce dal menù a destra.</p>
+
+<div class="mb-4">
+  <label for="period-select" class="form-label">Intervallo:</label>
+  <select id="period-select" class="form-select w-auto d-inline-block">
+    <option value="week">Ultima settimana</option>
+    <option value="month" selected>Ultimo mese</option>
+    <option value="year">Ultimo anno</option>
+  </select>
+</div>
+
+<div class="row gy-4">
+  <!-- Distretto -->
+  <div class="col-12 col-md-6 col-lg-3">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5 class="card-title">Distretti (terapie)</h5>
+        <canvas id="chart-distretti"></canvas>
+      </div>
+    </div>
+  </div>
+  <!-- Trattamenti -->
+  <div class="col-12 col-md-6 col-lg-3">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5 class="card-title">Trattamenti</h5>
+        <canvas id="chart-trattamenti"></canvas>
+      </div>
+    </div>
+  </div>
+  <!-- Operatori -->
+  <div class="col-12 col-md-6 col-lg-3">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5 class="card-title">Operatori</h5>
+        <canvas id="chart-operatori"></canvas>
+      </div>
+    </div>
+  </div>
+  <!-- Giocatori -->
+  <div class="col-12 col-md-6 col-lg-3">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5 class="card-title">Giocatori</h5>
+        <canvas id="chart-giocatori"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const periodSelect = document.getElementById('period-select');
+
+  // inizializza tutti i grafici con dati vuoti
+  const charts = {
+    distretti: new Chart(document.getElementById('chart-distretti'), { type:'pie', data:{labels:[],datasets:[{data:[]}]} }),
+    trattamenti: new Chart(document.getElementById('chart-trattamenti'), { type:'pie', data:{labels:[],datasets:[{data:[]}]} }),
+    operatori: new Chart(document.getElementById('chart-operatori'), { type:'pie', data:{labels:[],datasets:[{data:[]}]} }),
+    giocatori: new Chart(document.getElementById('chart-giocatori'), { type:'pie', data:{labels:[],datasets:[{data:[]}]} }),
+  };
+
+  async function loadChart(type) {
+    const period = periodSelect.value;
+    const res = await fetch(`/api/dashboard/${type}?period=${period}`);
+    if (!res.ok) return;
+    const { labels, counts } = await res.json();
+    const c = charts[type];
+    c.data.labels = labels;
+    c.data.datasets[0].data = counts;
+    c.update();
+  }
+
+  function reloadAll() {
+    ['distretti','trattamenti','operatori','giocatori'].forEach(loadChart);
+  }
+
+  periodSelect.addEventListener('change', reloadAll);
+  document.addEventListener('DOMContentLoaded', reloadAll);
+</script>
+

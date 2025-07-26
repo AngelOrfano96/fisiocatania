@@ -25,6 +25,13 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY   // lato server usa la service-role key
 );
 
+function getSinceDate(period) {
+  const now = new Date();
+  if (period === 'week')  now.setDate(now.getDate() - 7);
+  if (period === 'month') now.setMonth(now.getMonth() - 1);
+  if (period === 'year')  now.setFullYear(now.getFullYear() - 1);
+  return now.toISOString();
+}
 
 // Cloudinary configuration
 cloudinary.config({
@@ -980,6 +987,70 @@ app.post('/operatori/delete/:id', async (req, res) => {
   res.redirect('/operatori');
 });
 
+app.get('/api/dashboard/:metric', async (req, res) => {
+  if (!req.session.user) return res.status(401).end();
+  const { metric } = req.params;
+  const since = getSinceDate(req.query.period || 'month');
+
+  try {
+    let query;
+    switch(metric) {
+      case 'distretti':
+        query = supabase
+          .from('terapie')
+          .select('distretti(nome)', { count:'exact' })
+          .gt('data_trattamento', since)
+          .group('distretti.nome');
+        break;
+      case 'trattamenti':
+        query = supabase
+          .from('terapie')
+          .select('trattamenti(nome)', { count:'exact' })
+          .gt('data_trattamento', since)
+          .group('trattamenti.nome');
+        break;
+      case 'operatori':
+        query = supabase
+          .from('terapie')
+          .select('operatore', { count:'exact' })
+          .gt('data_trattamento', since)
+          .group('operatore');
+        break;
+      case 'giocatori':
+        query = supabase
+          .from('terapie')
+          .select('anagrafica_id', { count:'exact' })
+          .gt('data_trattamento', since)
+          .group('anagrafica_id');
+        break;
+      default:
+        return res.status(400).end();
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const labels = data.map(r => {
+      if (metric === 'giocatori') {
+        // recupera nome cognome
+        return r.anagrafica_id; // poi si può espandere con join
+      } else if (metric === 'operatori') {
+        return r.operatore;
+      } else {
+        // distretti.nome o trattamenti.nome
+        const key = Object.keys(r).find(k=>k!=='count');
+        return r[key].nome;
+      }
+    });
+
+    const counts = data.map(r=>r.count);
+
+    res.json({ labels, counts });
+  } catch (err) {
+    console.error(err);
+    res.status(500).end();
+  }
+});
 
 // Avvio server
 app.listen(PORT, () => {
