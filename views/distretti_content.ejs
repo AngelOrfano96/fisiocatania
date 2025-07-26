@@ -45,9 +45,12 @@
               <button type="button"
                       class="btn btn-secondary btn-sm btn-cancel d-none">↩️</button>
               <form method="POST"
-                    action="/distretti/<%= d.id %>/delete"
-                    class="d-inline"
-                    onsubmit="return confirm('Confermi eliminazione?')">
+      action="/distretti/<%= d.id %>/delete"
+      class="d-inline"
+      onsubmit="return confirm(
+        '⚠️ Attenzione: se elimini questo distretto verranno eliminate ' +
+        'anche TUTTE le terapie collegate. Sei sicuro di voler continuare?'
+      )">
                 <button class="btn btn-danger btn-sm">🗑️</button>
               </form>
             </td>

@@ -786,21 +786,33 @@ app.post('/distretti/:id/update', async (req, res) => {
 });
 
 // Elimina un distretto
+// elimina distretto + terapie collegate
 app.post('/distretti/:id/delete', async (req, res) => {
   if (!req.session.user) return res.redirect('/');
   const id = parseInt(req.params.id, 10);
   try {
-    const { error } = await supabase
+    // 1) rimuovi tutte le terapie collegate
+    let { error: errT } = await supabase
+      .from('terapie')
+      .delete()
+      .eq('distretto_id', id);
+    if (errT) throw errT;
+
+    // 2) elimina il distretto
+    let { error: errD } = await supabase
       .from('distretti')
       .delete()
       .eq('id', id);
-    if (error) throw error;
+    if (errD) throw errD;
+
     res.redirect('/distretti');
   } catch (err) {
-    console.error('Errore eliminazione distretto:', err);
+    console.error('Errore eliminazione distretto + terapie:', err);
+    // puoi anche renderizzare un messaggio di errore in pagina
     res.redirect('/distretti');
   }
 });
+
 
 
 // Avvio server
