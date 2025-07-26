@@ -133,6 +133,37 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
 
+<% if (page === 'dashboard\_content') { %>
+
+  <script>
+    const periodSelect = document.getElementById('period-select');
+    const charts = {
+      distretti:    new Chart(document.getElementById('chart-distretti'),    { type:'pie', data:{ labels:[], datasets:[{ data:[] }]} }),
+      trattamenti:  new Chart(document.getElementById('chart-trattamenti'),  { type:'pie', data:{ labels:[], datasets:[{ data:[] }]} }),
+      operatori:    new Chart(document.getElementById('chart-operatori'),    { type:'pie', data:{ labels:[], datasets:[{ data:[] }]} }),
+      giocatori:    new Chart(document.getElementById('chart-giocatori'),    { type:'pie', data:{ labels:[], datasets:[{ data:[] }]} }),
+    };
+
+    async function loadChart(type) {
+      const period = periodSelect.value;
+      const res    = await fetch(`/api/dashboard/${type}?period=${period}`);
+      if (!res.ok) return;
+      const { labels, counts } = await res.json();
+      const c = charts[type];
+      c.data.labels             = labels;
+      c.data.datasets[0].data   = counts;
+      c.update();
+    }
+
+    function reloadAll() {
+      ['distretti','trattamenti','operatori','giocatori'].forEach(loadChart);
+    }
+
+    periodSelect.addEventListener('change', reloadAll);
+    document.addEventListener('DOMContentLoaded', reloadAll);
+  </script>
+
+<% } %>
 
 </body>
 </html>
