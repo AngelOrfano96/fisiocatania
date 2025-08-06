@@ -3,24 +3,7 @@
 <% if (typeof message !== 'undefined' && message) { %>
   <div class="alert alert-danger"><%= message %></div>
 <% } %>
-<script>
-   $(document).ready(function() {
-    $('#fascicoli-table').DataTable({
-      pageLength: 4,
-      lengthChange: false,    // nasconde il selettore "Mostra X righe"
-      language: {
-        paginate: {
-          previous: '«',
-          next:     '»'
-        },
-        info:      'Pagina _PAGE_ di _PAGES_',
-        infoEmpty: 'Nessun record',
-        zeroRecords: 'Nessun risultato',
-        infoFiltered: '(filtrati da _MAX_ totali)'
-      }
-    });
-  });
-  </script>
+
 <form method="GET" action="/fascicoli" class="row g-2 mb-4">
   <div class="col-md-5">
     <input
@@ -45,7 +28,7 @@
   </div>
 </form>
 
-<table id="fascicoli-table" class="table table-striped">
+<table id="fascicoli-table" class="table table-striped table-bordered">
   <thead>
     <tr>
       <th>Foto</th>
@@ -78,7 +61,6 @@
         <td><%= a.luogo_nascita %></td>
         <td><%= a.cellulare %></td>
         <td>
-          <!-- il nostro unico modo di passare l’ID, inline -->
           <button
             type="button"
             class="btn btn-sm btn-info"
@@ -90,36 +72,42 @@
   </tbody>
 </table>
 
-<!-- qui andrà iniettato il dettaglio -->
 <div id="fascicolo-detail" class="mt-4"></div>
 
 <script>
-  /**
-   * 1) Richiama il partial di dettaglio via AJAX.
-   */
+  // 1) Inizializzo DataTables al DOM ready
+  $(function() {
+    $('#fascicoli-table').DataTable({
+      pageLength: 4,
+      lengthChange: false,
+      ordering: false,
+      language: {
+        paginate: { previous: '«', next: '»' },
+        info:      'Pagina _PAGE_ di _PAGES_',
+        infoEmpty: 'Nessun record',
+        zeroRecords: 'Nessun risultato',
+        infoFiltered: '(filtrati da _MAX_ totali)'
+      }
+    });
+  });
+
+  // 2) Carica via AJAX il dettaglio di un fascicolo
   async function caricaFascicolo(id) {
-    if (!id || isNaN(id)) {
-      return alert('ID non valido: ' + id);
-    }
     try {
       const res = await fetch(`/fascicoli/${id}`);
       if (!res.ok) throw new Error('Errore nel caricamento del fascicolo');
       const html = await res.text();
-      document.getElementById('fascicolo-detail').innerHTML = html;
-      // dopo aver iniettato l’HTML, aggancio i listener per edit foto
-      initPhotoEditor();
+      $('#fascicolo-detail').html(html);
+      initPhotoEditor(); // attiva edit foto se presente
     } catch (err) {
       alert(err.message);
     }
   }
 
-  /**
-   * 2) Aggancia Modifica/Salva/Annulla alla foto del partial.
-   *    Viene chiamata **solo** dentro caricaFascicolo().
-   */
+  // 3) Photo-editor per il partial detail
   function initPhotoEditor() {
     const btnEdit   = document.getElementById('btn-edit-photo');
-    if (!btnEdit) return;  // se non c’è, niente da fare
+    if (!btnEdit) return;
     const btnSave   = document.getElementById('btn-save-photo');
     const btnCancel = document.getElementById('btn-cancel-photo');
     const inputFile = document.getElementById('foto-input');
