@@ -88,6 +88,119 @@
 
   <!-- DataTable per Fascicoli -->
   <% if (page === 'fascicoli_content') { %>
+    <hr>
+
+    <h3>Giocatori Disponibili</h3>
+    <div class="input-group mb-2 w-25">
+      <input id="filter-avail" type="text" class="form-control" placeholder="Filtra per nome/cognome">
+      <button id="btn-search-avail" class="btn btn-outline-secondary">Cerca</button>
+    </div>
+    <table id="tbl-disponibili" class="table table-striped">
+      <thead>
+        <tr><th>Infortunato</th><th>Nome Cognome</th></tr>
+      </thead>
+      <tbody>
+        <% disponibili.forEach(p => { %>
+          <tr data-id="<%= p.id %>">
+            <td>
+              <div class="form-check form-switch">
+                <input class="form-check-input switch-inf" type="checkbox" <%= p.infortunio?'checked':'' %> >
+              </div>
+            </td>
+            <td><%= p.nome %> <%= p.cognome %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+
+    <h3>Giocatori Non Disponibili</h3>
+    <div class="input-group mb-2 w-25">
+      <input id="filter-unavail" type="text" class="form-control" placeholder="Filtra per nome/cognome">
+      <button id="btn-search-unavail" class="btn btn-outline-secondary">Cerca</button>
+    </div>
+    <table id="tbl-nondisponibili" class="table table-striped">
+      <thead>
+        <tr><th>Infortunato</th><th>Nome Cognome</th></tr>
+      </thead>
+      <tbody>
+        <% nondisponibili.forEach(p => { %>
+          <tr data-id="<%= p.id %>">
+            <td>
+              <div class="form-check form-switch">
+                <input class="form-check-input switch-inf" type="checkbox" <%= p.infortunio?'checked':'' %> >
+              </div>
+            </td>
+            <td><%= p.nome %> <%= p.cognome %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+
+    <script>
+      $(function(){
+        // 1) Inizializza DataTables
+        const dtDisp = $('#tbl-disponibili').DataTable({
+          pageLength: 5,
+          lengthChange: false,
+          dom: 'lrtip',
+          language: {
+            paginate: { previous: '«', next: '»' },
+            info: 'Pagina _PAGE_ di _PAGES_',
+            infoEmpty:'Nessun record',
+            zeroRecords:'Nessun risultato',
+            infoFiltered:'(filtrati da _MAX_ totali)'
+          }
+        });
+        const dtNon  = $('#tbl-nondisponibili').DataTable({
+          pageLength: 5,
+          lengthChange: false,
+          dom: 'lrtip',
+          language: {
+            paginate: { previous: '«', next: '»' },
+            info: 'Pagina _PAGE_ di _PAGES_',
+            infoEmpty:'Nessun record',
+            zeroRecords:'Nessun risultato',
+            infoFiltered:'(filtrati da _MAX_ totali)'
+          }
+        });
+
+        // 2) Cerca sui filter
+        $('#btn-search-avail').on('click', ()=> dtDisp.search($('#filter-avail').val()).draw());
+        $('#btn-search-unavail').on('click', ()=> dtNon.search($('#filter-unavail').val()).draw());
+
+        // 3) Switch per infortunio
+        $('#tbl-disponibili tbody, #tbl-nondisponibili tbody')
+          .on('change', '.switch-inf', async function(){
+            const $row = $(this).closest('tr');
+            const id   = $row.data('id');
+            const val  = this.checked;
+            await fetch(`/anagrafica/${id}/infortunio`, {
+              method:'POST',
+              headers:{ 'Content-Type':'application/json' },
+              body: JSON.stringify({ infortunio: val, data_rientro: null })
+            });
+            // sposta riga
+            if (val) {
+              dtDisp.row($row).remove().draw();
+              dtNon.row.add([
+                `<div class="form-check form-switch">
+                   <input class="form-check-input switch-inf" type="checkbox" checked>
+                 </div>`,
+                $row.find('td:eq(1)').html()
+              ]).draw();
+            } else {
+              dtNon.row($row).remove().draw();
+              dtDisp.row.add([
+                `<div class="form-check form-switch">
+                   <input class="form-check-input switch-inf" type="checkbox">
+                 </div>`,
+                $row.find('td:eq(1)').html()
+              ]).draw();
+            }
+        });
+      });
+    </script>
+  <% } %>
     <script>
       $(function(){
         $('#fascicoli-table').DataTable({
