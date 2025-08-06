@@ -90,6 +90,44 @@
 
   <% if (page === 'dashboard_content') { %>
     <script>
+      function initPhotoEditor() {
+    const btnEdit   = document.getElementById('btn-edit-photo');
+    if (!btnEdit) return;
+    const btnSave   = document.getElementById('btn-save-photo');
+    const btnCancel = document.getElementById('btn-cancel-photo');
+    const inputFile = document.getElementById('foto-input');
+    const imgPreview= document.getElementById('profile-img');
+
+    // evita duplicazioni
+    btnEdit.replaceWith(btnEdit.cloneNode(true));
+    const newBtnEdit = document.getElementById('btn-edit-photo');
+    newBtnEdit.addEventListener('click', () => {
+      inputFile.classList.remove('d-none');
+      newBtnEdit.classList.add('d-none');
+      btnSave.classList.remove('d-none');
+      btnCancel.classList.remove('d-none');
+    });
+
+    btnCancel.addEventListener('click', () => {
+      inputFile.value = '';
+      inputFile.classList.add('d-none');
+      newBtnEdit.classList.remove('d-none');
+      btnSave.classList.add('d-none');
+      btnCancel.classList.add('d-none');
+      imgPreview.src = imgPreview.getAttribute('src');
+    });
+
+    inputFile.addEventListener('change', () => {
+      const file = inputFile.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => imgPreview.src = e.target.result;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Se il dettaglio è già presente al load (non via AJAX), attivalo comunque
+  document.addEventListener('DOMContentLoaded', initPhotoEditor);
       // 👇 appena il DOM è pronto, inizializzo tutti i grafici
 
       function randomColor() {
