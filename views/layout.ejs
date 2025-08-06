@@ -126,43 +126,6 @@
     chart.update();
   }
 
-    function initPhotoEditor() {
-    const btnEdit   = document.getElementById('btn-edit-photo');
-    if (!btnEdit) return console.warn('btn-edit-photo non trovato');
-    const btnSave   = document.getElementById('btn-save-photo');
-    const btnCancel = document.getElementById('btn-cancel-photo');
-    const inputFile = document.getElementById('foto-input');
-    const imgPreview= document.getElementById('profile-img');
-
-    // rimuoviamo eventuali listener precedenti
-    btnEdit.replaceWith(btnEdit.cloneNode(true));
-    const newEdit = document.getElementById('btn-edit-photo');
-
-    newEdit.addEventListener('click', () => {
-      inputFile.classList.remove('d-none');
-      newEdit.classList.add('d-none');
-      btnSave.classList.remove('d-none');
-      btnCancel.classList.remove('d-none');
-    });
-
-    btnCancel.addEventListener('click', () => {
-      inputFile.value = '';
-      inputFile.classList.add('d-none');
-      newEdit.classList.remove('d-none');
-      btnSave.classList.add('d-none');
-      btnCancel.classList.add('d-none');
-      imgPreview.src = imgPreview.getAttribute('src');
-    });
-
-    inputFile.addEventListener('change', () => {
-      const file = inputFile.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = e => imgPreview.src = e.target.result;
-      reader.readAsDataURL(file);
-    });
-  }
-
   function reloadAll() {
     ['distretti','trattamenti','operatori','giocatori'].forEach(loadChart);
   }
@@ -172,5 +135,48 @@
 </script>
 
   <% } %>
+    <!-- Init Photo Editor: disponibile sempre -->
+  <script>
+    function initPhotoEditor() {
+      const btnEdit   = document.getElementById('btn-edit-photo');
+      if (!btnEdit) {
+        console.warn('btn-edit-photo non trovato');
+        return;
+      }
+      const btnSave   = document.getElementById('btn-save-photo');
+      const btnCancel = document.getElementById('btn-cancel-photo');
+      const inputFile = document.getElementById('foto-input');
+      const imgPreview= document.getElementById('profile-img');
+
+      // Pulisci listener precedenti (se ricarichi più volte)
+      btnEdit.replaceWith(btnEdit.cloneNode(true));
+      const newEdit = document.getElementById('btn-edit-photo');
+
+      newEdit.addEventListener('click', () => {
+        inputFile.classList.remove('d-none');
+        newEdit.classList.add('d-none');
+        btnSave.classList.remove('d-none');
+        btnCancel.classList.remove('d-none');
+      });
+
+      btnCancel.addEventListener('click', () => {
+        inputFile.value = '';
+        inputFile.classList.add('d-none');
+        newEdit.classList.remove('d-none');
+        btnSave.classList.add('d-none');
+        btnCancel.classList.add('d-none');
+        imgPreview.src = imgPreview.getAttribute('src');
+      });
+
+      inputFile.addEventListener('change', () => {
+        const file = inputFile.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = e => imgPreview.src = e.target.result;
+        reader.readAsDataURL(file);
+      });
+    }
+  </script>
+
 </body>
 </html>

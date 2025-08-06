@@ -92,26 +92,26 @@
   });
 
   // 2) AJAX per caricare il dettaglio
- async function caricaFascicolo(id) {
-   if (!id || isNaN(id)) {
-     return alert('ID non valido: ' + id);
-   }
-   try {
-     const res  = await fetch(`/fascicoli/${id}`);
-     if (!res.ok) throw new Error('Errore nel caricamento del fascicolo');
-     const html = await res.text();
-    document.getElementById('fascicolo-detail').innerHTML = html;
-    const container = document.getElementById('fascicolo-detail');
-   container.innerHTML = html;
-    // qui ricolleghiamo i listener sulla nuova foto:
-    if (typeof initPhotoEditor === 'function') {
-      initPhotoEditor();
-    } else {
-      console.warn('initPhotoEditor non definito');
+  async function caricaFascicolo(id) {
+    if (!id || isNaN(id)) {
+      return alert('ID non valido: ' + id);
     }
-   } catch (err) {
-     alert(err.message);
-   }
- }
+    try {
+      const res  = await fetch(`/fascicoli/${id}`);
+      if (!res.ok) throw new Error('Errore nel caricamento del fascicolo');
+      const html = await res.text();
+      document.getElementById('fascicolo-detail').innerHTML = html;
+     initPhotoEditor();
+     // Una volta iniettato il partial, aggancio il photo-editor
+     if (typeof initPhotoEditor === 'function') {
+       initPhotoEditor();
+     } else {
+       console.error('initPhotoEditor non definita');
+     }
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
 
 </script>
