@@ -28,7 +28,7 @@
   </div>
 </form>
 
-<table class="table table-striped">
+<table id="fascicoli-table" class="table table-striped">
   <thead>
     <tr>
       <th>Foto</th>
@@ -80,6 +80,22 @@
   /**
    * 1) Richiama il partial di dettaglio via AJAX.
    */
+   $(document).ready(function() {
+    $('#fascicoli-table').DataTable({
+      pageLength: 4,
+      lengthChange: false,    // nasconde il selettore "Mostra X righe"
+      language: {
+        paginate: {
+          previous: '«',
+          next:     '»'
+        },
+        info:      'Pagina _PAGE_ di _PAGES_',
+        infoEmpty: 'Nessun record',
+        zeroRecords: 'Nessun risultato',
+        infoFiltered: '(filtrati da _MAX_ totali)'
+      }
+    });
+  });
   async function caricaFascicolo(id) {
     if (!id || isNaN(id)) {
       return alert('ID non valido: ' + id);
