@@ -50,8 +50,13 @@
 
 <hr>
 
+<hr>
+
 <h3>Giocatori Disponibili</h3>
-<input id="filter-avail" placeholder="Filtra per nome/cognome" class="form-control w-25 mb-2" />
+<div class="input-group mb-2 w-50">
+  <input id="filter-avail" type="text" class="form-control" placeholder="Filtra per nome/cognome">
+  <button id="btn-search-avail" class="btn btn-outline-secondary">Cerca</button>
+</div>
 <table id="tbl-disponibili" class="table table-striped">
   <thead>
     <tr>
@@ -77,7 +82,10 @@
 <hr>
 
 <h3>Giocatori Non Disponibili</h3>
-<input id="filter-unavail" placeholder="Filtra per nome/cognome" class="form-control w-25 mb-2" />
+<div class="input-group mb-2 w-50">
+  <input id="filter-unavail" type="text" class="form-control" placeholder="Filtra per nome/cognome">
+  <button id="btn-search-unavail" class="btn btn-outline-secondary">Cerca</button>
+</div>
 <table id="tbl-nondisponibili" class="table table-striped">
   <thead>
     <tr>
@@ -102,11 +110,11 @@
 
 <script>
 $(document).ready(function(){
-  // 1) Inizializza le due DataTable con 5 righe per pagina, paging sempre visibile
-  const dtDisponibili = $('#tbl-disponibili').DataTable({
+  // 1) Inizializza DataTables su entrambe le tabelle
+  const dtDisp = $('#tbl-disponibili').DataTable({
     pageLength: 5,
     lengthChange: false,
-    dom: 'lrtip',      // l=length, r=processing, t=table, i=info, p=paging
+    dom: 'lrtip',
     language: {
       paginate: { previous: '«', next: '»' },
       info:     'Pagina _PAGE_ di _PAGES_',
@@ -115,7 +123,7 @@ $(document).ready(function(){
       infoFiltered:'(filtrati da _MAX_ totali)'
     }
   });
-  const dtNonDisponibili = $('#tbl-nondisponibili').DataTable({
+  const dtNon = $('#tbl-nondisponibili').DataTable({
     pageLength: 5,
     lengthChange: false,
     dom: 'lrtip',
@@ -128,37 +136,41 @@ $(document).ready(function(){
     }
   });
 
-  // 2) Filtri lato client
-  $('#filter-avail').on('keyup', () => dtDisponibili.search($('#filter-avail').val()).draw());
-  $('#filter-unavail').on('keyup', () => dtNonDisponibili.search($('#filter-unavail').val()).draw());
+  // 2) Filtri con bottone Cerca
+  $('#btn-search-avail').on('click', () => {
+    dtDisp.search($('#filter-avail').val()).draw();
+  });
+  $('#btn-search-unavail').on('click', () => {
+    dtNon.search($('#filter-unavail').val()).draw();
+  });
 
-  // 3) Switch inline (lo lasci come avevi)
-  $('.switch-inf').on('change', async function(){
-    const row = $(this).closest('tr');
-    const id  = row.data('id');
-    const val = this.checked;
+  // 3) Switch inline: sposta tra le tabelle
+  $('#tbl-disponibili, #tbl-nondisponibili').on('change', '.switch-inf', async function(){
+    const $row = $(this).closest('tr');
+    const id   = $row.data('id');
+    const val  = this.checked;
+
     try {
       await fetch(`/anagrafica/${id}/infortunio`, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ infortunio: val, data_rientro: null })
       });
-      // sposta riga
+
+      // rimuovo riga da tabella origine e la aggiungo a destinazione
       if (val) {
-        dtDisponibili.row(row).remove().draw();
-        dtNonDisponibili.row.add([
-          `<div class="form-check form-switch">
-             <input class="form-check-input switch-inf" type="checkbox" checked>
-           </div>`,
-          row.find('td:eq(1)').html()
+        // da disponibili → non disponibili
+        dtDisp.row($row).remove().draw();
+        dtNon.row.add([
+          `<div class="form-check form-switch"><input class="form-check-input switch-inf" type="checkbox" checked></div>`,
+          $row.find('td:eq(1)').html()
         ]).draw();
       } else {
-        dtNonDisponibili.row(row).remove().draw();
-        dtDisponibili.row.add([
-          `<div class="form-check form-switch">
-             <input class="form-check-input switch-inf" type="checkbox">
-           </div>`,
-          row.find('td:eq(1)').html()
+        // da non disponibili → disponibili
+        dtNon.row($row).remove().draw();
+        dtDisp.row.add([
+          `<div class="form-check form-switch"><input class="form-check-input switch-inf" type="checkbox"></div>`,
+          $row.find('td:eq(1)').html()
         ]).draw();
       }
     } catch {
