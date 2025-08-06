@@ -76,8 +76,6 @@
 
 <!-- Inizia qui gli script: assicurati che jQuery e DataTables siano già stati caricati nel layout -->
 <script>
-
-  // 2) AJAX per caricare il dettaglio
   async function caricaFascicolo(id) {
     if (!id || isNaN(id)) {
       return alert('ID non valido: ' + id);
@@ -87,17 +85,13 @@
       if (!res.ok) throw new Error('Errore nel caricamento del fascicolo');
       const html = await res.text();
       document.getElementById('fascicolo-detail').innerHTML = html;
-     initPhotoEditor();
-     // Una volta iniettato il partial, aggancio il photo-editor
-     if (typeof initPhotoEditor === 'function') {
-       initPhotoEditor();
-     } else {
-       console.error('initPhotoEditor non definita');
-     }
+      // dopo l'iniezione del partial,
+      // riattivo sia il PhotoEditor sia lo Infortunio
+      initPhotoEditor();
+      initInfortunio();
     } catch (err) {
       alert(err.message);
     }
   }
-
-
 </script>
+
