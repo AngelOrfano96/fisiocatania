@@ -3,7 +3,24 @@
 <% if (typeof message !== 'undefined' && message) { %>
   <div class="alert alert-danger"><%= message %></div>
 <% } %>
-
+<script>
+   $(document).ready(function() {
+    $('#fascicoli-table').DataTable({
+      pageLength: 4,
+      lengthChange: false,    // nasconde il selettore "Mostra X righe"
+      language: {
+        paginate: {
+          previous: '«',
+          next:     '»'
+        },
+        info:      'Pagina _PAGE_ di _PAGES_',
+        infoEmpty: 'Nessun record',
+        zeroRecords: 'Nessun risultato',
+        infoFiltered: '(filtrati da _MAX_ totali)'
+      }
+    });
+  });
+  </script>
 <form method="GET" action="/fascicoli" class="row g-2 mb-4">
   <div class="col-md-5">
     <input
@@ -80,22 +97,6 @@
   /**
    * 1) Richiama il partial di dettaglio via AJAX.
    */
-   $(document).ready(function() {
-    $('#fascicoli-table').DataTable({
-      pageLength: 4,
-      lengthChange: false,    // nasconde il selettore "Mostra X righe"
-      language: {
-        paginate: {
-          previous: '«',
-          next:     '»'
-        },
-        info:      'Pagina _PAGE_ di _PAGES_',
-        infoEmpty: 'Nessun record',
-        zeroRecords: 'Nessun risultato',
-        infoFiltered: '(filtrati da _MAX_ totali)'
-      }
-    });
-  });
   async function caricaFascicolo(id) {
     if (!id || isNaN(id)) {
       return alert('ID non valido: ' + id);
