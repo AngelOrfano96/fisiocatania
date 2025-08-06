@@ -102,29 +102,31 @@
 
 <script>
   $(document).ready(function(){
-    // 1) Inizializza le due DataTable con 5 righe per pagina
-    const dtAvail = $('#tbl-disponibili').DataTable({
-      pageLength: 5,
-      lengthChange: false,
-      language: {
-        paginate: { previous: '«', next: '»' },
-        info:     'Pagina _PAGE_ di _PAGES_',
-        infoEmpty:'Nessun record',
-        zeroRecords:'Nessun risultato',
-        infoFiltered:'(filtrati da _MAX_ totali)'
-      }
-    });
-    const dtUnavail = $('#tbl-nondisponibili').DataTable({
-      pageLength: 5,
-      lengthChange: false,
-      language: {
-        paginate: { previous: '«', next: '»' },
-        info:     'Pagina _PAGE_ di _PAGES_',
-        infoEmpty:'Nessun record',
-        zeroRecords:'Nessun risultato',
-        infoFiltered:'(filtrati da _MAX_ totali)'
-      }
-    });
+  const dtAvail = $('#tbl-disponibili').DataTable({
+    pageLength: 5,
+    lengthChange: false,
+    // assicuriamoci che il paging sia sempre visibile
+    dom: 'lrtip',
+    language: {
+      paginate: { previous: '«', next: '»' },
+      info:     'Pagina _PAGE_ di _PAGES_',
+      infoEmpty:'Nessun record',
+      zeroRecords:'Nessun risultato',
+      infoFiltered:'(filtrati da _MAX_ totali)'
+    }
+  });
+  const dtUnavail = $('#tbl-nondisponibili').DataTable({
+    pageLength: 5,
+    lengthChange: false,
+    dom: 'lrtip',
+    language: {
+      paginate: { previous: '«', next: '»' },
+      info:     'Pagina _PAGE_ di _PAGES_',
+      infoEmpty:'Nessun record',
+      zeroRecords:'Nessun risultato',
+      infoFiltered:'(filtrati da _MAX_ totali)'
+    }
+  });
 
     // 2) Filtri lato client
     $('#filter-avail').on('keyup', function(){
