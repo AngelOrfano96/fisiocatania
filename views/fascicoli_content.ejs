@@ -61,6 +61,7 @@
         <td><%= a.luogo_nascita %></td>
         <td><%= a.cellulare %></td>
         <td>
+          <!-- il nostro unico modo di passare l’ID, inline -->
           <button
             type="button"
             class="btn btn-sm btn-info"
@@ -72,36 +73,78 @@
   </tbody>
 </table>
 
+<!-- qui andrà iniettato il dettaglio -->
 <div id="fascicolo-detail" class="mt-4"></div>
-
 <script>
-  // Inizializza DataTable con 4 righe a pagina
-  $(document).ready(() => {
+   $(document).ready(function() {
     $('#fascicoli-table').DataTable({
       pageLength: 4,
-      lengthChange: false,
+      lengthChange: false,    // nasconde il selettore "Mostra X righe"
       language: {
-        paginate: { previous: '«', next: '»' },
-        info: 'Pagina _PAGE_ di _PAGES_',
+        paginate: {
+          previous: '«',
+          next:     '»'
+        },
+        info:      'Pagina _PAGE_ di _PAGES_',
         infoEmpty: 'Nessun record',
         zeroRecords: 'Nessun risultato',
         infoFiltered: '(filtrati da _MAX_ totali)'
       }
     });
   });
-
-  // Carica dettaglio fascicolo via AJAX
+  </script>
+<script>
+  /**
+   * 1) Richiama il partial di dettaglio via AJAX.
+   */
   async function caricaFascicolo(id) {
-    if (!id || isNaN(id)) return alert('ID non valido: ' + id);
+    if (!id || isNaN(id)) {
+      return alert('ID non valido: ' + id);
+    }
     try {
-      const res = await fetch(`/fascicoli/${id}`);
+      const res = await fetch(/fascicoli/${id});
       if (!res.ok) throw new Error('Errore nel caricamento del fascicolo');
       const html = await res.text();
       document.getElementById('fascicolo-detail').innerHTML = html;
-      // Dopo iniezione, inizializza editor foto
-      if (typeof initPhotoEditor === 'function') initPhotoEditor();
+      // dopo aver iniettato l’HTML, aggancio i listener per edit foto
+      initPhotoEditor();
     } catch (err) {
       alert(err.message);
     }
+  }
+
+  /**
+   * 2) Aggancia Modifica/Salva/Annulla alla foto del partial.
+   *    Viene chiamata **solo** dentro caricaFascicolo().
+   */
+  function initPhotoEditor() {
+    const btnEdit   = document.getElementById('btn-edit-photo');
+    if (!btnEdit) return;  // se non c’è, niente da fare
+    const btnSave   = document.getElementById('btn-save-photo');
+    const btnCancel = document.getElementById('btn-cancel-photo');
+    const inputFile = document.getElementById('foto-input');
+    const imgPreview= document.getElementById('profile-img');
+
+    btnEdit.addEventListener('click', () => {
+      inputFile.classList.remove('d-none');
+      btnEdit.classList.add('d-none');
+      btnSave.classList.remove('d-none');
+      btnCancel.classList.remove('d-none');
+    });
+    btnCancel.addEventListener('click', () => {
+      inputFile.value = '';
+      inputFile.classList.add('d-none');
+      btnEdit.classList.remove('d-none');
+      btnSave.classList.add('d-none');
+      btnCancel.classList.add('d-none');
+      imgPreview.src = imgPreview.getAttribute('src');
+    });
+    inputFile.addEventListener('change', () => {
+      const file = inputFile.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => imgPreview.src = e.target.result;
+      reader.readAsDataURL(file);
+    });
   }
 </script>
