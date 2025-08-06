@@ -117,11 +117,49 @@ app.get('/logout', (req, res) => {
   req.session.destroy();
   res.redirect('/');
 });
-
+/*
 app.get('/dashboard', (req, res) => {
   if (!req.session.user) return res.redirect('/');
   res.render('layout', { page: 'dashboard_content', user: req.session.user });
+}); */
+
+app.get('/dashboard', async (req, res) => {
+  if (!req.session.user) return res.redirect('/');
+
+  try {
+    // 1) Recupera gli utenti “disponibili” (infortunio = false)
+    const { data: disponibili, error: errDisp } = await supabase
+      .from('anagrafica')
+      .select('id, nome, cognome, infortunio')
+      .eq('infortunio', false);
+    if (errDisp) throw errDisp;
+
+    // 2) Recupera gli utenti “non disponibili” (infortunio = true)
+    const { data: nondisponibili, error: errNon } = await supabase
+      .from('anagrafica')
+      .select('id, nome, cognome, infortunio')
+      .eq('infortunio', true);
+    if (errNon) throw errNon;
+
+    // 3) Render della dashboard passando i 4 dataset
+    return res.render('layout', {
+      page:              'dashboard_content',
+      user:              req.session.user,
+      disponibili,       // array di giocatori non infortunati
+      nondisponibili     // array di giocatori infortunati
+    });
+  } catch (err) {
+    console.error('Errore caricamento dashboard:', err);
+    return res.render('layout', {
+      page:              'dashboard_content',
+      user:              req.session.user,
+      disponibili:       [],
+      nondisponibili:    [],
+      message:           'Impossibile caricare la dashboard'
+    });
+  }
 });
+
 
 
 // ANAGRAFICA

@@ -1,7 +1,7 @@
 <h3>Benvenuto, <%= user %></h3>
 
 <div class="mb-4">
-  <label for="period-select" class="form-label">Intervallo:</label>
+  <label for="period-select" class="form-label me-2">Intervallo:</label>
   <select id="period-select" class="form-select w-auto d-inline-block">
     <option value="week">Ultima settimana</option>
     <option value="month" selected>Ultimo mese</option>
@@ -9,7 +9,7 @@
   </select>
 </div>
 
-<div class="row gy-4">
+<div class="row gy-4 mb-5">
   <!-- Distretto -->
   <div class="col-12 col-md-6 col-lg-3">
     <div class="card shadow-sm">
@@ -47,3 +47,89 @@
     </div>
   </div>
 </div>
+
+<hr>
+
+<div class="mb-4">
+  <h4>Giocatori Disponibili</h4>
+  <input id="filter-avail" placeholder="Filtra per nome/cognome" class="form-control w-25 mb-2" />
+  <table id="table-avail" class="table table-striped">
+    <thead>
+      <tr>
+        <th>Infortunato</th>
+        <th>Nome Cognome</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% disponibili.forEach(p => { %>
+      <tr data-id="<%= p.id %>">
+        <td>
+          <div class="form-check form-switch">
+            <input class="form-check-input switch-inf" type="checkbox"
+                   <%= p.infortunio ? 'checked' : '' %> />
+          </div>
+        </td>
+        <td><%= p.nome %> <%= p.cognome %></td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<div class="mb-4">
+  <h4>Giocatori Non Disponibili</h4>
+  <input id="filter-unavail" placeholder="Filtra per nome/cognome" class="form-control w-25 mb-2" />
+  <table id="table-unavail" class="table table-striped">
+    <thead>
+      <tr>
+        <th>Infortunato</th>
+        <th>Nome Cognome</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% nondisponibili.forEach(p => { %>
+      <tr data-id="<%= p.id %>">
+        <td>
+          <div class="form-check form-switch">
+            <input class="form-check-input switch-inf" type="checkbox"
+                   <%= p.infortunio ? 'checked' : '' %> />
+          </div>
+        </td>
+        <td><%= p.nome %> <%= p.cognome %></td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<script>
+  // Inizializza DataTables
+  $('#table-avail').DataTable({ pageLength: 5, lengthChange: false });
+  $('#table-unavail').DataTable({ pageLength: 5, lengthChange: false });
+
+  // filtri custom
+  $('#filter-avail').on('keyup', function(){ $('#table-avail').DataTable().search(this.value).draw(); });
+  $('#filter-unavail').on('keyup', function(){ $('#table-unavail').DataTable().search(this.value).draw(); });
+
+  // switch edit inline
+  $('.switch-inf').each(function(){
+    const row = $(this).closest('tr');
+    const id = row.data('id');
+    $(this).on('change', async function(){
+      const val = this.checked;
+      try {
+        await fetch(`/anagrafica/${id}/infortunio`, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ infortunio: val, data_rientro: null })
+        });
+        // sposta riga tra tabelle
+        const dtSrc = val ? '#table-avail' : '#table-unavail';
+        const dtDst = val ? '#table-unavail' : '#table-avail';
+        var data = $(row).find('td').map((i,td)=>$(td).html()).get();
+        // rimuovi da src e aggiungi a dst
+        var srcT = $(dtSrc).DataTable(); srcT.row(row).remove().draw();
+        var dstT = $(dtDst).DataTable(); dstT.row.add(data).draw();
+      } catch(e) { alert('Errore'); }
+    });
+  });
+</script>
