@@ -1,6 +1,6 @@
 <h3>Fascicoli</h3>
 
-<% if (typeof message !== 'undefined' && message) { %>
+<% if (message) { %>
   <div class="alert alert-danger"><%= message %></div>
 <% } %>
 
@@ -46,105 +46,62 @@
            ? a.data_nascita.slice(0,10)
            : '';
     %>
-      <tr>
-        <td>
-          <img
-            src="<%= fotoSrc %>"
-            alt="Foto di <%= a.nome %> <%= a.cognome %>"
-            class="img-thumbnail"
-            style="width:60px; height:60px; object-fit:cover;"
-            onerror="this.onerror=null; this.src='<%= defaultPhoto %>'"
-          >
-        </td>
-        <td><%= a.nome %> <%= a.cognome %></td>
-        <td><%= dataDisplay %></td>
-        <td><%= a.luogo_nascita %></td>
-        <td><%= a.cellulare %></td>
-        <td>
-          <!-- il nostro unico modo di passare l’ID, inline -->
-          <button
-            type="button"
-            class="btn btn-sm btn-info"
-            onclick="caricaFascicolo(<%= a.id %>)"
-          >👁️</button>
-        </td>
-      </tr>
+    <tr>
+      <td>
+        <img
+          src="<%= fotoSrc %>"
+          alt="Foto di <%= a.nome %> <%= a.cognome %>"
+          class="img-thumbnail"
+          style="width:60px; height:60px; object-fit:cover;"
+          onerror="this.onerror=null; this.src='<%= defaultPhoto %>'"
+        >
+      </td>
+      <td><%= a.nome %> <%= a.cognome %></td>
+      <td><%= dataDisplay %></td>
+      <td><%= a.luogo_nascita %></td>
+      <td><%= a.cellulare %></td>
+      <td>
+        <button
+          type="button"
+          class="btn btn-sm btn-info"
+          onclick="caricaFascicolo(<%= a.id %>)"
+        >👁️</button>
+      </td>
+    </tr>
     <% }) %>
   </tbody>
 </table>
 
-<!-- qui andrà iniettato il dettaglio -->
 <div id="fascicolo-detail" class="mt-4"></div>
+
+<!-- Inizia qui gli script: assicurati che jQuery e DataTables siano già stati caricati nel layout -->
 <script>
-   $(document).ready(function() {
+  // 1) Inizializza la DataTable
+  $(function() {
     $('#fascicoli-table').DataTable({
       pageLength: 4,
-      lengthChange: false,    // nasconde il selettore "Mostra X righe"
+      lengthChange: false,
       language: {
-        paginate: {
-          previous: '«',
-          next:     '»'
-        },
-        info:      'Pagina _PAGE_ di _PAGES_',
-        infoEmpty: 'Nessun record',
+        paginate: { previous: '«', next: '»' },
+        info: 'Pagina _PAGE_ di _PAGES_',
         zeroRecords: 'Nessun risultato',
+        infoEmpty: 'Nessun record',
         infoFiltered: '(filtrati da _MAX_ totali)'
       }
     });
   });
-  </script>
-<script>
-  /**
-   * 1) Richiama il partial di dettaglio via AJAX.
-   */
+
+  // 2) AJAX per caricare il dettaglio
   async function caricaFascicolo(id) {
-    if (!id || isNaN(id)) {
-      return alert('ID non valido: ' + id);
-    }
     try {
-      const res = await fetch(/fascicoli/${id});
+      const res = await fetch(`/fascicoli/${id}`);
       if (!res.ok) throw new Error('Errore nel caricamento del fascicolo');
       const html = await res.text();
       document.getElementById('fascicolo-detail').innerHTML = html;
-      // dopo aver iniettato l’HTML, aggancio i listener per edit foto
-      initPhotoEditor();
+      // Se esiste, riattiva il photo-editor del dettaglio
+      if (typeof initPhotoEditor === 'function') initPhotoEditor();
     } catch (err) {
       alert(err.message);
     }
-  }
-
-  /**
-   * 2) Aggancia Modifica/Salva/Annulla alla foto del partial.
-   *    Viene chiamata **solo** dentro caricaFascicolo().
-   */
-  function initPhotoEditor() {
-    const btnEdit   = document.getElementById('btn-edit-photo');
-    if (!btnEdit) return;  // se non c’è, niente da fare
-    const btnSave   = document.getElementById('btn-save-photo');
-    const btnCancel = document.getElementById('btn-cancel-photo');
-    const inputFile = document.getElementById('foto-input');
-    const imgPreview= document.getElementById('profile-img');
-
-    btnEdit.addEventListener('click', () => {
-      inputFile.classList.remove('d-none');
-      btnEdit.classList.add('d-none');
-      btnSave.classList.remove('d-none');
-      btnCancel.classList.remove('d-none');
-    });
-    btnCancel.addEventListener('click', () => {
-      inputFile.value = '';
-      inputFile.classList.add('d-none');
-      btnEdit.classList.remove('d-none');
-      btnSave.classList.add('d-none');
-      btnCancel.classList.add('d-none');
-      imgPreview.src = imgPreview.getAttribute('src');
-    });
-    inputFile.addEventListener('change', () => {
-      const file = inputFile.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = e => imgPreview.src = e.target.result;
-      reader.readAsDataURL(file);
-    });
   }
 </script>
