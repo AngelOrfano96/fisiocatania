@@ -1,129 +1,136 @@
-<h3>Fascicoli</h3>
 
-<% if (typeof message !== 'undefined' && message) { %>
 
-  <div class="alert alert-danger"><%= message %></div>
-<% } %>
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FisioCatania</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<form method="GET" action="/fascicoli" class="row g-2 mb-4">
-  <div class="col-md-5">
-    <input
-      type="text"
-      name="cognome"
-      class="form-control"
-      placeholder="Filtra per Cognome"
-      value="<%= filters.cognome %>"
-    >
-  </div>
-  <div class="col-md-5">
-    <input
-      type="text"
-      name="nome"
-      class="form-control"
-      placeholder="Filtra per Nome"
-      value="<%= filters.nome %>"
-    >
-  </div>
-  <div class="col-md-2 text-end">
-    <button class="btn btn-primary w-100">Filtra</button>
-  </div>
-</form>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- DataTables CSS -->
+  <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
 
-<table id="fascicoli-table" class="table table-striped">
-  <thead>
-    <tr>
-      <th>Foto</th>
-      <th>Anagrafica</th>
-      <th>Data Nascita</th>
-      <th>Comune</th>
-      <th>Cellulare</th>
-      <th>Fascicolo</th>
-    </tr>
-  </thead>
-  <tbody>
-    <% anagrafiche.forEach(a => {
-         const fotoSrc = a.foto || defaultPhoto;
-         const dataDisplay = typeof a.data_nascita === 'string'
-           ? a.data_nascita.slice(0,10)
-           : '';
-    %>
-      <tr>
-        <td>
-          <img
-            src="<%= fotoSrc %>"
-            alt="Foto di <%= a.nome %> <%= a.cognome %>"
-            class="img-thumbnail"
-            style="width:60px; height:60px; object-fit:cover;"
-            onerror="this.onerror=null; this.src='<%= defaultPhoto %>'"
-          >
-        </td>
-        <td><%= a.nome %> <%= a.cognome %></td>
-        <td><%= dataDisplay %></td>
-        <td><%= a.luogo_nascita %></td>
-        <td><%= a.cellulare %></td>
-        <td>
-          <button
-            type="button"
-            class="btn btn-sm btn-info"
-            onclick="caricaFascicolo(<%= a.id %>)"
-          >👁️</button>
-        </td>
-      </tr>
-    <% }) %>
-  </tbody>
-</table>
-
-<!-- dettaglio -->
-
-<div id="fascicolo-detail" class="mt-4"></div>
-
-<script>
-  // inizializza DataTable con 4 righe per pagina
-  document.addEventListener('DOMContentLoaded', () => {
-    $('#fascicoli-table').DataTable({
-      pageLength: 4,
-      lengthChange: false,
-      language: {
-        paginate: { previous: '«', next: '»' },
-        info: 'Pagina _PAGE_ di _PAGES_', infoEmpty: 'Nessun record',
-        zeroRecords: 'Nessun risultato', infoFiltered: '(filtrati da _MAX_ totali)'
-      }
-    });
-  });
-
-  async function caricaFascicolo(id) {
-    if (!id || isNaN(id)) return alert('ID non valido: ' + id);
-    try {
-      const res = await fetch(`/fascicoli/${id}`);
-      if (!res.ok) throw new Error('Errore nel caricamento del fascicolo');
-      const html = await res.text();
-      document.getElementById('fascicolo-detail').innerHTML = html;
-      initPhotoEditor();
-    } catch (err) {
-      alert(err.message);
+  <style>
+    body { margin: 0; }
+    #content { padding: 2rem; margin-left: 200px; }
+    @media (max-width: 767.98px) {
+      #content { margin-left: 0; padding: 1rem; }
     }
+    .nav-link.active { font-weight: bold; color: #fd0d49 !important; }
+  </style>
+</head>
+<body>
+  <!-- Offcanvas per piccoli schermi -->
+  <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasMenu" aria-labelledby="offcanvasMenuLabel">
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title" id="offcanvasMenuLabel">Menù</h5>
+      <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body p-0">
+      <div class="text-center my-3">
+        <img src="/images/Logo_CATANIA_FC.svg.png" alt="Logo Catania" style="max-width:120px;">
+      </div>
+      <ul class="nav flex-column">
+        <li class="nav-item"><a href="/dashboard" class="nav-link <%= page==='dashboard_content'?'active':'' %>">Dashboard</a></li>
+        <li class="nav-item"><a href="/anagrafica" class="nav-link <%= page==='anagrafica_content'?'active':'' %>">Anagrafica</a></li>
+        <li class="nav-item"><a href="/fascicoli" class="nav-link <%= page==='fascicoli_content'?'active':'' %>">Fascicoli</a></li>
+        <li class="nav-item"><a href="/terapie" class="nav-link <%= page==='terapie_content'?'active':'' %>">Terapie</a></li>
+        <li class="nav-item"><a href="/distretti" class="nav-link <%= page==='distretti_content'?'active':'' %>">Distretti Anatomici</a></li>
+        <li class="nav-item"><a href="/trattamenti" class="nav-link <%= page==='trattamenti_content'?'active':'' %>">Trattamenti</a></li>
+        <li class="nav-item"><a href="/operatori" class="nav-link <%= page==='operatori_content'?'active':'' %>">Operatori</a></li>
+        <li class="nav-item mt-3"><a href="/logout" class="nav-link text-danger">Logout</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Top navbar per piccoli schermi -->
+  <nav class="navbar navbar-light bg-light d-md-none">
+    <div class="container-fluid">
+      <button class="btn btn-outline-primary" type="button"
+              data-bs-toggle="offcanvas"
+              data-bs-target="#offcanvasMenu"
+              aria-controls="offcanvasMenu">
+        ☰
+      </button>
+      <span class="navbar-brand mx-auto">FisioCatania</span>
+    </div>
+  </nav>
+
+  <!-- Sidebar fissa per md+ -->
+  <div id="menu"
+       class="d-none d-md-block position-fixed top-0 start-0 h-100 bg-light border-end p-3"
+       style="width:200px;">
+    <div class="text-center mb-4">
+      <img src="/images/Logo_CATANIA_FC.svg.png" alt="Logo Catania" style="max-width:120px;">
+    </div>
+    <ul class="nav flex-column">
+      <li class="nav-item"><a href="/dashboard" class="nav-link <%= page==='dashboard_content'?'active':'' %>">Dashboard</a></li>
+      <li class="nav-item"><a href="/anagrafica" class="nav-link <%= page==='anagrafica_content'?'active':'' %>">Anagrafica</a></li>
+      <li class="nav-item"><a href="/fascicoli" class="nav-link <%= page==='fascicoli_content'?'active':'' %>">Fascicoli</a></li>
+      <li class="nav-item"><a href="/terapie" class="nav-link <%= page==='terapie_content'?'active':'' %>">Terapie</a></li>
+      <li class="nav-item"><a href="/distretti" class="nav-link <%= page==='distretti_content'?'active':'' %>">Distretti Anatomici</a></li>
+      <li class="nav-item"><a href="/trattamenti" class="nav-link <%= page==='trattamenti_content'?'active':'' %>">Trattamenti</a></li>
+      <li class="nav-item"><a href="/operatori" class="nav-link <%= page==='operatori_content'?'active':'' %>">Operatori</a></li>
+      <li class="nav-item mt-3"><a href="/logout" class="nav-link text-danger">Logout</a></li>
+    </ul>
+  </div>
+
+  <!-- Contenuto principale -->
+  <div id="content">
+    <%- include(page) %>
+  </div>
+
+  <!-- JS comuni -->
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+  <!-- Chart.js (prima del nostro init) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
+
+  <% if (page === 'dashboard_content') { %>
+    <script>
+      // 👇 appena il DOM è pronto, inizializzo tutti i grafici
+
+      function randomColor() {
+    const r = Math.floor(Math.random()*200) + 20;
+    const g = Math.floor(Math.random()*200) + 20;
+    const b = Math.floor(Math.random()*200) + 20;
+    return `rgb(${r},${g},${b})`;
   }
 
-  function initPhotoEditor() {
-    const btnEdit = document.getElementById('btn-edit-photo');
-    if (!btnEdit) return;
-    const btnSave = document.getElementById('btn-save-photo');
-    const btnCancel = document.getElementById('btn-cancel-photo');
-    const inputFile = document.getElementById('foto-input');
-    const imgPreview = document.getElementById('profile-img');
-    btnEdit.addEventListener('click', () => {
-      inputFile.classList.remove('d-none'); btnEdit.classList.add('d-none');
-      btnSave.classList.remove('d-none'); btnCancel.classList.remove('d-none');
-    });
-    btnCancel.addEventListener('click', () => {
-      inputFile.value=''; inputFile.classList.add('d-none');
-      btnEdit.classList.remove('d-none'); btnSave.classList.add('d-none'); btnCancel.classList.add('d-none');
-      imgPreview.src = imgPreview.getAttribute('src');
-    });
-    inputFile.addEventListener('change', () => {
-      const file = inputFile.files[0]; if (!file) return;
-      const reader = new FileReader(); reader.onload = e => imgPreview.src = e.target.result;
-      reader.readAsDataURL(file);
-    });
+      const periodSelect = document.getElementById('period-select');
+      const charts = {
+        distretti:   new Chart(document.getElementById('chart-distretti'),   { type:'pie', data:{labels:[],datasets:[{data:[]}]} }),
+        trattamenti: new Chart(document.getElementById('chart-trattamenti'), { type:'pie', data:{labels:[],datasets:[{data:[]}]} }),
+        operatori:   new Chart(document.getElementById('chart-operatori'),   { type:'pie', data:{labels:[],datasets:[{data:[]}]} }),
+        giocatori:   new Chart(document.getElementById('chart-giocatori'),   { type:'pie', data:{labels:[],datasets:[{data:[]}]} }),
+      };
+
+  async function loadChart(type) {
+    const res = await fetch(`/api/dashboard/${type}?period=${periodSelect.value}`);
+    if (!res.ok) return;
+    const { labels, counts } = await res.json();
+    const chart = charts[type];
+
+    // genera tanti colori quanti sono i label
+    const colors = labels.map(_ => randomColor());
+
+    chart.data.labels = labels;
+    chart.data.datasets[0].data = counts;
+    chart.data.datasets[0].backgroundColor = colors;
+    chart.update();
   }
+
+  function reloadAll() {
+    ['distretti','trattamenti','operatori','giocatori'].forEach(loadChart);
+  }
+
+  periodSelect.addEventListener('change', reloadAll);
+  document.addEventListener('DOMContentLoaded', reloadAll);
 </script>
+  <% } %>
+</body>
+</html>
