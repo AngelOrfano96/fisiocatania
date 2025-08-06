@@ -50,18 +50,17 @@
 
 <hr>
 
-<div class="mb-4">
-  <h4>Giocatori Disponibili</h4>
-  <input id="filter-avail" placeholder="Filtra per nome/cognome" class="form-control w-25 mb-2" />
-  <table id="tbl-disponibili" class="table table-striped">
-    <thead>
-      <tr>
-        <th>Infortunato</th>
-        <th>Nome Cognome</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% disponibili.forEach(p => { %>
+<h3>Giocatori Disponibili</h3>
+<input id="filter-avail" placeholder="Filtra per nome/cognome" class="form-control w-25 mb-2" />
+<table id="tbl-disponibili" class="table table-striped">
+  <thead>
+    <tr>
+      <th>Infortunato</th>
+      <th>Nome Cognome</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% disponibili.forEach(p => { %>
       <tr data-id="<%= p.id %>">
         <td>
           <div class="form-check form-switch">
@@ -71,23 +70,23 @@
         </td>
         <td><%= p.nome %> <%= p.cognome %></td>
       </tr>
-      <% }) %>
-    </tbody>
-  </table>
-</div>
+    <% }) %>
+  </tbody>
+</table>
 
-<div class="mb-4">
-  <h4>Giocatori Non Disponibili</h4>
-  <input id="filter-unavail" placeholder="Filtra per nome/cognome" class="form-control w-25 mb-2" />
-  <table id="tbl-nondisponibili" class="table table-striped">
-    <thead>
-      <tr>
-        <th>Infortunato</th>
-        <th>Nome Cognome</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% nondisponibili.forEach(p => { %>
+<hr>
+
+<h3>Giocatori Non Disponibili</h3>
+<input id="filter-unavail" placeholder="Filtra per nome/cognome" class="form-control w-25 mb-2" />
+<table id="tbl-nondisponibili" class="table table-striped">
+  <thead>
+    <tr>
+      <th>Infortunato</th>
+      <th>Nome Cognome</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% nondisponibili.forEach(p => { %>
       <tr data-id="<%= p.id %>">
         <td>
           <div class="form-check form-switch">
@@ -97,46 +96,14 @@
         </td>
         <td><%= p.nome %> <%= p.cognome %></td>
       </tr>
-      <% }) %>
-    </tbody>
-  </table>
-</div>
-
-<script>
-  // Inizializza DataTables
-  $('#table-avail').DataTable({ pageLength: 5, lengthChange: false });
-  $('#table-unavail').DataTable({ pageLength: 5, lengthChange: false });
-
-  // filtri custom
-  $('#filter-avail').on('keyup', function(){ $('#table-avail').DataTable().search(this.value).draw(); });
-  $('#filter-unavail').on('keyup', function(){ $('#table-unavail').DataTable().search(this.value).draw(); });
-
-  // switch edit inline
-  $('.switch-inf').each(function(){
-    const row = $(this).closest('tr');
-    const id = row.data('id');
-    $(this).on('change', async function(){
-      const val = this.checked;
-      try {
-        await fetch(`/anagrafica/${id}/infortunio`, {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ infortunio: val, data_rientro: null })
-        });
-        // sposta riga tra tabelle
-        const dtSrc = val ? '#table-avail' : '#table-unavail';
-        const dtDst = val ? '#table-unavail' : '#table-avail';
-        var data = $(row).find('td').map((i,td)=>$(td).html()).get();
-        // rimuovi da src e aggiungi a dst
-        var srcT = $(dtSrc).DataTable(); srcT.row(row).remove().draw();
-        var dstT = $(dtDst).DataTable(); dstT.row.add(data).draw();
-      } catch(e) { alert('Errore'); }
-    });
-  });
-</script>
+    <% }) %>
+  </tbody>
+</table>
 
 <script>
   $(document).ready(function(){
-    $('#tbl-disponibili, #tbl-nondisponibili').DataTable({
+    // 1) Inizializza le due DataTable con 5 righe per pagina
+    const dtAvail = $('#tbl-disponibili').DataTable({
       pageLength: 5,
       lengthChange: false,
       language: {
@@ -147,6 +114,63 @@
         infoFiltered:'(filtrati da _MAX_ totali)'
       }
     });
+    const dtUnavail = $('#tbl-nondisponibili').DataTable({
+      pageLength: 5,
+      lengthChange: false,
+      language: {
+        paginate: { previous: '«', next: '»' },
+        info:     'Pagina _PAGE_ di _PAGES_',
+        infoEmpty:'Nessun record',
+        zeroRecords:'Nessun risultato',
+        infoFiltered:'(filtrati da _MAX_ totali)'
+      }
+    });
+
+    // 2) Filtri lato client
+    $('#filter-avail').on('keyup', function(){
+      dtAvail.search(this.value).draw();
+    });
+    $('#filter-unavail').on('keyup', function(){
+      dtUnavail.search(this.value).draw();
+    });
+
+    // 3) Bind degli switch
+    $('.switch-inf').on('change', async function(){
+      const row = $(this).closest('tr');
+      const id  = row.data('id');
+      const val = this.checked;
+      try {
+        // aggiorna il DB
+        await fetch(`/anagrafica/${id}/infortunio`, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ infortunio: val, data_rientro: null })
+        });
+        // sposta la riga tra le due tabelle
+        if (val) {
+          // da disponibili a non disponibili
+          dtAvail.row(row).remove().draw();
+          dtUnavail.row.add([
+            `<div class="form-check form-switch">
+               <input class="form-check-input switch-inf" type="checkbox" checked>
+             </div>`,
+            row.find('td:eq(1)').html()
+          ]).draw();
+        } else {
+          // da non disponibili a disponibili
+          dtUnavail.row(row).remove().draw();
+          dtAvail.row.add([
+            `<div class="form-check form-switch">
+               <input class="form-check-input switch-inf" type="checkbox">
+             </div>`,
+            row.find('td:eq(1)').html()
+          ]).draw();
+        }
+      } catch (e) {
+        alert('Errore durante l’aggiornamento dello stato infortunio');
+      }
+    });
   });
 </script>
+
 
