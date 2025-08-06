@@ -441,7 +441,7 @@ app.get('/fascicoli/:id', async (req, res) => {
     // 1) Recupera l’anagrafica
     const { data: anag, error: errA } = await supabase
       .from('anagrafica')
-      .select('id, cognome, nome, data_nascita, luogo_nascita, cellulare, note, foto')
+      .select('id, cognome, nome, data_nascita, luogo_nascita, cellulare, note, foto, infortunio, data_rientro')
       .eq('id', id)
       .single();
     if (errA || !anag) return res.status(404).send('Non trovato');
@@ -479,6 +479,21 @@ app.get('/fascicoli/:id', async (req, res) => {
       attachments = att;
     }
 
+    // Dopo aver fatto `const anag = data from supabase`
+if (anag.infortunio && anag.data_rientro) {
+  const today = new Date().toISOString().slice(0,10);
+  if (anag.data_rientro === today) {
+    // resetta infortunio
+    await supabase
+      .from('anagrafica')
+      .update({ infortunio: false, data_rientro: null })
+      .eq('id', anag.id);
+    anag.infortunio = false;
+    anag.data_rientro = null;
+  }
+}
+
+
     // 4) Render del partial (views/fascicoli_detail.ejs)
     res.render('fascicoli_detail', {
       anagrafica:  anag,
@@ -490,6 +505,8 @@ app.get('/fascicoli/:id', async (req, res) => {
     console.error("Errore nel caricamento del fascicolo:", err);
     res.status(500).send('Errore interno');
   }
+
+
 });
 
 // Lista e upload allegati per una singola terapia
@@ -1060,6 +1077,28 @@ app.get('/api/dashboard/:metric', async (req, res) => {
     return res.status(500).end();
   }
 });
+
+// In fondo a server.js, subito prima di "Avvio server"
+app.post('/fascicoli/:id/infortunio', async (req, res) => {
+  if (!req.session.user) return res.status(401).send('Non autorizzato');
+  const id = parseInt(req.params.id,10);
+  const { infortunio, data_rientro } = req.body;
+  try {
+    const { error } = await supabase
+      .from('anagrafica')
+      .update({
+        infortunio: infortunio === 'true',
+        data_rientro: data_rientro || null
+      })
+      .eq('id', id);
+    if (error) throw error;
+    res.sendStatus(200);
+  } catch (err) {
+    console.error('Errore update infortunio:', err);
+    res.status(500).send('Errore salvataggio');
+  }
+});
+
 // Avvio server
 app.listen(PORT, () => {
   console.log(`Server in ascolto su http://localhost:${PORT}`);

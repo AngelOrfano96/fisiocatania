@@ -49,6 +49,25 @@
     <p><strong>Note:</strong> <%= anagrafica.note || '—' %></p>
 
     <hr>
+
+<div class="mb-3 d-flex align-items-center">
+    <label class="me-3"><strong>Infortunio:</strong></label>
+    <div class="form-check form-switch">
+      <input class="form-check-input" type="checkbox" id="infortunio-switch"
+             <%= anagrafica.infortunio ? 'checked' : '' %>>
+    </div>
+  </div>
+
+  <div id="rientro-group" class="<%= anagrafica.infortunio ? '' : 'd-none' %> mb-3">
+    <label for="data-rientro" class="form-label">Data di rientro (opzionale):</label>
+    <input type="date" id="data-rientro"
+           class="form-control w-auto d-inline-block"
+           value="<%= anagrafica.data_rientro ? anagrafica.data_rientro.toISOString().slice(0,10) : '' %>">
+    <button id="btn-save-infortunio" class="btn btn-sm btn-success ms-2">Salva</button>
+    <button id="btn-edit-infortunio" class="btn btn-sm btn-warning ms-2 d-none">Modifica</button>
+    <button id="btn-cancel-infortunio" class="btn btn-sm btn-secondary ms-2 d-none">Annulla</button>
+  </div>
+
     <h5>Terapie collegate</h5>
     <% if (therapies.length === 0) { %>
       <p class="text-muted">Nessuna terapia registrata.</p>
@@ -151,4 +170,57 @@
       reader.readAsDataURL(file);
     });
   })();*/
+  (function(){
+    const sw  = document.getElementById('infortunio-switch');
+    const grp = document.getElementById('rientro-group');
+    const inp = document.getElementById('data-rientro');
+    const btnSave  = document.getElementById('btn-save-infortunio');
+    const btnEdit  = document.getElementById('btn-edit-infortunio');
+    const btnCancel= document.getElementById('btn-cancel-infortunio');
+
+    // Mostra/nasconde la data di rientro
+    sw.addEventListener('change', () => {
+      grp.classList.toggle('d-none', !sw.checked);
+      // se spengo lo switch, resetto campo
+      if (!sw.checked) inp.value = '';
+      // togglo bottoni
+      btnSave.classList.toggle('d-none', !sw.checked);
+      btnEdit.classList.toggle('d-none', sw.checked);
+    });
+
+    // Salva
+    btnSave.addEventListener('click', async () => {
+      const id = <%= anagrafica.id %>;
+      const payload = new URLSearchParams({
+        infortunio: sw.checked,
+        data_rientro: inp.value
+      });
+      const res = await fetch(`/fascicoli/${id}/infortunio`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/x-www-form-urlencoded'},
+        body: payload
+      });
+      if (!res.ok) return alert('Errore salvataggio');
+      // dopo save, mostro i bottoni Modifica/Annulla
+      sw.disabled = true;
+      inp.disabled = true;
+      btnSave.classList.add('d-none');
+      btnEdit.classList.remove('d-none');
+      btnCancel.classList.remove('d-none');
+    });
+
+    // Modifica: riabilita switch + input
+    btnEdit.addEventListener('click', () => {
+      sw.disabled = false;
+      inp.disabled = false;
+      btnEdit.classList.add('d-none');
+      btnCancel.classList.add('d-none');
+      btnSave.classList.remove('d-none');
+    });
+
+    // Annulla: ricarica il partial dal server
+    btnCancel.addEventListener('click', () => {
+      caricaFascicolo(<%= anagrafica.id %>);
+    });
+  })();
 </script>
