@@ -55,8 +55,11 @@
 <div class="mb-3 d-flex align-items-center">
   <label for="infortunio-switch" class="me-3"><strong>Infortunio:</strong></label>
   <div class="form-check form-switch">
-    <input class="form-check-input" type="checkbox" id="infortunio-switch"
-           <%= anagrafica.infortunio ? 'checked' : '' %>>
+    <input class="form-check-input"
+         type="checkbox"
+         id="infortunio-switch"
+         data-id="<%= anagrafica.id %>"
+         <%= anagrafica.infortunio ? 'checked' : '' %>>
   </div>
 </div>
 
