@@ -88,6 +88,24 @@
   <!-- Chart.js (prima del nostro init) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
 
+  <% if (page === 'fascicoli_content') { %>
+   <script>
+     $(function(){
+       $('#fascicoli-table').DataTable({
+         pageLength: 4,
+         lengthChange: false,
+         language: {
+           paginate: { previous: '«', next: '»' },
+           info: 'Pagina _PAGE_ di _PAGES_',
+           infoEmpty: 'Nessun record',
+           zeroRecords: 'Nessun risultato',
+           infoFiltered: '(filtrati da _MAX_ totali)'
+         }
+       });
+     });
+   </script>
+ <% } %>
+
   <% if (page === 'dashboard_content') { %>
     <script>
 

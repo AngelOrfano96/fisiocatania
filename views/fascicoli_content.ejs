@@ -76,20 +76,6 @@
 
 <!-- Inizia qui gli script: assicurati che jQuery e DataTables siano già stati caricati nel layout -->
 <script>
-  // 1) Inizializza la DataTable
-  $(function() {
-    $('#fascicoli-table').DataTable({
-      pageLength: 4,
-      lengthChange: false,
-      language: {
-        paginate: { previous: '«', next: '»' },
-        info: 'Pagina _PAGE_ di _PAGES_',
-        zeroRecords: 'Nessun risultato',
-        infoEmpty: 'Nessun record',
-        infoFiltered: '(filtrati da _MAX_ totali)'
-      }
-    });
-  });
 
   // 2) AJAX per caricare il dettaglio
   async function caricaFascicolo(id) {
