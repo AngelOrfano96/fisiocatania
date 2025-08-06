@@ -92,16 +92,26 @@
   });
 
   // 2) AJAX per caricare il dettaglio
-  async function caricaFascicolo(id) {
-    try {
-      const res = await fetch(`/fascicoli/${id}`);
-      if (!res.ok) throw new Error('Errore nel caricamento del fascicolo');
-      const html = await res.text();
-      document.getElementById('fascicolo-detail').innerHTML = html;
-      // Se esiste, riattiva il photo-editor del dettaglio
-      if (typeof initPhotoEditor === 'function') initPhotoEditor();
-    } catch (err) {
-      alert(err.message);
+ async function caricaFascicolo(id) {
+   if (!id || isNaN(id)) {
+     return alert('ID non valido: ' + id);
+   }
+   try {
+     const res  = await fetch(`/fascicoli/${id}`);
+     if (!res.ok) throw new Error('Errore nel caricamento del fascicolo');
+     const html = await res.text();
+    document.getElementById('fascicolo-detail').innerHTML = html;
+    const container = document.getElementById('fascicolo-detail');
+   container.innerHTML = html;
+    // qui ricolleghiamo i listener sulla nuova foto:
+    if (typeof initPhotoEditor === 'function') {
+      initPhotoEditor();
+    } else {
+      console.warn('initPhotoEditor non definito');
     }
-  }
+   } catch (err) {
+     alert(err.message);
+   }
+ }
+
 </script>
