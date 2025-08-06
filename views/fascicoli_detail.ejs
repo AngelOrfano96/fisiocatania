@@ -50,23 +50,71 @@
 
     <hr>
 
-<div class="mb-3 d-flex align-items-center">
-    <label class="me-3"><strong>Infortunio:</strong></label>
-    <div class="form-check form-switch">
-      <input class="form-check-input" type="checkbox" id="infortunio-switch"
-             <%= anagrafica.infortunio ? 'checked' : '' %>>
-    </div>
-  </div>
+<hr>
 
-  <div id="rientro-group" class="<%= anagrafica.infortunio ? '' : 'd-none' %> mb-3">
-    <label for="data-rientro" class="form-label">Data di rientro (opzionale):</label>
-    <input type="date" id="data-rientro"
-           class="form-control w-auto d-inline-block"
-           value="<%= anagrafica.data_rientro ? anagrafica.data_rientro.toISOString().slice(0,10) : '' %>">
-    <button id="btn-save-infortunio" class="btn btn-sm btn-success ms-2">Salva</button>
-    <button id="btn-edit-infortunio" class="btn btn-sm btn-warning ms-2 d-none">Modifica</button>
-    <button id="btn-cancel-infortunio" class="btn btn-sm btn-secondary ms-2 d-none">Annulla</button>
+<div class="mb-3 d-flex align-items-center">
+  <label class="me-3"><strong>Infortunio:</strong></label>
+  <div class="form-check form-switch">
+    <input class="form-check-input" type="checkbox" id="infortunio-switch"
+           <%= anagrafica.infortunio ? 'checked' : '' %>>
   </div>
+</div>
+
+<div id="rientro-group" class="mb-3 <%= anagrafica.infortunio ? '' : 'd-none' %>">
+  <label for="data-rientro" class="form-label">Data di rientro (opzionale):</label>
+  <input type="date" id="data-rientro"
+         class="form-control w-auto d-inline-block"
+         value="<%= anagrafica.data_rientro ? anagrafica.data_rientro.slice(0,10) : '' %>">
+</div>
+
+<button id="btn-save-infortunio" class="btn btn-sm btn-success d-none mb-4">
+  Salva infortunio
+</button>
+<button id="btn-edit-infortunio" class="btn btn-sm btn-warning d-none mb-4 ms-2">
+  Modifica infortunio
+</button>
+<button id="btn-cancel-infortunio" class="btn btn-sm btn-secondary d-none mb-4 ms-2">
+  Annulla
+</button>
+
+<script>
+  const infortunioSwitch = document.getElementById('infortunio-switch');
+  const rientroGroup    = document.getElementById('rientro-group');
+  const saveBtn         = document.getElementById('btn-save-infortunio');
+
+  // 1) Al cambio del switch, mostro/nascondo data e pulsante Salva
+  infortunioSwitch.addEventListener('change', () => {
+    const on = infortunioSwitch.checked;
+    if (on) {
+      rientroGroup.classList.remove('d-none');
+      saveBtn.classList.remove('d-none');
+    } else {
+      rientroGroup.classList.add('d-none');
+      saveBtn.classList.remove('d-none'); // puoi permettere di azzerare senza data
+    }
+  });
+
+  // 2) Quando clicco Salva, invio via AJAX al server
+  saveBtn.addEventListener('click', async () => {
+    const id = <%= anagrafica.id %>;
+    const infortunio = infortunioSwitch.checked;
+    const dataRientro = document.getElementById('data-rientro').value || null;
+
+    try {
+      const res = await fetch(`/anagrafica/${id}/infortunio`, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({ infortunio, data_rientro: dataRientro })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      // ricarico il partial per riflettere i valori aggiornati
+      caricaFascicolo(id);
+    } catch (err) {
+      alert('Errore nel salvataggio: '+err.message);
+    }
+  });
+</script>
+
 
     <h5>Terapie collegate</h5>
     <% if (therapies.length === 0) { %>
@@ -139,37 +187,6 @@
 </div>
 
 <script>
-  // init photo‑editor su questo partial
- /* (function initPhotoEditor() {
-    const btnEdit   = document.getElementById('btn-edit-photo');
-    if (!btnEdit) return;
-    const btnSave   = document.getElementById('btn-save-photo');
-    const btnCancel = document.getElementById('btn-cancel-photo');
-    const inputFile = document.getElementById('foto-input');
-    const imgPreview= document.getElementById('profile-img');
-
-    btnEdit.addEventListener('click', ()=> {
-      inputFile.classList.remove('d-none');
-      btnEdit.classList.add('d-none');
-      btnSave.classList.remove('d-none');
-      btnCancel.classList.remove('d-none');
-    });
-    btnCancel.addEventListener('click', ()=> {
-      inputFile.value = '';
-      inputFile.classList.add('d-none');
-      btnEdit.classList.remove('d-none');
-      btnSave.classList.add('d-none');
-      btnCancel.classList.add('d-none');
-      imgPreview.src = imgPreview.getAttribute('src');
-    });
-    inputFile.addEventListener('change', ()=> {
-      const file = inputFile.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = e => imgPreview.src = e.target.result;
-      reader.readAsDataURL(file);
-    });
-  })();*/
   (function(){
     const sw  = document.getElementById('infortunio-switch');
     const grp = document.getElementById('rientro-group');

@@ -251,6 +251,26 @@ app.post('/anagrafica/update-photo/:id',
     }
 });
 
+// POST /anagrafica/:id/infortunio — aggiorna infortunio + data_rientro
+app.post('/anagrafica/:id/infortunio', async (req, res) => {
+  if (!req.session.user) return res.status(401).send('Non autorizzato');
+  const id = parseInt(req.params.id, 10);
+  const { infortunio, data_rientro } = req.body;
+  if (isNaN(id)) return res.status(400).send('ID non valido');
+
+  try {
+    const { error } = await supabase
+      .from('anagrafica')
+      .update({ infortunio, data_rientro })
+      .eq('id', id);
+    if (error) throw error;
+    res.sendStatus(200);
+  } catch (err) {
+    console.error('Errore update infortunio:', err);
+    res.status(500).send('Errore nel salvataggio');
+  }
+});
+
 
 // ROTTE TERAPIE
 app.get('/terapie', async (req, res) => {
