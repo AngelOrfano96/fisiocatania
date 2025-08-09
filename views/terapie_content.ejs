@@ -279,42 +279,69 @@ $(document).ready(function(){
 </style>
 
 <script>
-  const distretti = <%- JSON.stringify(distretti) %>;
+const distretti = <%- JSON.stringify(distretti) %>;
   const img       = document.getElementById('bodyMap');
   const container = document.getElementById('punti-container');
 
+  function parseCoords(s) {
+    if (!s || typeof s !== 'string') return null;
+    const parts = s.split(',');
+    if (parts.length !== 2) return null;
+    const x = Number(parts[0].trim());
+    const y = Number(parts[1].trim());
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    return [x, y];
+  }
+
   function renderPallini() {
+    if (!img || !container) return;
     const natW = img.naturalWidth, natH = img.naturalHeight;
-    container.querySelectorAll('.punto-rosso').forEach(p=>p.remove());
-    distretti.forEach(d => {
-      const [x,y] = d.coords.split(',').map(Number);
-      const px = x / natW * 100, py = y / natH * 100;
+    if (!natW || !natH) return; // immagine non ancora pronta
+
+    container.innerHTML = ''; // pulisci
+    (distretti || []).forEach(d => {
+      const pt = parseCoords(d.coords);
+      if (!pt) {
+        // opzionale per debug:
+        // console.warn('Distretto senza coords valide:', d.nome, d.coords);
+        return;
+      }
+      const [x, y] = pt;
+      const px = (x / natW) * 100;
+      const py = (y / natH) * 100;
+
       const p = document.createElement('div');
-      p.className         = 'punto-rosso';
-      p.style.left        = `${px}%`;
-      p.style.top         = `${py}%`;
-      p.title             = d.nome;
+      p.className = 'punto-rosso';
+      p.style.left = `${px}%`;
+      p.style.top  = `${py}%`;
+      p.title = d.nome;
       p.dataset.distretto = d.nome;
       p.addEventListener('click', e => {
         e.stopPropagation();
         document.getElementById('distrettoSelected').textContent =
           'Distretto selezionato: ' + d.nome;
         const sel = document.getElementById('distretto');
-        for (let o of sel.options) if (o.text.trim()===d.nome) { sel.value=o.value; break; }
+        for (let o of sel.options) {
+          if (o.text.trim() === d.nome) { sel.value = o.value; break; }
+        }
       });
       container.appendChild(p);
     });
   }
 
   function syncContainer() {
+    if (!img || !container) return;
     container.style.width  = img.clientWidth  + 'px';
     container.style.height = img.clientHeight + 'px';
     renderPallini();
   }
 
-  img.addEventListener('load', syncContainer);
+  // Inizializza quando l'immagine è caricata e su resize
+  if (img) {
+    img.addEventListener('load', syncContainer);
+    if (img.complete) syncContainer(); // già in cache
+  }
   window.addEventListener('resize', syncContainer);
-  if (img.complete) syncContainer();
 ///////////////////////////////////copia
 $(document).on('click', '#tabellaTerapie .btn-copy', async function () {
     const $row = $(this).closest('tr');
