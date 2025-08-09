@@ -21,7 +21,7 @@
 
 <div class="card">
   <div class="card-body">
-    <table class="table table-bordered table-striped align-middle">
+    <table id="distretti-table" class="table table-bordered table-striped align-middle">
       <thead>
         <tr>
           <th>Nome</th>
@@ -44,13 +44,14 @@
                       class="btn btn-success btn-sm btn-save d-none">💾</button>
               <button type="button"
                       class="btn btn-secondary btn-sm btn-cancel d-none">↩️</button>
+
               <form method="POST"
-      action="/distretti/<%= d.id %>/delete"
-      class="d-inline"
-      onsubmit="return confirm(
-        '⚠️ Attenzione: se elimini questo distretto verranno eliminate ' +
-        'anche TUTTE le terapie collegate. Sei sicuro di voler continuare?'
-      )">
+                    action="/distretti/<%= d.id %>/delete"
+                    class="d-inline"
+                    onsubmit="return confirm(
+                      '⚠️ Attenzione: se elimini questo distretto verranno eliminate ' +
+                      'anche TUTTE le terapie collegate. Sei sicuro di voler continuare?'
+                    )">
                 <button class="btn btn-danger btn-sm">🗑️</button>
               </form>
             </td>
@@ -62,35 +63,56 @@
 </div>
 
 <script>
-  document.querySelectorAll('.btn-edit').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const row = btn.closest('tr');
-      row.querySelector('.static').classList.add('d-none');
-      row.querySelector('.editable').classList.remove('d-none');
-      row.querySelector('.btn-edit').classList.add('d-none');
-      row.querySelectorAll('.btn-save, .btn-cancel').forEach(b => b.classList.remove('d-none'));
+  $(function () {
+    // Inizializza DataTable: 10 per pagina + barra ricerca
+    const dt = $('#distretti-table').DataTable({
+      pageLength: 10,
+      lengthChange: false,
+      dom: 'frtip', // f=filter (search), r=processing, t=table, i=info, p=pagination
+      language: {
+        search:    'Cerca:',
+        paginate:  { previous: '«', next: '»' },
+        info:      'Pagina _PAGE_ di _PAGES_',
+        infoEmpty: 'Nessun record',
+        zeroRecords:'Nessun risultato',
+        infoFiltered:'(filtrati da _MAX_ totali)'
+      }
     });
-  });
 
-  document.querySelectorAll('.btn-cancel').forEach(btn => {
-    btn.addEventListener('click', () => {
+    // Delegated: MODIFICA
+    $('#distretti-table').on('click', '.btn-edit', function () {
+      const $row = $(this).closest('tr');
+      $row.find('.static').addClass('d-none');
+      $row.find('.editable').removeClass('d-none');
+      $row.find('.btn-edit').addClass('d-none');
+      $row.find('.btn-save, .btn-cancel').removeClass('d-none');
+    });
+
+    // Delegated: ANNULLA (semplice refresh per ripristinare lo stato)
+    $('#distretti-table').on('click', '.btn-cancel', function () {
       location.reload();
     });
-  });
 
-  document.querySelectorAll('.btn-save').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const row = btn.closest('tr');
-      const id = row.dataset.id;
-      const nome = row.querySelector('input').value.trim();
+    // Delegated: SALVA
+    $('#distretti-table').on('click', '.btn-save', async function () {
+      const $row = $(this).closest('tr');
+      const id   = $row.data('id');
+      const nome = $row.find('input').val().trim();
       if (!nome) return alert('Inserisci un nome valido');
-      const res = await fetch(`/distretti/${id}/update`, {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ nome })
-      });
-      if (res.ok) location.reload();
-      else alert('Errore nel salvataggio');
+
+      try {
+        const res = await fetch(`/distretti/${id}/update`, {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json' },
+          body: JSON.stringify({ nome })
+        });
+        if (!res.ok) throw new Error();
+
+        // Ricarico per vedere il valore aggiornato in tutti i contesti (search/paging)
+        location.reload();
+      } catch {
+        alert('Errore nel salvataggio');
+      }
     });
   });
 </script>
