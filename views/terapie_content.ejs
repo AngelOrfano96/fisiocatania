@@ -60,6 +60,23 @@
 
   <button type="submit" class="btn btn-success">Salva</button>
 </form>
+<hr>
+<div class="d-flex flex-wrap align-items-end gap-3 mb-3">
+  <!-- Oggi -->
+  <a href="/terapie/export/today" class="btn btn-outline-primary">
+    📄 Scarica le terapie del giorno
+  </a>
+
+  <!-- Selettore data -->
+  <form class="d-flex align-items-end gap-2" action="/terapie/export/by-date" method="GET">
+    <div>
+      <label for="exportDate" class="form-label mb-1">Scarica le terapie riferenti a:</label>
+      <input type="date" id="exportDate" name="date" class="form-control"
+             value="<%= new Date().toISOString().slice(0,10) %>" required>
+    </div>
+    <button class="btn btn-outline-secondary" type="submit">📄 Scarica</button>
+  </form>
+</div>
 
 <hr>
 <h4 class="mb-3">Lista Terapie</h4>

@@ -1156,6 +1156,142 @@ app.post('/fascicoli/:id/infortunio', async (req, res) => {
     res.status(500).send('Errore salvataggio');
   }
 });
+// =========================
+//  TERAPIE -> EXPORT PDF
+// =========================
+
+// helper comune: genera il PDF in risposta HTTP
+function streamTerapiePDF(res, dayISO, grouped) {
+  const PDFDocument = require('pdfkit');
+  const doc = new PDFDocument({ autoFirstPage: false });
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename=terapie_${dayISO}.pdf`);
+  doc.pipe(res);
+
+  doc.addPage({ margin: 40 });
+  doc.fontSize(18).text(`Terapie del ${dayISO}`, { align: 'center' });
+  doc.moveDown();
+
+  // se non ci sono dati
+  if (Object.keys(grouped).length === 0) {
+    doc.fontSize(12).text('Nessuna terapia trovata per questa data.');
+    doc.end();
+    return;
+  }
+
+  Object.entries(grouped).forEach(([playerName, items], ix) => {
+    doc.fontSize(14).font('Helvetica-Bold').text(playerName);
+    doc.moveDown(0.3);
+    doc.fontSize(12).font('Helvetica');
+
+    items.forEach((row) => {
+      const riga =
+        `• ${row.distretto} — ${row.trattamento}` +
+        (row.note ? ` — Note: ${row.note}` : '');
+      doc.text(riga);
+    });
+
+    if (ix !== Object.keys(grouped).length - 1) {
+      doc.moveDown(); // spazio tra giocatori
+    }
+  });
+
+  doc.end();
+}
+
+// helper: valida "YYYY-MM-DD"
+function parseDateParam(dateStr) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr || '')) return null;
+  return dateStr;
+}
+
+// GET /terapie/export/today
+app.get('/terapie/export/today', async (req, res) => {
+  if (!req.session.user) return res.status(401).send('Non autorizzato');
+
+  const today = new Date();
+  const dayISO = today.toISOString().slice(0, 10);
+
+  try {
+    // --- SUPABASE ---
+    const { data, error } = await supabase
+      .from('terapie')
+      .select(`
+        data_trattamento,
+        note,
+        anagrafica:anagrafica_id ( id, nome, cognome ),
+        distretto:distretto_id ( nome ),
+        trattamento:trattamento_id ( nome )
+      `)
+      .eq('data_trattamento', dayISO)
+      .order('cognome', { foreignTable: 'anagrafica', ascending: true })
+      .order('nome', { foreignTable: 'anagrafica', ascending: true });
+
+    if (error) throw error;
+
+    // raggruppo per "Nome Cognome"
+    const grouped = {};
+    (data || []).forEach(row => {
+      const player = `${row.anagrafica?.nome || ''} ${row.anagrafica?.cognome || ''}`.trim();
+      if (!grouped[player]) grouped[player] = [];
+      grouped[player].push({
+        distretto: row.distretto?.nome || '—',
+        trattamento: row.trattamento?.nome || '—',
+        note: row.note || ''
+      });
+    });
+
+    streamTerapiePDF(res, dayISO, grouped);
+
+  } catch (err) {
+    console.error('Errore export today:', err);
+    res.status(500).send('Errore durante la generazione del PDF');
+  }
+});
+
+// GET /terapie/export/by-date?date=YYYY-MM-DD
+app.get('/terapie/export/by-date', async (req, res) => {
+  if (!req.session.user) return res.status(401).send('Non autorizzato');
+
+  const dayISO = parseDateParam(req.query.date);
+  if (!dayISO) return res.status(400).send('Data non valida, formato atteso YYYY-MM-DD');
+
+  try {
+    // --- SUPABASE ---
+    const { data, error } = await supabase
+      .from('terapie')
+      .select(`
+        data_trattamento,
+        note,
+        anagrafica:anagrafica_id ( id, nome, cognome ),
+        distretto:distretto_id ( nome ),
+        trattamento:trattamento_id ( nome )
+      `)
+      .eq('data_trattamento', dayISO)
+      .order('cognome', { foreignTable: 'anagrafica', ascending: true })
+      .order('nome', { foreignTable: 'anagrafica', ascending: true });
+
+    if (error) throw error;
+
+    const grouped = {};
+    (data || []).forEach(row => {
+      const player = `${row.anagrafica?.nome || ''} ${row.anagrafica?.cognome || ''}`.trim();
+      if (!grouped[player]) grouped[player] = [];
+      grouped[player].push({
+        distretto: row.distretto?.nome || '—',
+        trattamento: row.trattamento?.nome || '—',
+        note: row.note || ''
+      });
+    });
+
+    streamTerapiePDF(res, dayISO, grouped);
+
+  } catch (err) {
+    console.error('Errore export by-date:', err);
+    res.status(500).send('Errore durante la generazione del PDF');
+  }
+});
 
 // Avvio server
 app.listen(PORT, () => {
