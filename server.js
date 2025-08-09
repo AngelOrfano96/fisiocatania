@@ -1292,6 +1292,49 @@ app.get('/terapie/export/by-date', async (req, res) => {
     res.status(500).send('Errore durante la generazione del PDF');
   }
 });
+// Copia una terapia con data odierna
+app.post('/terapie/copia/:id', async (req, res) => {
+  if (!req.session.user) return res.status(401).send('Non autorizzato');
+
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).send('ID non valido');
+
+  // data odierna in timezone locale (YYYY-MM-DD)
+  const todayLocal = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 10);
+
+  try {
+    // prendo i dati originali
+    const { data: orig, error: e1 } = await supabase
+      .from('terapie')
+      .select('anagrafica_id, distretto_id, trattamento_id, note') // aggiungi altri campi se servono
+      .eq('id', id)
+      .single();
+
+    if (e1) throw e1;
+    if (!orig) return res.status(404).send('Terapia non trovata');
+
+    // payload da inserire con data di oggi
+    const payload = {
+      anagrafica_id:  orig.anagrafica_id,
+      distretto_id:   orig.distretto_id,
+      trattamento_id: orig.trattamento_id,
+      note:           orig.note || null,
+      data_trattamento: todayLocal,
+      // Se nel tuo schema esiste una colonna "operatore", puoi valorizzarla:
+      operatore: req.session.user
+    };
+
+    const { error: e2 } = await supabase.from('terapie').insert(payload);
+    if (e2) throw e2;
+
+    res.sendStatus(200);
+  } catch (err) {
+    console.error('Errore copia terapia:', err);
+    res.status(500).send('Errore durante la copia');
+  }
+});
 
 // Avvio server
 app.listen(PORT, () => {

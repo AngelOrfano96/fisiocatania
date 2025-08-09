@@ -189,6 +189,7 @@
         <button type="button" class="btn btn-sm btn-warning btn-edit">✏️</button>
         <button type="button" class="btn btn-sm btn-success btn-save d-none">💾</button>
         <button type="button" class="btn btn-sm btn-secondary btn-cancel d-none">↩️</button>
+        <button type="button" class="btn btn-sm btn-info btn-copy" title="Copia come oggi">📋</button>
         <form
           method="POST"
           action="/terapie/delete/<%= t.id %>"
@@ -314,4 +315,23 @@ $(document).ready(function(){
   img.addEventListener('load', syncContainer);
   window.addEventListener('resize', syncContainer);
   if (img.complete) syncContainer();
+///////////////////////////////////copia
+$(document).on('click', '#tabellaTerapie .btn-copy', async function () {
+    const $row = $(this).closest('tr');
+    const id   = $row.data('id');
+
+    // disabilito per evitare doppi click
+    this.disabled = true;
+    try {
+      const res = await fetch(`/terapie/copia/${id}`, { method: 'POST' });
+      if (!res.ok) throw new Error(await res.text());
+      // ricarico tabella / pagina
+      location.reload();
+    } catch (err) {
+      alert('Errore durante la copia: ' + err.message);
+    } finally {
+      this.disabled = false;
+    }
+  });
+/////////////////////////////////////////
 </script>
