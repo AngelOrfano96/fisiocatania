@@ -334,6 +334,7 @@ app.get('/terapie', async (req, res) => {
         id,
         operatore,
         data_trattamento,
+        sigla,
         note,
         anagrafica:anagrafica!inner(nome,cognome),
         distretti:distretti!inner(nome),
@@ -355,6 +356,7 @@ app.get('/terapie', async (req, res) => {
       anagrafica: `${t.anagrafica.nome} ${t.anagrafica.cognome}`,
       distretto: t.distretti.nome,
       trattamento: t.trattamenti.nome,
+      sigla: t.sigla || null,
       note: t.note
     }));
 
@@ -378,12 +380,12 @@ app.get('/terapie', async (req, res) => {
 
 app.post('/terapie', async (req, res) => {
   if (!req.session.user) return res.redirect('/');
-  const { anagrafica_id, distretto_id, trattamento_id, data_trattamento, note } = req.body;
+  const { anagrafica_id, distretto_id, trattamento_id, data_trattamento, sigla, note } = req.body;
   const operatore = req.session.user;
   try {
     const { error } = await supabase
       .from('terapie')
-      .insert({ anagrafica_id, distretto_id, trattamento_id, data_trattamento, note, operatore });
+      .insert({ anagrafica_id, distretto_id, trattamento_id, data_trattamento,sigla, note, operatore });
     if (error) throw error;
     res.redirect('/terapie');
   } catch (err) {
@@ -396,11 +398,11 @@ app.post('/terapie', async (req, res) => {
 app.post('/terapie/update/:id', async (req, res) => {
   if (!req.session.user) return res.status(401).send('Non autorizzato');
   const id = req.params.id;
-  const { data_trattamento, anagrafica_id, distretto_id, trattamento_id, note } = req.body;
+  const { data_trattamento, anagrafica_id, distretto_id, trattamento_id, sigla, note } = req.body;
   try {
     const { error } = await supabase
       .from('terapie')
-      .update({ data_trattamento, anagrafica_id, distretto_id, trattamento_id, note })
+      .update({ data_trattamento, anagrafica_id, distretto_id, trattamento_id, sigla, note })
       .eq('id', id);
     if (error) throw error;
     res.sendStatus(200);
@@ -709,7 +711,7 @@ app.get('/fascicoli/:anagID/export/:therapyID', async (req, res) => {
     const { data: th, error: errT } = await supabase
       .from('terapie')
       .select(`
-        id, data_trattamento, note, operatore,
+        id, data_trattamento, sigla, note, operatore,
         distretti(nome), trattamenti(nome)
       `)
       .eq('id', therapyID)
@@ -749,6 +751,7 @@ app.get('/fascicoli/:anagID/export/:therapyID', async (req, res) => {
        .text(`Distretto: ${th.distretti.nome}`)
        .text(`Trattamento: ${th.trattamenti.nome}`)
        .text(`Operatore: ${th.operatore}`)
+       .text(`Stato: ${th.sigla || '—'}`)
        .text(`Note: ${th.note || '—'}`)
        .moveDown();
 
@@ -1188,6 +1191,7 @@ function streamTerapiePDF(res, dayISO, grouped) {
     items.forEach((row) => {
       const riga =
         `• ${row.distretto} — ${row.trattamento}` +
+        (row.sigla ? ` — ${row.sigla}` : '') +
         (row.note ? ` — Note: ${row.note}` : '');
       doc.text(riga);
     });
@@ -1219,6 +1223,7 @@ app.get('/terapie/export/today', async (req, res) => {
       .from('terapie')
       .select(`
         data_trattamento,
+        sigla,
         note,
         anagrafica:anagrafica_id ( id, nome, cognome ),
         distretto:distretto_id ( nome ),
@@ -1238,6 +1243,7 @@ app.get('/terapie/export/today', async (req, res) => {
       grouped[player].push({
         distretto: row.distretto?.nome || '—',
         trattamento: row.trattamento?.nome || '—',
+        sigla: row.sigla || '',
         note: row.note || ''
       });
     });
@@ -1263,6 +1269,7 @@ app.get('/terapie/export/by-date', async (req, res) => {
       .from('terapie')
       .select(`
         data_trattamento,
+        sigla,
         note,
         anagrafica:anagrafica_id ( id, nome, cognome ),
         distretto:distretto_id ( nome ),
@@ -1281,6 +1288,7 @@ app.get('/terapie/export/by-date', async (req, res) => {
       grouped[player].push({
         distretto: row.distretto?.nome || '—',
         trattamento: row.trattamento?.nome || '—',
+        sigla: row.sigla || '',
         note: row.note || ''
       });
     });
@@ -1308,7 +1316,7 @@ app.post('/terapie/copia/:id', async (req, res) => {
     // prendo i dati originali
     const { data: orig, error: e1 } = await supabase
       .from('terapie')
-      .select('anagrafica_id, distretto_id, trattamento_id, note') // aggiungi altri campi se servono
+      .select('anagrafica_id, distretto_id, trattamento_id, sigla, note') // aggiungi altri campi se servono
       .eq('id', id)
       .single();
 
@@ -1320,6 +1328,7 @@ app.post('/terapie/copia/:id', async (req, res) => {
       anagrafica_id:  orig.anagrafica_id,
       distretto_id:   orig.distretto_id,
       trattamento_id: orig.trattamento_id,
+      sigla:          orig.sigla || null,
       note:           orig.note || null,
       data_trattamento: todayLocal,
       // Se nel tuo schema esiste una colonna "operatore", puoi valorizzarla:

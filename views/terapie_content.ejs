@@ -54,6 +54,17 @@
   </div>
 
   <div class="mb-3">
+    <label for="sigla" class="form-label">Stato</label>
+    <select name="sigla" id="sigla" class="form-select">
+      <option value="">—</option>
+      <option value="D">D</option>
+      <option value="D (GRADUALE)">D (GRADUALE)</option>
+      <option value="I">I</option>
+      <option value="DV">DV</option>
+    </select>
+  </div>
+
+  <div class="mb-3">
     <label for="note" class="form-label">Note</label>
     <input type="text" name="note" id="note" class="form-control">
   </div>
@@ -119,6 +130,7 @@
       <th>Anagrafica</th>
       <th>Distretto</th>
       <th>Trattamento</th>
+      <th>Stato</th>
       <th>Note</th>
       <th>Modifica</th>
     </tr>
@@ -177,6 +189,16 @@
           <% }) %>
         </select>
       </td>
+      <td class="sigla">
+        <span class="static"><%= t.sigla || '' %></span>
+        <select name="sigla" class="form-select form-select-sm editable d-none">
+          <option value="" <%= !t.sigla ? 'selected' : '' %> >—</option>
+          <option value="D" <%= t.sigla==='D' ? 'selected' : '' %> >D</option>
+          <option value="D (GRADUALE)" <%= t.sigla==='D (GRADUALE)' ? 'selected' : '' %> >D (GRADUALE)</option>
+          <option value="I" <%= t.sigla==='I' ? 'selected' : '' %> >I</option>
+          <option value="DV" <%= t.sigla==='DV' ? 'selected' : '' %> >DV</option>
+        </select>
+      </td>
       <td class="note">
         <span class="static"><%= t.note %></span>
         <input
@@ -215,7 +237,7 @@ $(document).ready(function(){
   $('#tabellaTerapie').DataTable({
     pageLength: 10,
     lengthMenu: [5,10,20],
-    columnDefs:[{ orderable:false, targets:6 }]
+    columnDefs:[{ orderable:false, targets:7 }]
   });
 
   $('.btn-edit').click(function(){
@@ -238,6 +260,7 @@ $(document).ready(function(){
       anagrafica_id:    row.find('select[name="anagrafica_id"]').val(),
       distretto_id:     row.find('select[name="distretto_id"]').val(),
       trattamento_id:   row.find('select[name="trattamento_id"]').val(),
+      sigla:            row.find('select[name="sigla"]').val(),
       note:             row.find('input[name="note"]').val()
     };
     $.post(`/terapie/update/${id}`, data)
