@@ -380,12 +380,16 @@ app.get('/terapie', async (req, res) => {
 
 app.post('/terapie', async (req, res) => {
   if (!req.session.user) return res.redirect('/');
-  const { anagrafica_id, distretto_id, trattamento_id, data_trattamento, sigla, note } = req.body;
+
+  let { anagrafica_id, distretto_id, trattamento_id, data_trattamento, sigla, note } = req.body;
   const operatore = req.session.user;
+
+  sigla = sigla?.trim() || null;  // <- rende opzionale
+
   try {
     const { error } = await supabase
       .from('terapie')
-      .insert({ anagrafica_id, distretto_id, trattamento_id, data_trattamento,sigla, note, operatore });
+      .insert({ anagrafica_id, distretto_id, trattamento_id, data_trattamento, sigla, note, operatore });
     if (error) throw error;
     res.redirect('/terapie');
   } catch (err) {
@@ -398,7 +402,10 @@ app.post('/terapie', async (req, res) => {
 app.post('/terapie/update/:id', async (req, res) => {
   if (!req.session.user) return res.status(401).send('Non autorizzato');
   const id = req.params.id;
-  const { data_trattamento, anagrafica_id, distretto_id, trattamento_id, sigla, note } = req.body;
+
+  let { data_trattamento, anagrafica_id, distretto_id, trattamento_id, sigla, note } = req.body;
+  sigla = sigla?.trim() || null;  // <- idem
+
   try {
     const { error } = await supabase
       .from('terapie')
@@ -411,6 +418,7 @@ app.post('/terapie/update/:id', async (req, res) => {
     res.sendStatus(500);
   }
 });
+
 
 // POST /terapie/delete/:id
 app.post('/terapie/delete/:id', async (req, res) => {
