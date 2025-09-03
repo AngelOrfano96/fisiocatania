@@ -22,4 +22,8 @@ thead .sticky-col { z-index: 3; }
 .badge-sigla-dv { background: #FFF3CD; color: #664D03; } /* DV: giallo */
 
 .col-calciatori { min-width: 220px; }
+/* Colore del testo per l'header "Calciatori" */
+thead.table-dark th.col-calciatori {
+  color: #0d6efd !important; /* cambia qui il tono di azzurro se vuoi */
+}
 
