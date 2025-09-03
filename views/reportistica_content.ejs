@@ -1,0 +1,170 @@
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-3">
+  <h3 class="m-0">RESOCONTO GIORNALIERO</h3>
+<% if (message) { %>
+  <div class="alert alert-success"><%= message %></div>
+<% } %>
+
+  <div class="d-flex align-items-end gap-2">
+    <form class="d-flex align-items-end gap-2" method="GET" action="/reportistica">
+      <div>
+        <label for="giorno" class="form-label mb-1">Giornata</label>
+        <input type="date" id="giorno" name="date" class="form-control" value="<%= giorno %>" required>
+      </div>
+      <button class="btn btn-primary" type="submit">Mostra</button>
+    </form>
+
+    <button id="btnCopiaIeri" class="btn btn-outline-secondary" data-date="<%= giorno %>" title="Copia le sigle da ieri nelle celle vuote">
+      Copia da ieri
+    </button>
+  </div>
+</div>
+
+<!-- Legenda -->
+<div class="d-flex align-items-center flex-wrap gap-2 mb-3">
+  <span class="me-2">Legenda:</span>
+  <span class="badge-sigla badge-sigla-d">D</span>
+  <span class="badge-sigla badge-sigla-dg">D (GRADUALE)</span>
+  <span class="badge-sigla badge-sigla-i">I</span>
+  <span class="badge-sigla badge-sigla-dv">DV</span>
+</div>
+
+<!-- Export -->
+<form class="d-flex align-items-end gap-2 mb-3" method="GET" action="/reportistica/export">
+  <div>
+    <label for="from" class="form-label mb-1">Esporta da</label>
+    <input type="date" id="from" name="from" class="form-control" value="<%= giorno %>" required>
+  </div>
+  <div>
+    <label for="to" class="form-label mb-1">a</label>
+    <input type="date" id="to" name="to" class="form-control" value="<%= giorno %>" required>
+  </div>
+  <button class="btn btn-outline-primary" type="submit">📊 Esporta Excel</button>
+</form>
+
+<!-- Griglia -->
+<div class="table-responsive" style="max-height: 70vh; overflow: auto;">
+  <table class="table table-bordered align-middle m-0">
+    <thead class="table-dark sticky-top z-3">
+      <tr>
+        <th class="sticky-col bg-light text-nowrap" style="min-width: 220px;">Calciatori</th>
+        <% distretti.forEach(d => { %>
+          <th class="text-center text-nowrap"><%= d.nome %></th>
+        <% }) %>
+      </tr>
+    </thead>
+    <tbody>
+      <% anagrafiche.forEach(a => { %>
+        <tr>
+          <th class="sticky-col bg-light fw-semibold text-nowrap"><%= a.cognome %> <%= a.nome %></th>
+          <% distretti.forEach(d => { 
+               const key = `${a.id}|${d.id}`;
+               const val = sigleMap[key] || '';
+          %>
+            <td class="text-center">
+              <div class="d-flex justify-content-center align-items-center gap-2">
+                <select
+                  class="form-select form-select-sm w-auto cell-select"
+                  data-anagrafica-id="<%= a.id %>"
+                  data-distretto-id="<%= d.id %>"
+                  data-date="<%= giorno %>"
+                >
+                  <option value="" <%= val===''?'selected':'' %> >—</option>
+                  <option value="D" <%= val==='D'?'selected':'' %>>D</option>
+                  <option value="D (GRADUALE)" <%= val==='D (GRADUALE)'?'selected':'' %>>D (GRADUALE)</option>
+                  <option value="I" <%= val==='I'?'selected':'' %>>I</option>
+                  <option value="DV" <%= val==='DV'?'selected':'' %>>DV</option>
+                </select>
+                <span class="badge-sigla <%= val==='D' ? 'badge-sigla-d' 
+                                       : val==='D (GRADUALE)' ? 'badge-sigla-dg'
+                                       : val==='I' ? 'badge-sigla-i'
+                                       : val==='DV' ? 'badge-sigla-dv' : 'd-none' %>"
+                      data-badge="1"><%= val %></span>
+              </div>
+            </td>
+          <% }) %>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<!-- Styles -->
+<style>
+  .sticky-top { position: sticky; top: 0; }
+  .sticky-col  { position: sticky; left: 0; z-index: 2; }
+  thead .sticky-col { z-index: 3; }
+
+  .badge-sigla {
+    display: inline-block;
+    padding: .2rem .5rem;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: .85rem;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  /* Pastello + testo scuro per accessibilità */
+  .badge-sigla-d  { background: #D1E7DD; color: #0F5132; }        /* Verde */
+  .badge-sigla-dg { background: #D1E7DD; color: #0F5132; }        /* Verde (graduale) */
+  .badge-sigla-i  { background: #F8D7DA; color: #842029; }        /* Rosso */
+  .badge-sigla-dv { background: #FFF3CD; color: #664D03; }        /* Giallo */
+</style>
+
+<!-- Script -->
+<script>
+  // Upsert immediato quando cambia una cella
+  document.querySelectorAll('.cell-select').forEach(sel => {
+    sel.addEventListener('change', async (e) => {
+      const el = e.currentTarget;
+      const payload = {
+        date: el.dataset.date,
+        anagrafica_id: el.dataset.anagraficaId,
+        distretto_id:  el.dataset.distrettoId,
+        sigla: el.value
+      };
+
+      try {
+        const res = await fetch('/api/reportistica/upsert', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error(await res.text());
+
+        // Aggiorna badge visivo
+        const badge = el.parentElement.querySelector('[data-badge]');
+        badge.className = 'badge-sigla d-none';
+        badge.textContent = '';
+        if (el.value) {
+          badge.textContent = el.value;
+          if (el.value === 'D')               badge.className = 'badge-sigla badge-sigla-d';
+          else if (el.value === 'D (GRADUALE)') badge.className = 'badge-sigla badge-sigla-dg';
+          else if (el.value === 'I')          badge.className = 'badge-sigla badge-sigla-i';
+          else if (el.value === 'DV')         badge.className = 'badge-sigla badge-sigla-dv';
+        }
+      } catch (err) {
+        alert('Errore salvataggio: ' + err.message);
+      }
+    });
+  });
+
+  // Copia da ieri → riempie solo celle vuote
+  document.getElementById('btnCopiaIeri')?.addEventListener('click', async (e) => {
+    const to_date = e.currentTarget.dataset.date;
+    if (!to_date) return;
+    e.currentTarget.disabled = true;
+    try {
+      const res = await fetch('/api/reportistica/copia', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to_date })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      location.reload();
+    } catch (err) {
+      alert('Errore copia: ' + err.message);
+    } finally {
+      e.currentTarget.disabled = false;
+    }
+  });
+</script>

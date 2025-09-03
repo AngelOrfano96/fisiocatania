@@ -9,7 +9,7 @@ const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const PDFDocument = require('pdfkit');
 const crypto = require('crypto');
-
+const ExcelJS = require('exceljs');
 
 
 
@@ -1350,6 +1350,249 @@ app.post('/terapie/copia/:id', async (req, res) => {
   } catch (err) {
     console.error('Errore copia terapia:', err);
     res.status(500).send('Errore durante la copia');
+  }
+});
+/////////////////////////reportistica
+
+app.get('/reportistica', async (req, res) => {
+  if (!req.session.user) return res.redirect('/');
+
+  // data selezionata (default oggi, nel formato YYYY-MM-DD locale)
+  const todayLocal = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+    .toISOString().slice(0,10);
+  const giorno = (req.query.date && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date))
+    ? req.query.date
+    : todayLocal;
+
+  try {
+    const [{ data: anagrafiche }, { data: distretti }] = await Promise.all([
+      supabase.from('anagrafica').select('id, nome, cognome').order('cognome').order('nome'),
+      supabase.from('distretti').select('id, nome').order('nome')
+    ]);
+
+    const { data: rows = [] } = await supabase
+      .from('report_sigle')
+      .select('anagrafica_id, distretto_id, sigla')
+      .eq('data', giorno);
+
+    const sigleMap = {};
+    rows.forEach(r => { sigleMap[`${r.anagrafica_id}|${r.distretto_id}`] = r.sigla || ''; });
+
+    return res.render('layout', {
+      page: 'reportistica_content',
+      anagrafiche: anagrafiche || [],
+      distretti: distretti || [],
+      sigleMap,
+      giorno
+    });
+  } catch (err) {
+    console.error('Errore /reportistica:', err);
+    return res.render('layout', {
+      page: 'reportistica_content',
+      anagrafiche: [], distretti: [], sigleMap: {}, giorno: todayLocal
+    });
+  }
+});
+
+app.post('/api/reportistica/upsert', async (req, res) => {
+  if (!req.session.user) return res.status(401).send('Non autorizzato');
+
+  let { date, anagrafica_id, distretto_id, sigla } = req.body || {};
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return res.status(400).send('Data non valida');
+  anagrafica_id = parseInt(anagrafica_id, 10);
+  distretto_id  = parseInt(distretto_id, 10);
+  if (!Number.isInteger(anagrafica_id) || !Number.isInteger(distretto_id))
+    return res.status(400).send('ID non validi');
+
+  sigla = (sigla && typeof sigla === 'string' && sigla.trim()) ? sigla.trim() : null;
+  const operatore = req.session.user;
+
+  try {
+    if (sigla === null) {
+      // svuota = delete
+      const { error } = await supabase
+        .from('report_sigle')
+        .delete()
+        .eq('data', date)
+        .eq('anagrafica_id', anagrafica_id)
+        .eq('distretto_id', distretto_id);
+      if (error) throw error;
+    } else {
+      // upsert con vincolo unico
+      const { error } = await supabase
+        .from('report_sigle')
+        .upsert([{
+          data: date,
+          anagrafica_id,
+          distretto_id,
+          sigla,
+          operatore,
+          updated_at: new Date().toISOString()
+        }], { onConflict: 'data,anagrafica_id,distretto_id' });
+      if (error) throw error;
+    }
+    res.sendStatus(200);
+  } catch (err) {
+    console.error('Errore upsert reportistica:', err);
+    res.status(500).send('Errore salvataggio');
+  }
+});
+
+app.post('/api/reportistica/copia', async (req, res) => {
+  if (!req.session.user) return res.status(401).send('Non autorizzato');
+  const to_date = req.body?.to_date;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(to_date || '')) return res.status(400).send('Data target non valida');
+
+  // calcola "ieri"
+  const dt = new Date(to_date + 'T00:00:00Z');
+  dt.setUTCDate(dt.getUTCDate() - 1);
+  const from_date = dt.toISOString().slice(0,10);
+
+  try {
+    // prendo i valori di ieri
+    const { data: yesterday = [], error: e1 } = await supabase
+      .from('report_sigle')
+      .select('anagrafica_id, distretto_id, sigla')
+      .eq('data', from_date);
+    if (e1) throw e1;
+
+    // prendo già presenti per oggi
+    const { data: today = [], error: e2 } = await supabase
+      .from('report_sigle')
+      .select('anagrafica_id, distretto_id')
+      .eq('data', to_date);
+    if (e2) throw e2;
+
+    const existing = new Set((today || []).map(r => `${r.anagrafica_id}|${r.distretto_id}`));
+
+    const rows = [];
+    yesterday.forEach(r => {
+      const key = `${r.anagrafica_id}|${r.distretto_id}`;
+      if (!existing.has(key) && r.sigla) {
+        rows.push({
+          data: to_date,
+          anagrafica_id: r.anagrafica_id,
+          distretto_id:  r.distretto_id,
+          sigla:         r.sigla,
+          operatore:     req.session.user,
+          updated_at:    new Date().toISOString()
+        });
+      }
+    });
+
+    if (rows.length) {
+      const { error: e3 } = await supabase
+        .from('report_sigle')
+        .upsert(rows, { onConflict: 'data,anagrafica_id,distretto_id', ignoreDuplicates: true });
+      if (e3) throw e3;
+    }
+    res.sendStatus(200);
+  } catch (err) {
+    console.error('Errore copia reportistica:', err);
+    res.status(500).send('Errore copia');
+  }
+});
+
+app.get('/reportistica/export', async (req, res) => {
+  if (!req.session.user) return res.status(401).send('Non autorizzato');
+
+  const { from, to } = req.query || {};
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from || '') || !/^\d{4}-\d{2}-\d{2}$/.test(to || ''))
+    return res.status(400).send('Intervallo non valido');
+
+  const fromDate = new Date(from + 'T00:00:00Z');
+  const toDate   = new Date(to   + 'T00:00:00Z');
+  if (fromDate > toDate) return res.status(400).send('Intervallo invertito');
+
+  try {
+    // carico righe e colonne fisse
+    const [{ data: anagrafiche }, { data: distretti }] = await Promise.all([
+      supabase.from('anagrafica').select('id, nome, cognome').order('cognome').order('nome'),
+      supabase.from('distretti').select('id, nome').order('nome')
+    ]);
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Fisio Catania';
+    workbook.created = new Date();
+
+    // Palette pastello + testo scuro
+    const styles = {
+      D:  { fill: { type:'pattern', pattern:'solid', fgColor:{argb:'D1E7DD'} }, font:{ bold:true, color:{argb:'0F5132'} } },
+      DG: { fill: { type:'pattern', pattern:'solid', fgColor:{argb:'D1E7DD'} }, font:{ bold:true, color:{argb:'0F5132'} } },
+      I:  { fill: { type:'pattern', pattern:'solid', fgColor:{argb:'F8D7DA'} }, font:{ bold:true, color:{argb:'842029'} } },
+      DV: { fill: { type:'pattern', pattern:'solid', fgColor:{argb:'FFF3CD'} }, font:{ bold:true, color:{argb:'664D03'} } },
+      header: { fill:{ type:'pattern', pattern:'solid', fgColor:{argb:'6C757D'} }, font:{ bold:true, color:{argb:'FFFFFF'} } },
+      colA:   { fill:{ type:'pattern', pattern:'solid', fgColor:{argb:'F8F9FA'} }, font:{ bold:true, color:{argb:'000000'} } }
+    };
+
+    // genera tutti i giorni
+    const days = [];
+    for (let d = new Date(fromDate); d <= toDate; d.setUTCDate(d.getUTCDate()+1)) {
+      days.push(new Date(d));
+    }
+
+    for (const d of days) {
+      const dayISO = d.toISOString().slice(0,10);
+      const { data: rows = [] } = await supabase
+        .from('report_sigle')
+        .select('anagrafica_id, distretto_id, sigla')
+        .eq('data', dayISO);
+
+      const map = new Map();
+      rows.forEach(r => map.set(`${r.anagrafica_id}|${r.distretto_id}`, r.sigla || ''));
+
+      const ws = workbook.addWorksheet(dayISO);
+
+      // Titolo
+      ws.mergeCells('A1:' + String.fromCharCode(65 + distretti.length) + '1');
+      ws.getCell('A1').value = 'RESOCONTO GIORNALIERO';
+      ws.getCell('A1').font = { bold: true, size: 16 };
+
+      // Header
+      ws.getCell(2,1).value = 'Calciatori';
+      Object.assign(ws.getCell(2,1), { fill: styles.header.fill, font: styles.header.font });
+      distretti.forEach((dist, idx) => {
+        const cell = ws.getCell(2, idx+2);
+        cell.value = dist.nome;
+        Object.assign(cell, { fill: styles.header.fill, font: styles.header.font });
+      });
+
+      // Righe
+      anagrafiche.forEach((a, rIdx) => {
+        const rowNum = rIdx + 3;
+        const cA = ws.getCell(rowNum, 1);
+        cA.value = `${a.cognome} ${a.nome}`;
+        Object.assign(cA, { fill: styles.colA.fill, font: styles.colA.font });
+
+        distretti.forEach((dist, cIdx) => {
+          const cell = ws.getCell(rowNum, cIdx+2);
+          const val = map.get(`${a.id}|${dist.id}`) || '';
+          cell.value = val;
+          // Stile badge pastello
+          if (val === 'D')        { Object.assign(cell, styles.D);  }
+          else if (val === 'D (GRADUALE)') { Object.assign(cell, styles.DG); }
+          else if (val === 'I')   { Object.assign(cell, styles.I);  }
+          else if (val === 'DV')  { Object.assign(cell, styles.DV); }
+        });
+      });
+
+      // Colonne responsive
+      ws.getColumn(1).width = 28;
+      for (let i=2; i<=distretti.length+1; i++) ws.getColumn(i).width = 14;
+
+      // Freeze prima riga e prima colonna
+      ws.views = [{ state: 'frozen', xSplit: 1, ySplit: 2 }];
+    }
+
+    // stream al client
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=report_${from}_to_${to}.xlsx`);
+    await workbook.xlsx.write(res);
+    res.end();
+
+  } catch (err) {
+    console.error('Errore export Excel:', err);
+    res.status(500).send('Errore export Excel');
   }
 });
 
