@@ -9,14 +9,13 @@
   <!-- DataTables CSS -->
   <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
 
-  <style>
-    body { margin: 0; }
-    #content { padding: 2rem; margin-left: 200px; }
-    @media (max-width: 767.98px) {
-      #content { margin-left: 0; padding: 1rem; }
-    }
-    .nav-link.active { font-weight: bold; color: #fd0d49 !important; }
-  </style>
+  <!-- TUO CSS GLOBALE (sostituisce lo <style> inline) -->
+<link href="/css/app.css" rel="stylesheet">
+
+<!-- SOLO per la pagina Reportistica -->
+<% if (page === 'reportistica_content') { %>
+  <link href="/css/reportistica.css" rel="stylesheet">
+<% } %>
 </head>
 <body>
   <!-- Offcanvas e sidebar omitted per brevità… -->
@@ -27,13 +26,14 @@
     </div>
     <div class="offcanvas-body p-0">
       <div class="text-center my-3">
-        <img src="/images/Logo_CATANIA_FC.svg.png" alt="Logo Catania" style="max-width:120px;">
+        <img src="/images/Logo_CATANIA_FC.svg.png" alt="Logo Catania" class="logo-120">
       </div>
       <ul class="nav flex-column">
         <li class="nav-item"><a href="/dashboard" class="nav-link <%= page==='dashboard_content'?'active':'' %>">Dashboard</a></li>
         <li class="nav-item"><a href="/anagrafica" class="nav-link <%= page==='anagrafica_content'?'active':'' %>">Anagrafica</a></li>
         <li class="nav-item"><a href="/fascicoli" class="nav-link <%= page==='fascicoli_content'?'active':'' %>">Fascicoli</a></li>
         <li class="nav-item"><a href="/terapie" class="nav-link <%= page==='terapie_content'?'active':'' %>">Terapie</a></li>
+        <li class="nav-item"><a href="/reportistica" class="nav-link <%= page==='reportistica_content'?'active':'' %>">Reportistica</a></li>
         <li class="nav-item"><a href="/distretti" class="nav-link <%= page==='distretti_content'?'active':'' %>">Distretti Anatomici</a></li>
         <li class="nav-item"><a href="/trattamenti" class="nav-link <%= page==='trattamenti_content'?'active':'' %>">Trattamenti</a></li>
         <li class="nav-item"><a href="/operatori" class="nav-link <%= page==='operatori_content'?'active':'' %>">Operatori</a></li>
@@ -56,11 +56,9 @@
   </nav>
 
   <!-- Sidebar fissa per md+ -->
-  <div id="menu"
-       class="d-none d-md-block position-fixed top-0 start-0 h-100 bg-light border-end p-3"
-       style="width:200px;">
+<div id="menu" class="d-none d-md-block position-fixed top-0 start-0 h-100 bg-light border-end p-3 sidebar-200">
     <div class="text-center mb-4">
-      <img src="/images/Logo_CATANIA_FC.svg.png" alt="Logo Catania" style="max-width:120px;">
+      <img src="/images/Logo_CATANIA_FC.svg.png" alt="Logo Catania" class="logo-120">
     </div>
     <ul class="nav flex-column">
       <li class="nav-item"><a href="/dashboard" class="nav-link <%= page==='dashboard_content'?'active':'' %>">Dashboard</a></li>
