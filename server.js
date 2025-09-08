@@ -1246,45 +1246,74 @@ function streamTerapiePDF(res, dayISO, grouped) {
     return `${iso.slice(8,10)}/${iso.slice(5,7)}/${iso.slice(0,4)}`;
   };
 
-  const addHeader = () => {
-    doc.addPage();
-    // Logo
-    if (fs.existsSync(LOGO_PATH)) {
-      try { doc.image(LOGO_PATH, doc.page.margins.left, 30, { width: 90 }); } catch {}
-    }
-    // Titoli
-    doc.fillColor(colors.text).font('Helvetica-Bold').fontSize(14)
-       .text('CATANIA FC – STAFF MEDICO', 150, 34, { align: 'left' });
-    doc.fontSize(20).text(`Report terapie – ${fmtDateIT(dayISO)}`, 150, 58, { align: 'left' });
-    doc.moveTo(doc.page.margins.left, 95).lineTo(doc.page.width - doc.page.margins.right, 95)
-       .strokeColor(colors.border).lineWidth(1).stroke();
+ const LOGO_H = 92; // altezza fissa logo in px (regolabile)
 
-    // Legenda (pill colorate)
-    const startY = 110; let x = doc.page.margins.left, y = startY;
-    const pill = (label, desc, key) => {
-      const padX = 6, padY = 3;
-      const w = doc.widthOfString(label) + padX*2;
-      const h = 16;
-      doc.roundedRect(x, y, w, h, 4)
-         .fillAndStroke(colors[key].bg, colors[key].bg);
-      doc.fillColor(colors[key].fg).font('Helvetica-Bold').fontSize(10)
-         .text(label, x + padX, y + padY - 1);
-      x += w + 8;
-      doc.fillColor(colors.muted).font('Helvetica').fontSize(10)
-         .text(desc, x, y + 2);
-      x += doc.widthOfString(desc) + 14;
-      doc.fillColor(colors.text); // reset
-    };
-    doc.fontSize(11).fillColor(colors.text).text('Legenda:', x, y + 1);
-    x += doc.widthOfString('Legenda:') + 10;
+const addHeader = () => {
+  doc.addPage();
 
-    pill('D', 'Disponibile',        'D');
-    pill('D (GRADUALE)', 'Disponibilità graduale', 'DG');
-    pill('DV', 'Da valutare',       'DV');
-    pill('I', 'Indisponibile',      'I');
+  const left  = doc.page.margins.left;
+  const right = doc.page.width - doc.page.margins.right;
+  const top   = 30;
 
-    doc.moveDown(2);
+  // --- Logo ---
+  let logoBottom = top; // y di fine logo (fallback)
+  if (fs.existsSync(LOGO_PATH)) {
+    try {
+      doc.image(LOGO_PATH, left, top, { height: LOGO_H }); // altezza fissa ⇒ niente sorprese
+      logoBottom = top + LOGO_H;
+    } catch {}
+  }
+
+  // --- Titoli ---
+  const titleX  = left + 120;     // abbastanza a destra del logo
+  const y1      = top + 4;        // riga 1
+  const y2      = y1 + 24;        // riga 2 (sotto di ~24px)
+
+  doc.fillColor(colors.text).font('Helvetica-Bold').fontSize(14)
+     .text('CATANIA FC – STAFF MEDICO', titleX, y1, { align: 'left' });
+
+  doc.fontSize(20)
+     .text(`Report terapie – ${fmtDateIT(dayISO)}`, titleX, y2, { align: 'left' });
+
+  const titlesBottom = y2 + 26;   // stima bottom dei titoli
+
+  // --- Separatore posizionato sotto logo/titoli (il più basso dei due) ---
+  const hrY = Math.max(logoBottom, titlesBottom) + 10;
+  doc.moveTo(left, hrY).lineTo(right, hrY)
+     .strokeColor(colors.border).lineWidth(1).stroke();
+
+  // --- Legenda subito sotto il separatore ---
+  let x = left, y = hrY + 12;
+
+  const pill = (label, desc, key) => {
+    const padX = 6, padY = 3;
+    const w = doc.widthOfString(label) + padX * 2;
+    const h = 16;
+    doc.roundedRect(x, y, w, h, 4)
+       .fillAndStroke(colors[key].bg, colors[key].bg);
+    doc.fillColor(colors[key].fg).font('Helvetica-Bold').fontSize(10)
+       .text(label, x + padX, y + padY - 1);
+
+    x += w + 8;
+    doc.fillColor(colors.muted).font('Helvetica').fontSize(10)
+       .text(desc, x, y + 2);
+    x += doc.widthOfString(desc) + 14;
+
+    doc.fillColor(colors.text);
   };
+
+  doc.fontSize(11).fillColor(colors.text).text('Legenda:', x, y + 1);
+  x += doc.widthOfString('Legenda:') + 10;
+
+  pill('D', 'Disponibile',              'D');
+  pill('D (GRADUALE)', 'Disponibilità graduale', 'DG');
+  pill('DV', 'Da valutare',             'DV');
+  pill('I', 'Indisponibile',            'I');
+
+  // imposta il cursore per i contenuti successivi
+  doc.y = y + 28;
+};
+
 
   // Tabellina per giocatore
   function drawPlayerTable(playerName, rows) {
