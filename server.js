@@ -1867,9 +1867,14 @@ app.get('/fascicoli/:id/export-range', async (req, res) => {
     }, {});
 
     // 3) PDF “pro” con header + logo + legenda + tabelle
+// 3) PDF “pro” con header + logo + legenda + tabelle
 const PDFDocument = require('pdfkit');
 
-const PAGE_MARGIN = 40; // margine unico per tutto il documento
+const PAGE_MARGIN   = 40;
+const LOGO_W        = 90;             // larghezza logo
+const LOGO_BLOCK_H  = 140;            // altezza riservata al blocco logo
+const LEGEND_ROW_H  = 18;             // altezza dei badge in legenda
+
 const doc = new PDFDocument({ margin: PAGE_MARGIN, size: 'A4', autoFirstPage: false });
 
 res.setHeader('Content-Type', 'application/pdf');
@@ -1879,14 +1884,15 @@ res.setHeader(
 );
 doc.pipe(res);
 
-// Utilità (sicure anche prima della prima pagina)
-const W = () => (doc.page ? doc.page.width  : 595.28);  // A4 width fallback
-const H = () => (doc.page ? doc.page.height : 841.89);  // A4 height fallback
+// Utilità sicure anche prima della prima pagina
+const W = () => (doc.page ? doc.page.width  : 595.28);  // A4 fallback
+const H = () => (doc.page ? doc.page.height : 841.89);
 const M = PAGE_MARGIN;
 
 const colors = {
   header: '#1F2937',
   line:   '#e5e7eb',
+  text:   '#111827',
   badge: {
     D:  { bg:'#D1E7DD', fg:'#0F5132', label:'D' },
     DG: { bg:'#D1E7DD', fg:'#0F5132', label:'D (GRADUALE)' },
@@ -1895,54 +1901,79 @@ const colors = {
   }
 };
 
+// dove iniziano testi/legenda, a destra del logo
+const HEADER_TEXT_X = M + LOGO_W + 12;
+
 function addPage() {
   doc.addPage({ margin: PAGE_MARGIN });
   let y = M;
 
-  // Logo (png) + intestazione
+  // Logo
   const logoPath = require('path').join(__dirname, 'public', 'images', 'Logo_CATANIA_FC.svg.png');
-  try { doc.image(logoPath, M, y, { width: 90 }); } catch (_) {}
-  doc.font('Helvetica-Bold').fontSize(14).fillColor(colors.header)
-     .text('CATANIA FC – STAFF MEDICO', M + 100, y);
-  y += 22;
-  doc.font('Helvetica').fontSize(20).fillColor('black')
-     .text(`Fascicolo terapie – ${anag.nome} ${anag.cognome}`, M + 100, y);
-  y += 40;
+  try { doc.image(logoPath, M, y, { width: LOGO_W }); } catch (_) {}
 
-  // linea divisoria sotto il logo
-  const dividerY = Math.max(y, M + 90 + 20);
+  // Titoli a destra del logo
+  doc.font('Helvetica-Bold').fontSize(14).fillColor(colors.header)
+     .text('CATANIA FC – STAFF MEDICO', HEADER_TEXT_X, y);
+  y += 22;
+
+  doc.font('Helvetica').fontSize(20).fillColor('black')
+     .text(`Fascicolo terapie – ${anag.nome} ${anag.cognome}`, HEADER_TEXT_X, y);
+  y += 22;
+
+  // (opzionale) periodo
+  doc.font('Helvetica').fontSize(11).fillColor(colors.text)
+     .text(`Periodo: ${from} → ${to}`, HEADER_TEXT_X, y);
+  y += 18;
+
+  // Divider sotto al logo: parte dopo LOGO_BLOCK_H
+  const dividerY = Math.max(y, M + LOGO_BLOCK_H);
   doc.moveTo(M, dividerY).lineTo(W() - M, dividerY)
      .strokeColor(colors.line).lineWidth(1).stroke();
   y = dividerY + 12;
 
-  // Legenda
-  const startX = M;
-  let x = startX;
-  function badge(label, spec) {
+  // Legenda (badge + descrizione) a destra del logo
+  let x = HEADER_TEXT_X;
+
+  function legendItem(label, spec, text) {
     const padX = 6, padY = 3;
     doc.font('Helvetica-Bold').fontSize(10);
-    const w = doc.widthOfString(label) + padX * 2;
-    doc.roundedRect(x, y, w, 18, 4).fillColor(spec.bg).fill();
+    const wBadge = doc.widthOfString(label) + padX * 2;
+    doc.roundedRect(x, y, wBadge, LEGEND_ROW_H, 4).fillColor(spec.bg).fill();
     doc.fillColor(spec.fg).text(label, x + padX, y + padY);
-    x += w + 10;
-    doc.fillColor('black').font('Helvetica');
-  }
-  badge('D', colors.badge.D);
-  badge('D (GRADUALE)', colors.badge.DG);
-  badge('DV', colors.badge.DV);
-  badge('I', colors.badge.I);
+    x += wBadge + 6;
 
-  return y + 26; // punto di partenza dei contenuti
+    // descrizione a fianco
+    doc.font('Helvetica').fillColor(colors.text);
+    const wText = doc.widthOfString(text);
+    doc.text(text, x, y + 4);
+    x += wText + 16;
+
+    // wrap se non ci sta (non dovrebbe servire con 4 elementi, ma sicuro)
+    if (x > W() - M - 100) {
+      x = HEADER_TEXT_X;
+      y += LEGEND_ROW_H + 6;
+    }
+  }
+
+  legendItem('D',               colors.badge.D,  'Disponibile');
+  legendItem('D (GRADUALE)',    colors.badge.DG, 'Disponibilità graduale');
+  legendItem('DV',              colors.badge.DV, 'Da valutare');
+  legendItem('I',               colors.badge.I,  'Indisponibile');
+
+  // spazio sotto la legenda
+  y += LEGEND_ROW_H + 10;
+
+  return y;
 }
 
 function ensureSpace(needed, yRef) {
-  if (yRef + needed > H() - M) {
-    return addPage();
-  }
+  if (yRef + needed > H() - M) return addPage();
   return yRef;
 }
 
-function drawStatusCell(x, y, text) {
+// badge centrato verticalmente nella cella
+function drawStatusCell(x, y, text, rowH) {
   const map = {
     'D': colors.badge.D,
     'D (GRADUALE)': colors.badge.DG,
@@ -1950,74 +1981,98 @@ function drawStatusCell(x, y, text) {
     'DV': colors.badge.DV
   };
   const spec = map[text];
+
   if (!spec || !text) {
-    doc.fillColor('#6b7280').font('Helvetica').fontSize(10).text('—', x, y + 4);
-    doc.fillColor('black');
-    return 0;
+    doc.fillColor('#6b7280').font('Helvetica').fontSize(10)
+       .text('—', x, y + Math.max(4, Math.floor((rowH - 10)/2)));
+    doc.fillColor(colors.text);
+    return;
   }
+
   doc.font('Helvetica-Bold').fontSize(10);
+  const pillH = 16;
   const w = doc.widthOfString(text) + 12;
-  doc.roundedRect(x, y, w, 16, 4).fillColor(spec.bg).fill();
-  doc.fillColor(spec.fg).text(text, x + 6, y + 3);
-  doc.fillColor('black').font('Helvetica').fontSize(10);
-  return w;
+  const top = y + Math.max(3, Math.floor((rowH - pillH)/2));
+
+  doc.roundedRect(x, top, w, pillH, 4).fillColor(spec.bg).fill();
+  doc.fillColor(spec.fg).text(text, x + 6, top + 3);
+
+  // reset
+  doc.fillColor(colors.text).font('Helvetica').fontSize(10);
 }
 
-// Prima pagina
+// === Prima pagina
 let y = addPage();
 
 const days = Object.keys(byDay).sort();
+
 if (!days.length) {
   y = ensureSpace(30, y);
-  doc.font('Helvetica').fontSize(12).text(`Nessuna terapia tra ${from} e ${to}.`, M, y);
+  doc.font('Helvetica').fontSize(12).fillColor(colors.text)
+     .text(`Nessuna terapia tra ${from} e ${to}.`, M, y);
 } else {
+  // Definizione colonne tabella
+  const cols = [
+    { title: 'Distretto',   w: 140 },
+    { title: 'Trattamento', w: 160 },
+    { title: 'Stato',       w: 90  },
+    { title: 'Note',        w: W() - M*2 - (140 + 160 + 90) }
+  ];
+  const padX = 6, padY = 6;
+
   for (const day of days) {
     const rows = byDay[day];
 
     // header giorno
     y = ensureSpace(30, y);
     doc.font('Helvetica-Bold').fontSize(13).fillColor(colors.header).text(day, M, y);
-    doc.fillColor('black'); y += 8;
+    doc.fillColor(colors.text);
+    y += 8;
 
     // header tabella
     y = ensureSpace(28, y);
-    const cols = [
-      { title: 'Distretto',   w: 140 },
-      { title: 'Trattamento', w: 160 },
-      { title: 'Stato',       w: 90  },
-      { title: 'Note',        w: W() - M * 2 - (140 + 160 + 90) }
-    ];
     let x = M;
     doc.font('Helvetica-Bold').fontSize(10);
     cols.forEach(c => {
       doc.rect(x, y, c.w, 20).fillColor('#f3f4f6').fill();
-      doc.fillColor('#111827').text(c.title, x + 6, y + 6);
+      doc.fillColor(colors.text).text(c.title, x + padX, y + 6);
       x += c.w;
     });
     y += 20;
-    doc.fillColor('black').font('Helvetica').fontSize(10);
+    doc.fillColor(colors.text).font('Helvetica').fontSize(10);
 
-    // righe
+    // righe con altezza dinamica
     for (const r of rows) {
-      const rowH = 22;
+      // misura dei testi con wrapping
+      doc.font('Helvetica').fontSize(10);
+      const hDist = doc.heightOfString(r.distretto || '—',   { width: cols[0].w - padX*2 });
+      const hTr   = doc.heightOfString(r.trattamento || '—', { width: cols[1].w - padX*2 });
+      const hNote = doc.heightOfString(r.note || '—',        { width: cols[3].w - padX*2 });
+
+      const contentH = Math.max(hDist, hTr, hNote, 16); // almeno quanto il badge
+      const rowH = Math.max(22, contentH + padY*2);
+
       y = ensureSpace(rowH, y);
       let cx = M;
 
-      // distretto
+      // Distretto
       doc.rect(cx, y, cols[0].w, rowH).strokeColor(colors.line).stroke();
-      doc.text(r.distretto, cx + 6, y + 6, { width: cols[0].w - 12 }); cx += cols[0].w;
+      doc.text(r.distretto || '—', cx + padX, y + padY, { width: cols[0].w - padX*2 });
+      cx += cols[0].w;
 
-      // trattamento
+      // Trattamento
       doc.rect(cx, y, cols[1].w, rowH).stroke();
-      doc.text(r.trattamento, cx + 6, y + 6, { width: cols[1].w - 12 }); cx += cols[1].w;
+      doc.text(r.trattamento || '—', cx + padX, y + padY, { width: cols[1].w - padX*2 });
+      cx += cols[1].w;
 
-      // stato (badge)
+      // Stato (badge)
       doc.rect(cx, y, cols[2].w, rowH).stroke();
-      drawStatusCell(cx + 6, y + 3, r.sigla); cx += cols[2].w;
+      drawStatusCell(cx + padX, y, r.sigla, rowH);
+      cx += cols[2].w;
 
-      // note
+      // Note
       doc.rect(cx, y, cols[3].w, rowH).stroke();
-      doc.text(r.note || '—', cx + 6, y + 6, { width: cols[3].w - 12 });
+      doc.text(r.note || '—', cx + padX, y + padY, { width: cols[3].w - padX*2 });
 
       y += rowH;
     }
@@ -2028,6 +2083,7 @@ if (!days.length) {
 }
 
 doc.end();
+
 
   } catch (err) {
     console.error('Export fascicolo range:', err);
