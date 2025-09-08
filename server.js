@@ -11,6 +11,10 @@ const PDFDocument = require('pdfkit');
 const crypto = require('crypto');
 const ExcelJS = require('exceljs');
 
+const LOGO_PATH = path.join(__dirname, 'public', 'images', 'Logo_CATANIA_FC.svg.png'); 
+
+
+
 
 
 
@@ -1172,6 +1176,7 @@ app.post('/fascicoli/:id/infortunio', async (req, res) => {
 // =========================
 
 // helper comune: genera il PDF in risposta HTTP
+/*
 function streamTerapiePDF(res, dayISO, grouped) {
   const PDFDocument = require('pdfkit');
   const doc = new PDFDocument({ autoFirstPage: false });
@@ -1210,7 +1215,194 @@ function streamTerapiePDF(res, dayISO, grouped) {
   });
 
   doc.end();
+} */
+
+
+ function streamTerapiePDF(res, dayISO, grouped) {
+  const PDFDocument = require('pdfkit');
+  const doc = new PDFDocument({ margin: 40, size: 'A4', autoFirstPage: false });
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename=terapie_${dayISO}.pdf`);
+  doc.pipe(res);
+
+  // Helpers di stile
+  const colors = {
+    primary: '#0d6efd',
+    text:    '#212529',
+    muted:   '#6c757d',
+    headerBg:'#343a40',
+    headerFg:'#ffffff',
+    tableHeadBg:'#e9ecef',
+    border:  '#dee2e6',
+    D:  { bg:'#d1e7dd', fg:'#0f5132' },      // verde pastello
+    DG: { bg:'#d1e7dd', fg:'#0f5132' },      // stesso verde
+    I:  { bg:'#f8d7da', fg:'#842029' },      // rosso pastello
+    DV: { bg:'#fff3cd', fg:'#664d03' }       // giallo pastello
+  };
+
+  const fmtDateIT = iso => {
+    // YYYY-MM-DD -> DD/MM/YYYY
+    return `${iso.slice(8,10)}/${iso.slice(5,7)}/${iso.slice(0,4)}`;
+  };
+
+  const addHeader = () => {
+    doc.addPage();
+    // Logo
+    if (fs.existsSync(LOGO_PATH)) {
+      try { doc.image(LOGO_PATH, doc.page.margins.left, 30, { width: 90 }); } catch {}
+    }
+    // Titoli
+    doc.fillColor(colors.text).font('Helvetica-Bold').fontSize(14)
+       .text('CATANIA FC – STAFF MEDICO', 150, 34, { align: 'left' });
+    doc.fontSize(20).text(`Report terapie – ${fmtDateIT(dayISO)}`, 150, 58, { align: 'left' });
+    doc.moveTo(doc.page.margins.left, 95).lineTo(doc.page.width - doc.page.margins.right, 95)
+       .strokeColor(colors.border).lineWidth(1).stroke();
+
+    // Legenda (pill colorate)
+    const startY = 110; let x = doc.page.margins.left, y = startY;
+    const pill = (label, desc, key) => {
+      const padX = 6, padY = 3;
+      const w = doc.widthOfString(label) + padX*2;
+      const h = 16;
+      doc.roundedRect(x, y, w, h, 4)
+         .fillAndStroke(colors[key].bg, colors[key].bg);
+      doc.fillColor(colors[key].fg).font('Helvetica-Bold').fontSize(10)
+         .text(label, x + padX, y + padY - 1);
+      x += w + 8;
+      doc.fillColor(colors.muted).font('Helvetica').fontSize(10)
+         .text(desc, x, y + 2);
+      x += doc.widthOfString(desc) + 14;
+      doc.fillColor(colors.text); // reset
+    };
+    doc.fontSize(11).fillColor(colors.text).text('Legenda:', x, y + 1);
+    x += doc.widthOfString('Legenda:') + 10;
+
+    pill('D', 'Disponibile',        'D');
+    pill('D (GRADUALE)', 'Disponibilità graduale', 'DG');
+    pill('DV', 'Da valutare',       'DV');
+    pill('I', 'Indisponibile',      'I');
+
+    doc.moveDown(2);
+  };
+
+  // Tabellina per giocatore
+  function drawPlayerTable(playerName, rows) {
+    const left = doc.page.margins.left;
+    const right = doc.page.width - doc.page.margins.right;
+    const maxY = doc.page.height - doc.page.margins.bottom;
+
+    const colW = {
+      distretto: 150,
+      trattamento: 170,
+      sigla: 70,
+      note: (right - left) - (150 + 170 + 70)
+    };
+    const rowPad = 6;
+    const headH  = 22;
+
+    // A capo pagina se serve spazio per titolo + header
+    const need = 24 + headH + 8;
+    if (doc.y + need > maxY) addHeader();
+
+    // Nome giocatore
+    doc.fillColor(colors.primary).font('Helvetica-Bold').fontSize(13)
+       .text(playerName, left, doc.y + 6);
+    doc.fillColor(colors.text).moveDown(0.3);
+
+    // Header tabella
+    let y = doc.y;
+    doc.rect(left, y, right - left, headH).fillAndStroke(colors.tableHeadBg, colors.border);
+    doc.fillColor(colors.text).font('Helvetica-Bold').fontSize(10);
+    doc.text('Distretto',   left + 6, y + 6, { width: colW.distretto });
+    doc.text('Trattamento', left + 6 + colW.distretto, y + 6, { width: colW.trattamento });
+    doc.text('Stato',       left + 6 + colW.distretto + colW.trattamento, y + 6, { width: colW.sigla });
+    doc.text('Note',        left + 6 + colW.distretto + colW.trattamento + colW.sigla, y + 6, { width: colW.note });
+    doc.fillColor(colors.text).font('Helvetica').fontSize(10);
+    y += headH;
+
+    // Righe
+    rows.forEach((r, idx) => {
+      // Calcolo altezza riga in base ai contenuti (wrapping)
+      const hDist = doc.heightOfString(r.distretto || '—',   { width: colW.distretto - 12 });
+      const hTrat = doc.heightOfString(r.trattamento || '—', { width: colW.trattamento - 12 });
+      const hSigl = 14;
+      const hNote = doc.heightOfString(r.note || '—',        { width: colW.note - 12 });
+      const rowH  = Math.max(hDist, hTrat, hSigl, hNote) + rowPad*2;
+
+      // Se non ci sta, nuova pagina con header + re-header tabella
+      if (y + rowH > maxY) {
+        addHeader();
+        // re-header tabella
+        y = doc.y;
+        doc.rect(left, y, right - left, headH).fillAndStroke(colors.tableHeadBg, colors.border);
+        doc.fillColor(colors.text).font('Helvetica-Bold').fontSize(10);
+        doc.text('Distretto',   left + 6, y + 6, { width: colW.distretto });
+        doc.text('Trattamento', left + 6 + colW.distretto, y + 6, { width: colW.trattamento });
+        doc.text('Stato',       left + 6 + colW.distretto + colW.trattamento, y + 6, { width: colW.sigla });
+        doc.text('Note',        left + 6 + colW.distretto + colW.trattamento + colW.sigla, y + 6, { width: colW.note });
+        doc.fillColor(colors.text).font('Helvetica').fontSize(10);
+        y += headH;
+      }
+
+      // Riga (bordo)
+      doc.rect(left, y, right - left, rowH).strokeColor(colors.border).lineWidth(0.8).stroke();
+
+      // Celle testo
+      doc.text(r.distretto || '—', left + 6, y + rowPad, { width: colW.distretto - 12 });
+      doc.text(r.trattamento || '—', left + 6 + colW.distretto, y + rowPad, { width: colW.trattamento - 12 });
+
+      // Sigla come “badge”
+      const val = (r.sigla || '').toUpperCase();
+      const badge = (key, text) => {
+        const m = colors[key];
+        const padX = 5, padY = 3;
+        const w = Math.max(30, doc.widthOfString(text) + padX*2);
+        const h = 14;
+        const cx = left + colW.distretto + colW.trattamento + (colW.sigla - w)/2;
+        const cy = y + rowPad + 2;
+        doc.roundedRect(cx, cy, w, h, 3).fillAndStroke(m.bg, m.bg);
+        doc.fillColor(m.fg).font('Helvetica-Bold').fontSize(9).text(text, cx + padX, cy + padY - 2);
+        doc.fillColor(colors.text).font('Helvetica').fontSize(10);
+      };
+      if (val === 'D') badge('D','D');
+      else if (val === 'D (GRADUALE)') badge('DG','D (GRADUALE)');
+      else if (val === 'I') badge('I','I');
+      else if (val === 'DV') badge('DV','DV');
+      else doc.text('—', left + 6 + colW.distretto + colW.trattamento, y + rowPad, { width: colW.sigla - 12, align:'center' });
+
+      doc.text(r.note || '—',
+               left + 6 + colW.distretto + colW.trattamento + colW.sigla,
+               y + rowPad, { width: colW.note - 12 });
+
+      y += rowH;
+    });
+
+    doc.moveDown(0.6);
+    doc.y = y + 6;
+  }
+
+  // ===== Avvio costruzione documento =====
+  addHeader();
+
+  // Nessun dato
+  if (!grouped || Object.keys(grouped).length === 0) {
+    doc.moveDown(2);
+    doc.fontSize(12).fillColor(colors.muted).text('Nessuna terapia trovata per questa data.');
+    doc.end();
+    return;
+  }
+
+  // Ordina per nome e stampa
+  Object.entries(grouped)
+    .sort((a,b) => a[0].localeCompare(b[0], 'it'))
+    .forEach(([playerName, items]) => {
+      drawPlayerTable(playerName, items);
+    });
+
+  doc.end();
 }
+ 
 
 // helper: valida "YYYY-MM-DD"
 function parseDateParam(dateStr) {
