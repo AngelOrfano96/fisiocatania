@@ -9,3 +9,12 @@ body { margin: 0; }
 /* Sostituisce gli style="…" nel layout */
 .sidebar-200 { width: 200px; }
 .logo-120 { max-width: 120px; }
+
+
+
+/* Ritaglio verticale privilegiando la parte alta dell'immagine */
+.portrait-top { object-fit: cover; object-position: top center; }
+
+/* Comode utility per le dimensioni che usi in lista e dettaglio */
+.thumb-60 { width:60px; height:60px; }
+.portrait-100 { width:100px; height:100px; }

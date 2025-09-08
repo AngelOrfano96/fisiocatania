@@ -1817,6 +1817,215 @@ app.get('/reportistica/export', async (req, res) => {
   }
 });
 
+
+// =============================
+//  FASCICOLI -> EXPORT RANGE
+// =============================
+app.get('/fascicoli/:id/export-range', async (req, res) => {
+  if (!req.session.user) return res.status(401).send('Non autorizzato');
+
+  const id = parseInt(req.params.id, 10);
+  const { from, to } = req.query || {};
+  if (!Number.isInteger(id)) return res.status(400).send('ID non valido');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from || '') || !/^\d{4}-\d{2}-\d{2}$/.test(to || ''))
+    return res.status(400).send('Intervallo date non valido');
+
+  try {
+    // 1) Dati giocatore
+    const { data: anag, error: errA } = await supabase
+      .from('anagrafica')
+      .select('id, nome, cognome')
+      .eq('id', id).single();
+    if (errA || !anag) throw errA || new Error('Anagrafica non trovata');
+
+    // 2) Terapie nel range
+    const { data: rows, error: errT } = await supabase
+      .from('terapie')
+      .select(`
+        data_trattamento,
+        sigla,
+        note,
+        distretti:distretto_id ( nome ),
+        trattamenti:trattamento_id ( nome )
+      `)
+      .eq('anagrafica_id', id)
+      .gte('data_trattamento', from)
+      .lte('data_trattamento', to)
+      .order('data_trattamento', { ascending: true });
+    if (errT) throw errT;
+
+    // Group by giorno
+    const byDay = rows.reduce((acc, r) => {
+      const d = String(r.data_trattamento).slice(0,10);
+      (acc[d] ||= []).push({
+        distretto:     r.distretti?.nome || '—',
+        trattamento:   r.trattamenti?.nome || '—',
+        sigla:         r.sigla || '',
+        note:          r.note || '—'
+      });
+      return acc;
+    }, {});
+
+    // 3) PDF “pro” con header + logo + legenda + tabelle
+    const PDFDocument = require('pdfkit');
+    const doc = new PDFDocument({ margin: 40, size: 'A4', autoFirstPage: false });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${anag.cognome}_${anag.nome}_terapie_${from}_to_${to}.pdf"`
+    );
+    doc.pipe(res);
+
+    // Utilità
+    const W = () => doc.page.width;
+    const H = () => doc.page.height;
+    const M = doc.page.margins.left;
+    const colors = {
+      header: '#1F2937',
+      line:   '#e5e7eb',
+      badge: {
+        D:  { bg:'#D1E7DD', fg:'#0F5132', label:'D' },
+        DG: { bg:'#D1E7DD', fg:'#0F5132', label:'D (GRADUALE)' },
+        I:  { bg:'#F8D7DA', fg:'#842029', label:'I' },
+        DV: { bg:'#FFF3CD', fg:'#664D03', label:'DV' }
+      }
+    };
+
+    function addPage() {
+      doc.addPage();
+      let y = M;
+
+      // Logo (png) + intestazione
+      const logoPath = require('path').join(__dirname, 'public', 'images', 'Logo_CATANIA_FC.svg.png');
+      try { doc.image(logoPath, M, y, { width: 90 }); } catch(_) {}
+      doc.font('Helvetica-Bold').fontSize(14).fillColor(colors.header).text('CATANIA FC – STAFF MEDICO', M+100, y);
+      y += 22;
+      doc.font('Helvetica').fontSize(20).fillColor('black')
+         .text(`Fascicolo terapie – ${anag.nome} ${anag.cognome}`, M+100, y);
+      y += 40;
+
+      // linea divisoria sotto il logo (la legenda parte dopo)
+      const dividerY = Math.max(y, M + 90 + 20);
+      doc.moveTo(M, dividerY).lineTo(W()-M, dividerY).strokeColor(colors.line).lineWidth(1).stroke();
+      y = dividerY + 12;
+
+      // Legenda
+      const startX = M;
+      let x = startX;
+      function badge(label, spec) {
+        const padX=6, padY=3;
+        doc.roundedRect(x, y, doc.widthOfString(label)+padX*2, 18, 4)
+           .fillColor(spec.bg).fill();
+        doc.fillColor(spec.fg).font('Helvetica-Bold').fontSize(10)
+           .text(label, x+padX, y+padY);
+        x += doc.widthOfString(label)+padX*2 + 10;
+        doc.fillColor('black');
+      }
+      badge('D', colors.badge.D);
+      badge('D (GRADUALE)', colors.badge.DG);
+      badge('DV', colors.badge.DV);
+      badge('I', colors.badge.I);
+
+      return y + 26; // ritorna il punto di partenza per i contenuti
+    }
+
+    function ensureSpace(needed, yRef) {
+      if (yRef + needed > H() - M) {
+        return addPage();
+      }
+      return yRef;
+    }
+
+    function drawStatusCell(x, y, text) {
+      const map = {
+        'D': colors.badge.D,
+        'D (GRADUALE)': colors.badge.DG,
+        'I': colors.badge.I,
+        'DV': colors.badge.DV
+      };
+      const spec = map[text];
+      if (!spec || !text) return doc.fillColor('#6b7280').text('—', x, y+4);
+      const w = doc.widthOfString(text) + 12;
+      doc.roundedRect(x, y, w, 16, 4).fillColor(spec.bg).fill();
+      doc.fillColor(spec.fg).font('Helvetica-Bold').fontSize(10).text(text, x+6, y+3);
+      doc.fillColor('black').font('Helvetica').fontSize(10);
+      return w;
+    }
+
+    // Prima pagina
+    let y = addPage();
+
+    const days = Object.keys(byDay).sort();
+    if (!days.length) {
+      y = ensureSpace(30, y);
+      doc.font('Helvetica').fontSize(12).text(`Nessuna terapia tra ${from} e ${to}.`, M, y);
+    } else {
+      for (const day of days) {
+        const rows = byDay[day];
+
+        // header giorno
+        y = ensureSpace(30, y);
+        doc.font('Helvetica-Bold').fontSize(13).fillColor(colors.header)
+           .text(day, M, y);
+        doc.fillColor('black'); y += 8;
+
+        // header tabella
+        y = ensureSpace(28, y);
+        const cols = [
+          { title:'Distretto',   w: 140 },
+          { title:'Trattamento', w: 160 },
+          { title:'Stato',       w: 90  },
+          { title:'Note',        w: W()-M*2 - (140+160+90) }
+        ];
+        let x = M;
+        doc.font('Helvetica-Bold').fontSize(10);
+        cols.forEach(c => {
+          doc.rect(x, y, c.w, 20).fillColor('#f3f4f6').fill();
+          doc.fillColor('#111827').text(c.title, x+6, y+6);
+          x += c.w;
+        });
+        y += 20;
+        doc.fillColor('black').font('Helvetica').fontSize(10);
+
+        // righe
+        for (const r of rows) {
+          const rowH = 22;
+          y = ensureSpace(rowH, y);
+          let cx = M;
+
+          // distretto
+          doc.rect(cx, y, cols[0].w, rowH).strokeColor(colors.line).stroke();
+          doc.text(r.distretto, cx+6, y+6, { width: cols[0].w-12 }); cx += cols[0].w;
+
+          // trattamento
+          doc.rect(cx, y, cols[1].w, rowH).stroke();
+          doc.text(r.trattamento, cx+6, y+6, { width: cols[1].w-12 }); cx += cols[1].w;
+
+          // stato (badge)
+          doc.rect(cx, y, cols[2].w, rowH).stroke();
+          drawStatusCell(cx+6, y+3, r.sigla); cx += cols[2].w;
+
+          // note
+          doc.rect(cx, y, cols[3].w, rowH).stroke();
+          doc.text(r.note || '—', cx+6, y+6, { width: cols[3].w-12 });
+
+          y += rowH;
+        }
+
+        // spazio tra giornate
+        y += 10;
+      }
+    }
+
+    doc.end();
+  } catch (err) {
+    console.error('Export fascicolo range:', err);
+    res.status(500).send('Errore durante la generazione del PDF');
+  }
+});
+
+
 // Avvio server
 app.listen(PORT, () => {
   console.log(`Server in ascolto su http://localhost:${PORT}`);

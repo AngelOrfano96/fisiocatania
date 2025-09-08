@@ -11,10 +11,9 @@
             class="d-flex align-items-center">
         <div class="position-relative me-3">
           <img id="profile-img"
-               src="<%= fotoSrc %>"
-               alt="Foto di <%= anagrafica.nome %> <%= anagrafica.cognome %>"
-               class="img-thumbnail"
-               style="width:100px; height:100px; object-fit:cover;">
+     src="<%= fotoSrc %>"
+     alt="Foto di <%= anagrafica.nome %> <%= anagrafica.cognome %>"
+     class="img-thumbnail portrait-top portrait-100">
           <input id="foto-input"
                  type="file"
                  name="foto"
@@ -81,6 +80,39 @@
     ↩️ Annulla
   </button>
 </div>
+
+
+
+
+
+
+
+<form class="row g-2 align-items-end mb-4"
+      action="/fascicoli/<%= anagrafica.id %>/export-range"
+      method="GET">
+  <div class="col-auto">
+    <label class="form-label mb-0"><strong>Scarica tutte le terapie</strong></label>
+  </div>
+  <div class="col-auto">
+    <label class="form-label mb-1">Da</label>
+    <input type="date" name="from" class="form-control"
+           value="<%= new Date().toISOString().slice(0,10) %>" required>
+  </div>
+  <div class="col-auto">
+    <label class="form-label mb-1">A</label>
+    <input type="date" name="to" class="form-control"
+           value="<%= new Date().toISOString().slice(0,10) %>" required>
+  </div>
+  <div class="col-auto">
+    <button class="btn btn-outline-primary">
+      📄 Esporta PDF
+    </button>
+  </div>
+</form>
+
+
+
+
 
 <script>
   (function(){

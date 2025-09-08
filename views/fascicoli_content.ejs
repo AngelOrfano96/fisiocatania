@@ -48,13 +48,11 @@
     %>
     <tr>
       <td>
-        <img
-          src="<%= fotoSrc %>"
-          alt="Foto di <%= a.nome %> <%= a.cognome %>"
-          class="img-thumbnail"
-          style="width:60px; height:60px; object-fit:cover;"
-          onerror="this.onerror=null; this.src='<%= defaultPhoto %>'"
-        >
+       <img
+  src="<%= fotoSrc %>"
+  alt="Foto di <%= a.nome %> <%= a.cognome %>"
+  class="img-thumbnail portrait-top thumb-60"
+  onerror="this.onerror=null; this.src='<%= defaultPhoto %>'">
       </td>
       <td><%= a.nome %> <%= a.cognome %></td>
       <td><%= dataDisplay %></td>
