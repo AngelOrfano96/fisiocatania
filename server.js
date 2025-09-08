@@ -2024,10 +2024,17 @@ if (!days.length) {
     const rows = byDay[day];
 
     // header giorno
-    y = ensureSpace(30, y);
-    doc.font('Helvetica-Bold').fontSize(13).fillColor(colors.header).text(day, M, y);
-    doc.fillColor(colors.text);
-    y += 8;
+   // header giorno — più spazio sotto la data
+y = ensureSpace(30, y);
+doc.font('Helvetica-Bold').fontSize(13).fillColor(colors.header).text(day, M, y);
+
+// calcolo l'altezza effettiva della riga data e aggiungo margine extra
+const dayH = doc.heightOfString(day, { width: W() - M * 2 });
+const DAY_GAP = 10;            // margine extra sotto la data (regolabile)
+y += dayH + DAY_GAP;
+
+doc.fillColor(colors.text);
+
 
     // header tabella
     y = ensureSpace(28, y);
