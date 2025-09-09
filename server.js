@@ -344,7 +344,8 @@ app.get('/terapie', async (req, res) => {
         distretti:distretti!inner(nome),
         trattamenti:trattamenti!inner(nome)
       `)
-      .order('data_trattamento', { ascending: false });
+      .order('data_trattamento', { ascending: false })
+      .order('id', { ascending: true });
 
     if (filter_anagrafica!=='all') query = query.eq('anagrafica_id', filter_anagrafica);
     if (filter_distretto!=='all')   query = query.eq('distretto_id',   filter_distretto);
@@ -405,16 +406,42 @@ app.post('/terapie', async (req, res) => {
 
 app.post('/terapie/update/:id', async (req, res) => {
   if (!req.session.user) return res.status(401).send('Non autorizzato');
-  const id = req.params.id;
+  const id = parseInt(req.params.id, 10);
 
   let { data_trattamento, anagrafica_id, distretto_id, trattamento_id, sigla, note } = req.body;
-  sigla = sigla?.trim() || null;  // <- idem
+  sigla = sigla?.trim() || null;
 
   try {
+    // leggo la data attuale per confrontarla
+    const { data: oldRow, error: eFetch } = await supabase
+      .from('terapie')
+      .select('data_trattamento')
+      .eq('id', id)
+      .single();
+    if (eFetch) throw eFetch;
+
+    const oldDate = String(oldRow?.data_trattamento || '').slice(0, 10);
+    const newDate = (data_trattamento || '').slice(0, 10);
+
+    // costruiamo payload dinamico (PATCH-like)
+    const payload = {
+      anagrafica_id,
+      distretto_id,
+      trattamento_id,
+      sigla,
+      note
+    };
+
+    // includo la data SOLO se è diversa da quella salvata
+    if (newDate && newDate !== oldDate) {
+      payload.data_trattamento = newDate;
+    }
+
     const { error } = await supabase
       .from('terapie')
-      .update({ data_trattamento, anagrafica_id, distretto_id, trattamento_id, sigla, note })
+      .update(payload)
       .eq('id', id);
+
     if (error) throw error;
     res.sendStatus(200);
   } catch (err) {
@@ -422,6 +449,7 @@ app.post('/terapie/update/:id', async (req, res) => {
     res.sendStatus(500);
   }
 });
+
 
 
 // POST /terapie/delete/:id

@@ -148,14 +148,16 @@
         <span class="static"><%= t.operatore %></span>
       </td>
       <td class="data_trattamento">
-        <span class="static"><%= dtStr %></span>
-        <input
-          name="data_trattamento"
-          type="date"
-          class="form-control form-control-sm editable d-none"
-          value="<%= dtStr %>"
-        >
-      </td>
+  <span class="static"><%= dtStr %></span>
+  <input
+    name="data_trattamento"
+    type="date"
+    class="form-control form-control-sm editable d-none"
+    value="<%= dtStr %>"
+    data-original="<%= dtStr %>"
+  >
+</td>
+
       <td class="anagrafica">
         <span class="static"><%= t.anagrafica %></span>
         <select name="anagrafica_id" class="form-select form-select-sm editable d-none">
@@ -252,21 +254,32 @@ $(document).ready(function(){
     location.reload();
   });
 
-  $('.btn-save').click(function(){
-    const row = $(this).closest('tr');
-    const id  = row.data('id');
-    const data = {
-      data_trattamento: row.find('input[name="data_trattamento"]').val(),
-      anagrafica_id:    row.find('select[name="anagrafica_id"]').val(),
-      distretto_id:     row.find('select[name="distretto_id"]').val(),
-      trattamento_id:   row.find('select[name="trattamento_id"]').val(),
-      sigla:            row.find('select[name="sigla"]').val(),
-      note:             row.find('input[name="note"]').val()
-    };
-    $.post(`/terapie/update/${id}`, data)
-     .done(()=> location.reload())
-     .fail(()=> alert('Errore durante il salvataggio'));
-  });
+$('.btn-save').click(function(){
+  const row = $(this).closest('tr');
+  const id  = row.data('id');
+
+  const dateInput     = row.find('input[name="data_trattamento"]');
+  const originalDate  = dateInput.attr('data-original') || '';
+  const currentDate   = dateInput.val() || '';
+
+  const data = {
+    anagrafica_id:  row.find('select[name="anagrafica_id"]').val(),
+    distretto_id:   row.find('select[name="distretto_id"]').val(),
+    trattamento_id: row.find('select[name="trattamento_id"]').val(),
+    sigla:          row.find('select[name="sigla"]').val(),
+    note:           row.find('input[name="note"]').val()
+  };
+
+  // includi la data solo se l'utente l'ha cambiata
+  if (currentDate && currentDate !== originalDate) {
+    data.data_trattamento = currentDate;
+  }
+
+  $.post(`/terapie/update/${id}`, data)
+   .done(()=> location.reload())
+   .fail(()=> alert('Errore durante il salvataggio'));
+});
+
 });
 </script>
 
