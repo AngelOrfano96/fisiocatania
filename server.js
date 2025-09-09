@@ -332,20 +332,20 @@ app.get('/terapie', async (req, res) => {
     ]);
 
     // Query terapie con join
-    let query = supabase
-      .from('terapie')
-      .select(`
-        id,
-        operatore,
-        data_trattamento,
-        sigla,
-        note,
-        anagrafica:anagrafica!inner(nome,cognome),
-        distretti:distretti!inner(nome),
-        trattamenti:trattamenti!inner(nome)
-      `)
-      .order('data_trattamento', { ascending: false })
-      .order('id', { ascending: true });
+   let query = supabase
+  .from('terapie')
+  .select(`
+    id,
+    operatore,
+    data_trattamento,
+    sigla,
+    note,
+    anagrafica:anagrafica!inner(nome,cognome),
+    distretti:distretti!inner(nome),
+    trattamenti:trattamenti!inner(nome)
+  `)
+  .order('data_trattamento', { ascending: false })
+  .order('id', { ascending: false });   // <— prima le ultime inserite
 
     if (filter_anagrafica!=='all') query = query.eq('anagrafica_id', filter_anagrafica);
     if (filter_distretto!=='all')   query = query.eq('distretto_id',   filter_distretto);

@@ -247,7 +247,8 @@ $(document).ready(function(){
     row.find('.static').addClass('d-none');
     row.find('.editable').removeClass('d-none');
     row.find('.btn-edit').addClass('d-none');
-    row.find('.btn-save, .btn-cancel').removeClass('d-none');
+    row.find('.btn-save, .btn-cancel').removeClass('d-none'),
+    order: [];
   });
 
   $('.btn-cancel').click(function(){
