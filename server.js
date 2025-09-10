@@ -407,48 +407,40 @@ app.post('/terapie', async (req, res) => {
 app.post('/terapie/update/:id', async (req, res) => {
   if (!req.session.user) return res.status(401).send('Non autorizzato');
   const id = parseInt(req.params.id, 10);
+  if (Number.isNaN(id)) return res.status(400).send('ID non valido');
 
   let { data_trattamento, anagrafica_id, distretto_id, trattamento_id, sigla, note } = req.body;
-  sigla = sigla?.trim() || null;
+
+  // Costruisco un payload "a campi presenti"
+  const payload = {
+    // converto in int solo se arrivano
+    anagrafica_id:   anagrafica_id   !== undefined ? parseInt(anagrafica_id, 10)   : undefined,
+    distretto_id:    distretto_id    !== undefined ? parseInt(distretto_id, 10)    : undefined,
+    trattamento_id:  trattamento_id  !== undefined ? parseInt(trattamento_id, 10) : undefined,
+    sigla:           sigla && sigla.trim() ? sigla.trim() : null,
+    note:            note ?? null
+  };
+
+  // Aggiorno la data SOLO se il client l’ha davvero cambiata/inviata
+  if (typeof data_trattamento === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data_trattamento)) {
+    payload.data_trattamento = data_trattamento;
+  } else {
+    delete payload.data_trattamento;
+  }
+
+  // Rimuovo chiavi undefined (così NON vengono toccate)
+  Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
 
   try {
-    // leggo la data attuale per confrontarla
-    const { data: oldRow, error: eFetch } = await supabase
-      .from('terapie')
-      .select('data_trattamento')
-      .eq('id', id)
-      .single();
-    if (eFetch) throw eFetch;
-
-    const oldDate = String(oldRow?.data_trattamento || '').slice(0, 10);
-    const newDate = (data_trattamento || '').slice(0, 10);
-
-    // costruiamo payload dinamico (PATCH-like)
-    const payload = {
-      anagrafica_id,
-      distretto_id,
-      trattamento_id,
-      sigla,
-      note
-    };
-
-    // includo la data SOLO se è diversa da quella salvata
-    if (newDate && newDate !== oldDate) {
-      payload.data_trattamento = newDate;
-    }
-
-    const { error } = await supabase
-      .from('terapie')
-      .update(payload)
-      .eq('id', id);
-
+    const { error } = await supabase.from('terapie').update(payload).eq('id', id);
     if (error) throw error;
     res.sendStatus(200);
   } catch (err) {
-    console.error(err);
+    console.error('Errore update terapia:', err);
     res.sendStatus(500);
   }
 });
+
 
 
 

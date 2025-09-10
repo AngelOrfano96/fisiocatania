@@ -239,7 +239,8 @@ $(document).ready(function(){
   $('#tabellaTerapie').DataTable({
     pageLength: 10,
     lengthMenu: [5,10,20],
-    columnDefs:[{ orderable:false, targets:7 }]
+    columnDefs:[{ orderable:false, targets:7 }],
+    order: []
   });
 
   $('.btn-edit').click(function(){
@@ -254,14 +255,10 @@ $(document).ready(function(){
   $('.btn-cancel').click(function(){
     location.reload();
   });
-
 $('.btn-save').click(function(){
   const row = $(this).closest('tr');
   const id  = row.data('id');
-
-  const dateInput     = row.find('input[name="data_trattamento"]');
-  const originalDate  = dateInput.attr('data-original') || '';
-  const currentDate   = dateInput.val() || '';
+  const dateInput = row.find('input[name="data_trattamento"]')[0];
 
   const data = {
     anagrafica_id:  row.find('select[name="anagrafica_id"]').val(),
@@ -271,15 +268,16 @@ $('.btn-save').click(function(){
     note:           row.find('input[name="note"]').val()
   };
 
-  // includi la data solo se l'utente l'ha cambiata
-  if (currentDate && currentDate !== originalDate) {
-    data.data_trattamento = currentDate;
+  if (dateInput && dateInput.value !== dateInput.defaultValue) {
+    data.data_trattamento = dateInput.value;
   }
 
   $.post(`/terapie/update/${id}`, data)
    .done(()=> location.reload())
    .fail(()=> alert('Errore durante il salvataggio'));
 });
+
+
 
 });
 </script>
