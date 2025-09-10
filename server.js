@@ -1650,45 +1650,6 @@ app.post('/terapie/copia/:id', async (req, res) => {
 });
 /////////////////////////reportistica
 
-app.get('/reportistica', async (req, res) => {
-  if (!req.session.user) return res.redirect('/');
-
-  // data selezionata (default oggi, nel formato YYYY-MM-DD locale)
-  const todayLocal = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
-    .toISOString().slice(0,10);
-  const giorno = (req.query.date && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date))
-    ? req.query.date
-    : todayLocal;
-
-  try {
-    const [{ data: anagrafiche }, { data: distretti }] = await Promise.all([
-      supabase.from('anagrafica').select('id, nome, cognome').order('cognome').order('nome'),
-      supabase.from('distretti').select('id, nome').order('nome')
-    ]);
-
-    const { data: rows = [] } = await supabase
-      .from('report_sigle')
-      .select('anagrafica_id, distretto_id, sigla')
-      .eq('data', giorno);
-
-    const sigleMap = {};
-    rows.forEach(r => { sigleMap[`${r.anagrafica_id}|${r.distretto_id}`] = r.sigla || ''; });
-
-    return res.render('layout', {
-      page: 'reportistica_content',
-      anagrafiche: anagrafiche || [],
-      distretti: distretti || [],
-      sigleMap,
-      giorno
-    });
-  } catch (err) {
-    console.error('Errore /reportistica:', err);
-    return res.render('layout', {
-      page: 'reportistica_content',
-      anagrafiche: [], distretti: [], sigleMap: {}, giorno: todayLocal
-    });
-  }
-});
 
 app.post('/api/reportistica/upsert', async (req, res) => {
   if (!req.session.user) return res.status(401).send('Non autorizzato');
