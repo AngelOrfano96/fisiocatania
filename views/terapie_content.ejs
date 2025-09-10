@@ -256,7 +256,7 @@ $(document).ready(function(){
   $('#tabellaTerapie').DataTable({
     pageLength: 10,
     lengthMenu: [5,10,20],
-    columnDefs:[{ orderable:false, targets:7 }],
+    columnDefs:[{ orderable:false, targets:8 }],
     order: []
   });
 
@@ -302,18 +302,29 @@ $('.btn-save').click(function(){
 
 <script>
 $(function () {
-  // DataTable: 1ª colonna = checkbox (inizialmente nascosta), 9ª colonna = azioni
-  const dt = $('#tabellaTerapie').DataTable({
-    pageLength: 10,
-    lengthMenu: [5,10,20],
-    order: [], // niente riordino client
-    columnDefs: [
-      { targets: 0, visible: false, orderable: false }, // checkbox
-      { targets: 8, orderable: false }                  // colonna "Modifica"
-    ]
-  });
+  const $table = $('#tabellaTerapie');
+  let dt;
 
-  // === Selezione multipla ===
+  // Se è già inizializzata, riusa l'istanza; altrimenti inizializza ora
+  if ($.fn.dataTable.isDataTable($table)) {
+    dt = $table.DataTable();           // riusa
+  } else {
+    dt = $table.DataTable({
+      pageLength: 10,
+      lengthMenu: [5,10,20],
+      order: [],                       // nessun riordino automatico
+      destroy: true,                   // difensivo: ok anche se c'è stato un init prima
+      // ATTENZIONE agli indici: se hai aggiunto la colonna dei checkbox è 0, e "Modifica" è 8.
+      // Se NON hai la colonna dei checkbox, usa targets:7 al posto di 8 e rimuovi la riga su 0.
+      columnDefs: [
+        { targets: 0, visible: false, orderable: false }, // checkbox (nascondi finché non attivi "Selezione multipla")
+        { targets: 8, orderable: false }                  // colonna "Modifica"
+      ]
+    });
+  }
+
+  // ====== tutto il resto della logica (selezione multipla, edit inline, ecc.) ======
+
   let multi = false;
   const $btnToggle = $('#toggleMulti');
   const $btnDelete = $('#btnBulkDelete');
@@ -325,10 +336,10 @@ $(function () {
     $selCount.text(`${n} selezionate (max 10)`);
   }
 
-  // Attiva/Disattiva modalità multi
   $btnToggle.on('click', () => {
     multi = !multi;
-    dt.column(0).visible(multi);
+    // mostra/nascondi la colonna dei checkbox
+    if (dt.column(0)) dt.column(0).visible(multi);
     $btnDelete.toggleClass('d-none', !multi);
     $selCount.toggleClass('d-none', !multi);
     $checkAll.prop('checked', false);
@@ -336,26 +347,20 @@ $(function () {
     updateCount();
   });
 
-  // Seleziona tutto (max 10)
   $checkAll.on('change', function () {
     $('.row-check').prop('checked', false);
-    if (this.checked) {
-      $('.row-check').slice(0, 10).prop('checked', true);
-    }
+    if (this.checked) $('.row-check').slice(0, 10).prop('checked', true);
     updateCount();
   });
 
-  // Limite 10 per selezione manuale
   $(document).on('change', '.row-check', function () {
     if (this.checked && $('.row-check:checked').length > 10) {
       this.checked = false;
       alert('Seleziona al massimo 10 terapie alla volta');
-      return;
     }
     updateCount();
   });
 
-  // Elimina selezionate
   $btnDelete.on('click', async () => {
     const ids = $('.row-check:checked').map((_, el) => $(el).closest('tr').data('id')).get();
     if (!ids.length) return alert('Seleziona almeno una terapia');
@@ -375,7 +380,7 @@ $(function () {
     }
   });
 
-  // === Handler inline edit come prima ===
+  // === inline edit (come prima) ===
   $('.btn-edit').on('click', function(){
     const row = $(this).closest('tr');
     row.find('.static').addClass('d-none');
@@ -401,9 +406,8 @@ $(function () {
       note:           row.find('input[name="note"]').val()
     };
 
-    // invia la data solo se è stata effettivamente cambiata
     if (dateInput && dateInput.value !== dateInput.defaultValue) {
-      data.data_trattamento = dateInput.value;
+      data.data_trattamento = dateInput.value; // invia solo se cambiata
     }
 
     $.post(`/terapie/update/${id}`, data)
@@ -412,6 +416,7 @@ $(function () {
   });
 });
 </script>
+
 
 <style>
   th.sel-col, td.sel-col { width: 36px; }
