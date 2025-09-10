@@ -460,6 +460,31 @@ app.post('/terapie/delete/:id', async (req, res) => {
   }
 });
 
+// POST /terapie/delete-bulk  { ids: number[] }  — max 10 alla volta
+app.post('/terapie/delete-bulk', async (req, res) => {
+  if (!req.session.user) return res.status(401).send('Non autorizzato');
+
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
+  const parsed = ids.map(n => parseInt(n, 10)).filter(n => Number.isInteger(n));
+
+  if (!parsed.length) return res.status(400).send('Nessun ID selezionato');
+  if (parsed.length > 10) return res.status(400).send('Massimo 10 ID alla volta');
+
+  try {
+    const { error } = await supabase
+      .from('terapie')
+      .delete()
+      .in('id', parsed);
+
+    if (error) throw error;
+    res.sendStatus(200);
+  } catch (err) {
+    console.error('Errore delete-bulk:', err);
+    res.status(500).send('Errore durante l’eliminazione');
+  }
+});
+
+
 // ROTTA FASCICOLI
 app.get('/fascicoli', async (req, res) => {
   if (!req.session.user) return res.redirect('/');

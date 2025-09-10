@@ -121,10 +121,24 @@
   </div>
 </form>
 
+<div class="d-flex align-items-center gap-2 mb-2">
+  <button id="toggleMulti" type="button" class="btn btn-outline-secondary btn-sm">
+    Selezione Multipla
+  </button>
+  <button id="btnBulkDelete" type="button" class="btn btn-danger btn-sm d-none">
+    Elimina
+  </button>
+  <span id="selCount" class="text-muted d-none">0 selezionate (max 10)</span>
+</div>
+
+
 <!-- tabella -->
 <table id="tabellaTerapie" class="table table-striped table-bordered">
   <thead>
     <tr>
+       <th class="sel-col text-center">
+      <input type="checkbox" id="checkAll">
+    </th>
       <th>Operatore</th>
       <th>Data trattamento</th>
       <th>Anagrafica</th>
@@ -144,6 +158,9 @@
         : (typeof dt === 'string' ? dt.slice(0,10) : '');
   %>
     <tr data-id="<%= t.id %>">
+  <td class="sel-col text-center">
+    <input type="checkbox" class="row-check">
+  </td>
       <td class="operatore">
         <span class="static"><%= t.operatore %></span>
       </td>
@@ -282,6 +299,124 @@ $('.btn-save').click(function(){
 });
 </script>
 
+
+<script>
+$(function () {
+  // DataTable: 1ª colonna = checkbox (inizialmente nascosta), 9ª colonna = azioni
+  const dt = $('#tabellaTerapie').DataTable({
+    pageLength: 10,
+    lengthMenu: [5,10,20],
+    order: [], // niente riordino client
+    columnDefs: [
+      { targets: 0, visible: false, orderable: false }, // checkbox
+      { targets: 8, orderable: false }                  // colonna "Modifica"
+    ]
+  });
+
+  // === Selezione multipla ===
+  let multi = false;
+  const $btnToggle = $('#toggleMulti');
+  const $btnDelete = $('#btnBulkDelete');
+  const $selCount  = $('#selCount');
+  const $checkAll  = $('#checkAll');
+
+  function updateCount() {
+    const n = $('.row-check:checked').length;
+    $selCount.text(`${n} selezionate (max 10)`);
+  }
+
+  // Attiva/Disattiva modalità multi
+  $btnToggle.on('click', () => {
+    multi = !multi;
+    dt.column(0).visible(multi);
+    $btnDelete.toggleClass('d-none', !multi);
+    $selCount.toggleClass('d-none', !multi);
+    $checkAll.prop('checked', false);
+    $('.row-check').prop('checked', false);
+    updateCount();
+  });
+
+  // Seleziona tutto (max 10)
+  $checkAll.on('change', function () {
+    $('.row-check').prop('checked', false);
+    if (this.checked) {
+      $('.row-check').slice(0, 10).prop('checked', true);
+    }
+    updateCount();
+  });
+
+  // Limite 10 per selezione manuale
+  $(document).on('change', '.row-check', function () {
+    if (this.checked && $('.row-check:checked').length > 10) {
+      this.checked = false;
+      alert('Seleziona al massimo 10 terapie alla volta');
+      return;
+    }
+    updateCount();
+  });
+
+  // Elimina selezionate
+  $btnDelete.on('click', async () => {
+    const ids = $('.row-check:checked').map((_, el) => $(el).closest('tr').data('id')).get();
+    if (!ids.length) return alert('Seleziona almeno una terapia');
+    if (ids.length > 10) return alert('Puoi eliminare al massimo 10 terapie alla volta');
+    if (!confirm(`Confermi eliminazione di ${ids.length} terapie?`)) return;
+
+    try {
+      const res = await fetch('/terapie/delete-bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      location.reload();
+    } catch (err) {
+      alert('Errore durante l’eliminazione: ' + err.message);
+    }
+  });
+
+  // === Handler inline edit come prima ===
+  $('.btn-edit').on('click', function(){
+    const row = $(this).closest('tr');
+    row.find('.static').addClass('d-none');
+    row.find('.editable').removeClass('d-none');
+    row.find('.btn-edit').addClass('d-none');
+    row.find('.btn-save, .btn-cancel').removeClass('d-none');
+  });
+
+  $('.btn-cancel').on('click', function(){
+    location.reload();
+  });
+
+  $('.btn-save').on('click', function(){
+    const row = $(this).closest('tr');
+    const id  = row.data('id');
+    const dateInput = row.find('input[name="data_trattamento"]')[0];
+
+    const data = {
+      anagrafica_id:  row.find('select[name="anagrafica_id"]').val(),
+      distretto_id:   row.find('select[name="distretto_id"]').val(),
+      trattamento_id: row.find('select[name="trattamento_id"]').val(),
+      sigla:          row.find('select[name="sigla"]').val(),
+      note:           row.find('input[name="note"]').val()
+    };
+
+    // invia la data solo se è stata effettivamente cambiata
+    if (dateInput && dateInput.value !== dateInput.defaultValue) {
+      data.data_trattamento = dateInput.value;
+    }
+
+    $.post(`/terapie/update/${id}`, data)
+     .done(()=> location.reload())
+     .fail(()=> alert('Errore durante il salvataggio'));
+  });
+});
+</script>
+
+<style>
+  th.sel-col, td.sel-col { width: 36px; }
+  td.sel-col { vertical-align: middle; }
+</style>
 <style>
   /* container debug */
   #punti-container {
