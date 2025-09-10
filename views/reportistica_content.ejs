@@ -152,88 +152,54 @@
   });
 </script>
 <script>
-  // === REORDER UI ===
+  // === REORDER UI (mobile + desktop) ===
   const btnReorder  = document.getElementById('btnReorder');
   const btnSave     = document.getElementById('btnSaveOrder');
   const btnCancel   = document.getElementById('btnCancelOrder');
   const thRow       = document.getElementById('th-row');
   const bodyRows    = Array.from(document.querySelectorAll('#tb-body .body-row'));
 
-  let reorderMode = false;
+  let sortableHeader = null;
   let initialHeaderOrder = [];
 
-  function currentHeaderIds() {
+  function currentHeaderIds(){
     return Array.from(thRow.querySelectorAll('th.col-head')).map(th => Number(th.dataset.id));
   }
 
-  function enableDrag() {
-    reorderMode = true;
-    initialHeaderOrder = currentHeaderIds();
-    // make header cells draggable
-    thRow.querySelectorAll('th.col-head').forEach(th => {
-      th.setAttribute('draggable', 'true');
-      th.classList.add('cursor-move');
-      th.addEventListener('dragstart', onDragStart);
-      th.addEventListener('dragover', onDragOver);
-      th.addEventListener('drop', onDrop);
+  function applyOrderToDom(orderIds){
+    bodyRows.forEach(tr => {
+      const tds  = Array.from(tr.querySelectorAll('td.col-cell'));
+      const byId = new Map(tds.map(td => [Number(td.dataset.id), td]));
+      const frag = document.createDocumentFragment();
+      orderIds.forEach(id => { if (byId.has(id)) frag.appendChild(byId.get(id)); });
+      tr.appendChild(frag);
     });
+  }
+
+  function enableDrag(){
+    initialHeaderOrder = currentHeaderIds();
+
+    // attivo Sortable solo sulle th con classe col-head (la prima colonna "Calciatori" non è draggable)
+    sortableHeader = new Sortable(thRow, {
+      draggable: 'th.col-head',
+      animation: 150,
+      onEnd: () => {
+        // ogni volta che rilascio, riordino anche le celle del body
+        applyOrderToDom(currentHeaderIds());
+      }
+    });
+
     btnReorder.classList.add('d-none');
     btnSave.classList.remove('d-none');
     btnCancel.classList.remove('d-none');
   }
 
-  function disableDrag(reset = false) {
-    reorderMode = false;
-    thRow.querySelectorAll('th.col-head').forEach(th => {
-      th.removeAttribute('draggable');
-      th.classList.remove('cursor-move');
-      th.removeEventListener('dragstart', onDragStart);
-      th.removeEventListener('dragover', onDragOver);
-      th.removeEventListener('drop', onDrop);
-    });
-    if (reset) {
-      // rebuild to initial order
-      applyOrderToDom(initialHeaderOrder);
-    }
+  function disableDrag(reset=false){
+    if (sortableHeader){ sortableHeader.destroy(); sortableHeader = null; }
+    if (reset){ applyOrderToDom(initialHeaderOrder); }
     btnReorder.classList.remove('d-none');
     btnSave.classList.add('d-none');
     btnCancel.classList.add('d-none');
-  }
-
-  let dragSrc = null;
-  function onDragStart(e) {
-    dragSrc = e.currentTarget;
-    e.dataTransfer.effectAllowed = 'move';
-  }
-  function onDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
-  function onDrop(e) {
-    e.preventDefault();
-    const target = e.currentTarget;
-    if (!dragSrc || dragSrc === target) return;
-    // swap in header
-    const heads = Array.from(thRow.children).filter(th => th.matches('.col-head'));
-    const srcIdx = heads.indexOf(dragSrc);
-    const tgtIdx = heads.indexOf(target);
-    if (srcIdx < 0 || tgtIdx < 0) return;
-
-    if (srcIdx < tgtIdx) target.after(dragSrc);
-    else target.before(dragSrc);
-
-    // now apply same order to every row's cells
-    const newIds = currentHeaderIds();
-    applyOrderToDom(newIds);
-  }
-
-  function applyOrderToDom(orderIds) {
-    // Reorder body <td> according to header orderIds
-    bodyRows.forEach(tr => {
-      const fixed = tr.querySelector('[data-fixed="1"]'); // first sticky th
-      const tds = Array.from(tr.querySelectorAll('td.col-cell'));
-      const byId = new Map(tds.map(td => [Number(td.dataset.id), td]));
-      const frag = document.createDocumentFragment();
-      orderIds.forEach(id => { if (byId.has(id)) frag.appendChild(byId.get(id)); });
-      tr.appendChild(frag); // append in new order (fixed cell remains first)
-    });
   }
 
   btnReorder?.addEventListener('click', enableDrag);
@@ -248,8 +214,7 @@
       });
       if (!res.ok) throw new Error(await res.text());
       disableDrag(false);
-      // facoltativo: ricarico per essere sicuri che export/griglia condividano l'ordine dal server
-      location.reload();
+      location.reload(); // garantisce coerenza con l’ordine server/export
     } catch (err) {
       alert('Errore nel salvataggio ordine colonne: ' + err.message);
     }
@@ -257,5 +222,10 @@
 </script>
 
 <style>
-  .cursor-move { cursor: move; }
+  /* migliora feedback tocco/drag */
+  th.col-head { cursor: grab; touch-action: none; }
+  .table-responsive { -webkit-overflow-scrolling: touch; }
 </style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
