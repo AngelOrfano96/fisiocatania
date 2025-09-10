@@ -14,6 +14,10 @@
     <button id="btnCopiaIeri" class="btn btn-outline-secondary" data-date="<%= giorno %>" title="Copia le sigle da ieri nelle celle vuote">
       Copia da ieri
     </button>
+     <!-- NEW: reorder controls -->
+  <button id="btnReorder" class="btn btn-outline-dark">Ordina colonne</button>
+  <button id="btnSaveOrder" class="btn btn-success d-none">Salva ordine</button>
+  <button id="btnCancelOrder" class="btn btn-secondary d-none">Annulla</button>
   </div>
 </div>
 
@@ -42,47 +46,47 @@
 <!-- Griglia -->
 <div class="table-responsive table-scroll">
   <table class="table table-bordered align-middle m-0">
-    <thead class="table-dark sticky-top z-3">
-      <tr>
-        <th class="sticky-col bg-light text-nowrap col-calciatori">Calciatori</th>
-        <% distretti.forEach(d => { %>
-          <th class="text-center text-nowrap"><%= d.nome %></th>
-        <% }) %>
-      </tr>
-    </thead>
-    <tbody>
-      <% anagrafiche.forEach(a => { %>
-        <tr>
-          <th class="sticky-col bg-light fw-semibold text-nowrap"><%= a.cognome %> <%= a.nome %></th>
-          <% distretti.forEach(d => { 
-               const key = `${a.id}|${d.id}`;
-               const val = sigleMap[key] || '';
-          %>
-            <td class="text-center">
-              <div class="d-flex justify-content-center align-items-center gap-2">
-                <select
-                  class="form-select form-select-sm w-auto cell-select"
-                  data-anagrafica-id="<%= a.id %>"
-                  data-distretto-id="<%= d.id %>"
-                  data-date="<%= giorno %>"
-                >
-                  <option value="" <%= val===''?'selected':'' %> >—</option>
-                  <option value="D" <%= val==='D'?'selected':'' %>>D</option>
-                  <option value="D (GRADUALE)" <%= val==='D (GRADUALE)'?'selected':'' %>>D (GRADUALE)</option>
-                  <option value="I" <%= val==='I'?'selected':'' %>>I</option>
-                  <option value="DV" <%= val==='DV'?'selected':'' %>>DV</option>
-                </select>
-                <span class="badge-sigla <%= val==='D' ? 'badge-sigla-d' 
-                                       : val==='D (GRADUALE)' ? 'badge-sigla-dg'
-                                       : val==='I' ? 'badge-sigla-i'
-                                       : val==='DV' ? 'badge-sigla-dv' : 'd-none' %>"
-                      data-badge="1"><%= val %></span>
-              </div>
-            </td>
-          <% }) %>
-        </tr>
+<thead class="table-dark sticky-top z-3">
+  <tr id="th-row">
+    <th class="sticky-col bg-light text-nowrap col-calciatori" data-fixed="1">Calciatori</th>
+    <% distretti.forEach(d => { %>
+      <th class="text-center text-nowrap col-head" data-id="<%= d.id %>"><%= d.nome %></th>
+    <% }) %>
+  </tr>
+</thead>
+<tbody id="tb-body">
+  <% anagrafiche.forEach(a => { %>
+    <tr class="body-row">
+      <th class="sticky-col bg-light fw-semibold text-nowrap" data-fixed="1"><%= a.cognome %> <%= a.nome %></th>
+      <% distretti.forEach(d => { 
+           const key = `${a.id}|${d.id}`;
+           const val = sigleMap[key] || '';
+      %>
+        <td class="text-center col-cell" data-id="<%= d.id %>">
+          <!-- tuo select + badge -->
+          <div class="d-flex justify-content-center align-items-center gap-2">
+            <select
+              class="form-select form-select-sm w-auto cell-select"
+              data-anagrafica-id="<%= a.id %>"
+              data-distretto-id="<%= d.id %>"
+              data-date="<%= giorno %>">
+              <option value="" <%= val===''?'selected':'' %> >—</option>
+              <option value="D" <%= val==='D'?'selected':'' %>>D</option>
+              <option value="D (GRADUALE)" <%= val==='D (GRADUALE)'?'selected':'' %>>D (GRADUALE)</option>
+              <option value="I" <%= val==='I'?'selected':'' %>>I</option>
+              <option value="DV" <%= val==='DV'?'selected':'' %>>DV</option>
+            </select>
+            <span class="badge-sigla <%= val==='D' ? 'badge-sigla-d' 
+                                   : val==='D (GRADUALE)' ? 'badge-sigla-dg'
+                                   : val==='I' ? 'badge-sigla-i'
+                                   : val==='DV' ? 'badge-sigla-dv' : 'd-none' %>"
+                  data-badge="1"><%= val %></span>
+          </div>
+        </td>
       <% }) %>
-    </tbody>
+    </tr>
+  <% }) %>
+</tbody>
   </table>
 </div>
 
@@ -147,3 +151,111 @@
     }
   });
 </script>
+<script>
+  // === REORDER UI ===
+  const btnReorder  = document.getElementById('btnReorder');
+  const btnSave     = document.getElementById('btnSaveOrder');
+  const btnCancel   = document.getElementById('btnCancelOrder');
+  const thRow       = document.getElementById('th-row');
+  const bodyRows    = Array.from(document.querySelectorAll('#tb-body .body-row'));
+
+  let reorderMode = false;
+  let initialHeaderOrder = [];
+
+  function currentHeaderIds() {
+    return Array.from(thRow.querySelectorAll('th.col-head')).map(th => Number(th.dataset.id));
+  }
+
+  function enableDrag() {
+    reorderMode = true;
+    initialHeaderOrder = currentHeaderIds();
+    // make header cells draggable
+    thRow.querySelectorAll('th.col-head').forEach(th => {
+      th.setAttribute('draggable', 'true');
+      th.classList.add('cursor-move');
+      th.addEventListener('dragstart', onDragStart);
+      th.addEventListener('dragover', onDragOver);
+      th.addEventListener('drop', onDrop);
+    });
+    btnReorder.classList.add('d-none');
+    btnSave.classList.remove('d-none');
+    btnCancel.classList.remove('d-none');
+  }
+
+  function disableDrag(reset = false) {
+    reorderMode = false;
+    thRow.querySelectorAll('th.col-head').forEach(th => {
+      th.removeAttribute('draggable');
+      th.classList.remove('cursor-move');
+      th.removeEventListener('dragstart', onDragStart);
+      th.removeEventListener('dragover', onDragOver);
+      th.removeEventListener('drop', onDrop);
+    });
+    if (reset) {
+      // rebuild to initial order
+      applyOrderToDom(initialHeaderOrder);
+    }
+    btnReorder.classList.remove('d-none');
+    btnSave.classList.add('d-none');
+    btnCancel.classList.add('d-none');
+  }
+
+  let dragSrc = null;
+  function onDragStart(e) {
+    dragSrc = e.currentTarget;
+    e.dataTransfer.effectAllowed = 'move';
+  }
+  function onDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+  function onDrop(e) {
+    e.preventDefault();
+    const target = e.currentTarget;
+    if (!dragSrc || dragSrc === target) return;
+    // swap in header
+    const heads = Array.from(thRow.children).filter(th => th.matches('.col-head'));
+    const srcIdx = heads.indexOf(dragSrc);
+    const tgtIdx = heads.indexOf(target);
+    if (srcIdx < 0 || tgtIdx < 0) return;
+
+    if (srcIdx < tgtIdx) target.after(dragSrc);
+    else target.before(dragSrc);
+
+    // now apply same order to every row's cells
+    const newIds = currentHeaderIds();
+    applyOrderToDom(newIds);
+  }
+
+  function applyOrderToDom(orderIds) {
+    // Reorder body <td> according to header orderIds
+    bodyRows.forEach(tr => {
+      const fixed = tr.querySelector('[data-fixed="1"]'); // first sticky th
+      const tds = Array.from(tr.querySelectorAll('td.col-cell'));
+      const byId = new Map(tds.map(td => [Number(td.dataset.id), td]));
+      const frag = document.createDocumentFragment();
+      orderIds.forEach(id => { if (byId.has(id)) frag.appendChild(byId.get(id)); });
+      tr.appendChild(frag); // append in new order (fixed cell remains first)
+    });
+  }
+
+  btnReorder?.addEventListener('click', enableDrag);
+  btnCancel?.addEventListener('click', () => disableDrag(true));
+  btnSave?.addEventListener('click', async () => {
+    const order = currentHeaderIds();
+    try {
+      const res = await fetch('/api/reportistica/columns-order', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ order })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      disableDrag(false);
+      // facoltativo: ricarico per essere sicuri che export/griglia condividano l'ordine dal server
+      location.reload();
+    } catch (err) {
+      alert('Errore nel salvataggio ordine colonne: ' + err.message);
+    }
+  });
+</script>
+
+<style>
+  .cursor-move { cursor: move; }
+</style>

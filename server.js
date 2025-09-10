@@ -1479,6 +1479,36 @@ const addHeader = () => {
  
 
 // helper: valida "YYYY-MM-DD"
+
+async function readColumnsOrder() {
+  const { data, error } = await supabase
+    .from('settings')
+    .select('value')
+    .eq('key', 'report_columns_order')
+    .single();
+  if (error || !data) return [];
+  return Array.isArray(data.value?.order) ? data.value.order : [];
+}
+
+async function writeColumnsOrder(order) {
+  // order must be an array of numbers
+  const payload = { order: order.map(Number) };
+  const { error } = await supabase
+    .from('settings')
+    .upsert({ key: 'report_columns_order', value: payload, updated_at: new Date().toISOString() });
+  if (error) throw error;
+}
+
+/** Sort an array of {id,...} by a preferred order, unknown ids go to the end (stable). */
+function applyOrder(list, orderArr) {
+  const pos = new Map(orderArr.map((id, i) => [Number(id), i]));
+  const big = 1e9;
+  return [...list].sort((a, b) =>
+    (pos.has(a.id) ? pos.get(a.id) : big + a.id) -
+    (pos.has(b.id) ? pos.get(b.id) : big + b.id)
+  );
+}
+
 function parseDateParam(dateStr) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr || '')) return null;
   return dateStr;
@@ -1759,6 +1789,37 @@ app.post('/api/reportistica/copia', async (req, res) => {
   }
 });
 
+// ===== helper per colonne Excel (A, B, ..., Z, AA, AB, ...) =====
+function colLetter(n) {
+  let s = '';
+  while (n > 0) {
+    const m = (n - 1) % 26;
+    s = String.fromCharCode(65 + m) + s;
+    n = Math.floor((n - 1) / 26);
+  }
+  return s;
+}
+
+// ===== helper per leggere/scrivere ordine colonne (globale) =====
+// Se le hai già altrove, riusa quelle e rimuovi queste.
+async function readColumnsOrder() {
+  const { data, error } = await supabase
+    .from('settings')
+    .select('value')
+    .eq('key', 'report_columns_order')
+    .single();
+  if (error || !data) return [];
+  return Array.isArray(data.value?.order) ? data.value.order : [];
+}
+function applyOrder(list, orderArr) {
+  const pos = new Map(orderArr.map((id, i) => [Number(id), i]));
+  const big = 1e9;
+  return [...(list || [])].sort((a, b) =>
+    (pos.has(a.id) ? pos.get(a.id) : big + a.id) -
+    (pos.has(b.id) ? pos.get(b.id) : big + b.id)
+  );
+}
+
 app.get('/reportistica/export', async (req, res) => {
   if (!req.session.user) return res.status(401).send('Non autorizzato');
 
@@ -1771,27 +1832,32 @@ app.get('/reportistica/export', async (req, res) => {
   if (fromDate > toDate) return res.status(400).send('Intervallo invertito');
 
   try {
-    // carico righe e colonne fisse
-    const [{ data: anagrafiche }, { data: distretti }] = await Promise.all([
+    // carico righe e colonne; poi applico l'ordine salvato ai distretti
+    const [{ data: anagraficheRaw }, { data: distrettiRaw }] = await Promise.all([
       supabase.from('anagrafica').select('id, nome, cognome').order('cognome').order('nome'),
       supabase.from('distretti').select('id, nome').order('nome')
     ]);
+    const savedOrder = await readColumnsOrder();
+    const distretti  = applyOrder(distrettiRaw || [], savedOrder);
+    const anagrafiche = anagraficheRaw || [];
 
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Fisio Catania';
     workbook.created = new Date();
 
-    // Palette pastello + testo scuro
+    // Palette (ARGB: FF + colore hex)
     const styles = {
-      D:  { fill: { type:'pattern', pattern:'solid', fgColor:{argb:'D1E7DD'} }, font:{ bold:true, color:{argb:'0F5132'} } },
-      DG: { fill: { type:'pattern', pattern:'solid', fgColor:{argb:'D1E7DD'} }, font:{ bold:true, color:{argb:'0F5132'} } },
-      I:  { fill: { type:'pattern', pattern:'solid', fgColor:{argb:'F8D7DA'} }, font:{ bold:true, color:{argb:'842029'} } },
-      DV: { fill: { type:'pattern', pattern:'solid', fgColor:{argb:'FFF3CD'} }, font:{ bold:true, color:{argb:'664D03'} } },
-      header: { fill:{ type:'pattern', pattern:'solid', fgColor:{argb:'6C757D'} }, font:{ bold:true, color:{argb:'FFFFFF'} } },
-      colA:   { fill:{ type:'pattern', pattern:'solid', fgColor:{argb:'F8F9FA'} }, font:{ bold:true, color:{argb:'000000'} } }
+      D:  { fill:{ type:'pattern', pattern:'solid', fgColor:{argb:'FFD1E7DD'} }, font:{ bold:true, color:{argb:'FF0F5132'} } },
+      DG: { fill:{ type:'pattern', pattern:'solid', fgColor:{argb:'FFD1E7DD'} }, font:{ bold:true, color:{argb:'FF0F5132'} } },
+      I:  { fill:{ type:'pattern', pattern:'solid', fgColor:{argb:'FFF8D7DA'} }, font:{ bold:true, color:{argb:'FF842029'} } },
+      DV: { fill:{ type:'pattern', pattern:'solid', fgColor:{argb:'FFFFF3CD'} }, font:{ bold:true, color:{argb:'FF664D03'} } },
+      headerFill: { type:'pattern', pattern:'solid', fgColor:{argb:'FF6C757D'} },
+      headerFont: { bold:true, color:{argb:'FFFFFFFF'} },
+      colAFill:   { type:'pattern', pattern:'solid', fgColor:{argb:'FFF8F9FA'} },
+      colAFont:   { bold:true, color:{argb:'FF000000'} }
     };
 
-    // genera tutti i giorni
+    // giorni inclusivi
     const days = [];
     for (let d = new Date(fromDate); d <= toDate; d.setUTCDate(d.getUTCDate()+1)) {
       days.push(new Date(d));
@@ -1804,53 +1870,67 @@ app.get('/reportistica/export', async (req, res) => {
         .select('anagrafica_id, distretto_id, sigla')
         .eq('data', dayISO);
 
-      const map = new Map();
-      rows.forEach(r => map.set(`${r.anagrafica_id}|${r.distretto_id}`, r.sigla || ''));
+      const sigleMap = new Map();
+      rows.forEach(r => sigleMap.set(`${r.anagrafica_id}|${r.distretto_id}`, r.sigla || ''));
 
       const ws = workbook.addWorksheet(dayISO);
 
-      // Titolo
-      ws.mergeCells('A1:' + String.fromCharCode(65 + distretti.length) + '1');
-      ws.getCell('A1').value = 'RESOCONTO GIORNALIERO';
-      ws.getCell('A1').font = { bold: true, size: 16 };
+      // Titolo (merge fino all'ultima colonna: 1 (Calciatori) + distretti.length)
+      const lastColIdx = distretti.length + 1;
+      ws.mergeCells(`A1:${colLetter(lastColIdx)}1`);
+      const title = ws.getCell('A1');
+      title.value = 'RESOCONTO GIORNALIERO';
+      title.font = { bold: true, size: 16 };
 
       // Header
-      ws.getCell(2,1).value = 'Calciatori';
-      Object.assign(ws.getCell(2,1), { fill: styles.header.fill, font: styles.header.font });
+      const hA = ws.getCell(2, 1);
+      hA.value = 'Calciatori';
+      hA.fill  = styles.headerFill;
+      hA.font  = styles.headerFont;
+      hA.alignment = { vertical:'middle', horizontal:'center', wrapText:true };
+
       distretti.forEach((dist, idx) => {
-        const cell = ws.getCell(2, idx+2);
+        const cell = ws.getCell(2, idx + 2);
         cell.value = dist.nome;
-        Object.assign(cell, { fill: styles.header.fill, font: styles.header.font });
+        cell.fill  = styles.headerFill;
+        cell.font  = styles.headerFont;
+        cell.alignment = { vertical:'middle', horizontal:'center', wrapText:true };
       });
 
       // Righe
       anagrafiche.forEach((a, rIdx) => {
         const rowNum = rIdx + 3;
+
         const cA = ws.getCell(rowNum, 1);
         cA.value = `${a.cognome} ${a.nome}`;
-        Object.assign(cA, { fill: styles.colA.fill, font: styles.colA.font });
+        cA.fill  = styles.colAFill;
+        cA.font  = styles.colAFont;
 
         distretti.forEach((dist, cIdx) => {
-          const cell = ws.getCell(rowNum, cIdx+2);
-          const val = map.get(`${a.id}|${dist.id}`) || '';
+          const cell = ws.getCell(rowNum, cIdx + 2);
+          const val  = sigleMap.get(`${a.id}|${dist.id}`) || '';
           cell.value = val;
-          // Stile badge pastello
-          if (val === 'D')        { Object.assign(cell, styles.D);  }
-          else if (val === 'D (GRADUALE)') { Object.assign(cell, styles.DG); }
-          else if (val === 'I')   { Object.assign(cell, styles.I);  }
-          else if (val === 'DV')  { Object.assign(cell, styles.DV); }
+
+          // Stile "badge"
+          if (val === 'D') {
+            cell.fill = styles.D.fill; cell.font = styles.D.font;
+          } else if (val === 'D (GRADUALE)') {
+            cell.fill = styles.DG.fill; cell.font = styles.DG.font;
+          } else if (val === 'I') {
+            cell.fill = styles.I.fill; cell.font = styles.I.font;
+          } else if (val === 'DV') {
+            cell.fill = styles.DV.fill; cell.font = styles.DV.font;
+          }
+          cell.alignment = { vertical:'middle', horizontal:'center', wrapText:true };
         });
       });
 
-      // Colonne responsive
+      // Larghezze + freeze
       ws.getColumn(1).width = 28;
-      for (let i=2; i<=distretti.length+1; i++) ws.getColumn(i).width = 14;
-
-      // Freeze prima riga e prima colonna
+      for (let i = 2; i <= distretti.length + 1; i++) ws.getColumn(i).width = 14;
       ws.views = [{ state: 'frozen', xSplit: 1, ySplit: 2 }];
     }
 
-    // stream al client
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename=report_${from}_to_${to}.xlsx`);
     await workbook.xlsx.write(res);
@@ -1861,6 +1941,7 @@ app.get('/reportistica/export', async (req, res) => {
     res.status(500).send('Errore export Excel');
   }
 });
+
 
 
 // =============================
@@ -2143,6 +2224,70 @@ doc.end();
   }
 });
 
+
+// POST /api/reportistica/columns-order  { order: [id, id, ...] }
+app.post('/api/reportistica/columns-order', async (req, res) => {
+  if (!req.session.user) return res.status(401).send('Non autorizzato');
+  try {
+    const order = (req.body?.order || []).map(Number).filter(Number.isFinite);
+
+    // validate: ids must exist in distretti
+    const { data: allDist = [], error: e1 } = await supabase
+      .from('distretti')
+      .select('id');
+    if (e1) throw e1;
+    const valid = new Set(allDist.map(d => d.id));
+    const cleaned = order.filter(id => valid.has(id));
+
+    await writeColumnsOrder(cleaned);
+    res.sendStatus(200);
+  } catch (err) {
+    console.error('columns-order save error:', err);
+    res.status(500).send('Errore salvataggio ordine colonne');
+  }
+});
+
+app.get('/reportistica', async (req, res) => {
+  if (!req.session.user) return res.redirect('/');
+
+  const todayLocal = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+    .toISOString().slice(0,10);
+  const giorno = (req.query.date && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date))
+    ? req.query.date : todayLocal;
+
+  try {
+    const [{ data: anagrafiche }, { data: distrettiRaw }] = await Promise.all([
+      supabase.from('anagrafica').select('id, nome, cognome').order('cognome').order('nome'),
+      supabase.from('distretti').select('id, nome').order('nome')
+    ]);
+
+    // NEW: read preferred order and apply it
+    const savedOrder = await readColumnsOrder();
+    const distretti = applyOrder(distrettiRaw || [], savedOrder);
+
+    const { data: rows = [] } = await supabase
+      .from('report_sigle')
+      .select('anagrafica_id, distretto_id, sigla')
+      .eq('data', giorno);
+
+    const sigleMap = {};
+    rows.forEach(r => { sigleMap[`${r.anagrafica_id}|${r.distretto_id}`] = r.sigla || ''; });
+
+    return res.render('layout', {
+      page: 'reportistica_content',
+      anagrafiche: anagrafiche || [],
+      distretti: distretti || [],             // <- ordered here
+      sigleMap,
+      giorno
+    });
+  } catch (err) {
+    console.error('Errore /reportistica:', err);
+    return res.render('layout', {
+      page: 'reportistica_content',
+      anagrafiche: [], distretti: [], sigleMap: {}, giorno: todayLocal
+    });
+  }
+});
 
 // Avvio server
 app.listen(PORT, () => {
