@@ -443,7 +443,7 @@ app.post('/terapie/update/:id', async (req, res) => {
 
 
 
-
+//ss//
 // POST /terapie/delete/:id
 app.post('/terapie/delete/:id', async (req, res) => {
   if (!req.session.user) return res.redirect('/');
