@@ -1242,26 +1242,36 @@ app.get('/api/dashboard/distretti/by-range', async (req, res) => {
 });
 
 // Export PDF per singolo distretto e periodo
+// GET /report/distretti/export?from=YYYY-MM-DD&to=YYYY-MM-DD&distretto_id=<id>|all
 app.get('/report/distretti/export', async (req, res) => {
   if (!req.session.user) return res.status(401).send('Non autorizzato');
 
-  const distretto_id = parseInt(req.query.distretto_id, 10);
-  const { from, to } = req.query || {};
-  if (!Number.isInteger(distretto_id)) return res.status(400).send('distretto_id mancante');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(from || '') || !/^\d{4}-\d{2}-\d{2}$/.test(to || ''))
+  const { from, to, distretto_id } = req.query || {};
+  const isAll = String(distretto_id) === 'all';
+  const distrettoIdNum = parseInt(distretto_id, 10);
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from || '') || !/^\d{4}-\d{2}-\d{2}$/.test(to || '')) {
     return res.status(400).send('Intervallo non valido');
+  }
+  if (!isAll && !Number.isInteger(distrettoIdNum)) {
+    return res.status(400).send('distretto_id mancante o non valido');
+  }
 
   try {
-    // leggo nome distretto
-    const { data: dist, error: eD } = await supabase
-      .from('distretti')
-      .select('id,nome')
-      .eq('id', distretto_id)
-      .single();
-    if (eD || !dist) throw eD || new Error('Distretto non trovato');
+    // Nome distretto (se NON "all")
+    let distName = 'Tutti i distretti';
+    if (!isAll) {
+      const { data: dist, error: eD } = await supabase
+        .from('distretti')
+        .select('id,nome')
+        .eq('id', distrettoIdNum)
+        .single();
+      if (eD || !dist) throw eD || new Error('Distretto non trovato');
+      distName = dist.nome;
+    }
 
-    // prendo le terapie nel periodo per quel distretto
-    const { data: rows, error: eT } = await supabase
+    // Terapie nel periodo (filtrate per distretto se serve)
+    let q = supabase
       .from('terapie')
       .select(`
         id, data_trattamento, note, sigla,
@@ -1269,17 +1279,19 @@ app.get('/report/distretti/export', async (req, res) => {
         distretto:distretto_id ( nome ),
         trattamento:trattamento_id ( nome )
       `)
-      .eq('distretto_id', distretto_id)
       .gte('data_trattamento', from)
       .lte('data_trattamento', to)
       .order('cognome', { foreignTable: 'anagrafica', ascending: true })
       .order('nome',    { foreignTable: 'anagrafica', ascending: true })
-      .order('data_trattamento', { ascending: true })  // più vecchie prima
-      .order('id', { ascending: true });               // stabilizza
+      .order('data_trattamento', { ascending: true })
+      .order('id', { ascending: true });
 
+    if (!isAll) q = q.eq('distretto_id', distrettoIdNum);
+
+    const { data: rows, error: eT } = await q;
     if (eT) throw eT;
 
-    // raggruppo per giocatore
+    // Raggruppo per giocatore
     const grouped = {};
     (rows || []).forEach(r => {
       const player = `${r.anagrafica?.nome || ''} ${r.anagrafica?.cognome || ''}`.trim();
@@ -1291,7 +1303,7 @@ app.get('/report/distretti/export', async (req, res) => {
       });
     });
 
-    // ===== PDF (header simile al tuo) =====
+    // ===== PDF =====
     const PDFDocument = require('pdfkit');
     const doc = new PDFDocument({ margin: 40, size: 'A4', autoFirstPage: false });
 
@@ -1302,16 +1314,14 @@ app.get('/report/distretti/export', async (req, res) => {
       const right = doc.page.width - doc.page.margins.right;
       const top = 30;
 
-      // logo
       try { if (fs.existsSync(LOGO_PATH)) doc.image(LOGO_PATH, left, top, { height: 92 }); } catch {}
 
-      // titoli
       doc.font('Helvetica-Bold').fontSize(14).fillColor('#212529')
         .text('CATANIA FC – STAFF MEDICO', left + 120, top + 4);
       doc.fontSize(20)
-        .text(`Report Distretti (terapie)`, left + 120, top + 28);
+        .text('Report Distretti (terapie)', left + 120, top + 28);
       doc.font('Helvetica').fontSize(12)
-        .text(`Distretto: ${dist.nome}`, left + 120, top + 54)
+        .text(`Distretto: ${distName}`, left + 120, top + 54)
         .text(`Periodo: ${fmt(from)} → ${fmt(to)}`, left + 120, top + 72);
 
       const hrY = top + 110;
@@ -1327,13 +1337,11 @@ app.get('/report/distretti/export', async (req, res) => {
       const colW = { data: 90, trattamento: 180, distretto: 140, note: (right-left) - (90+180+140) };
       const headH = 22, pad = 6;
 
-      // a capo se non c'è spazio per titolo+header
       if (doc.y + 40 > maxY) addHeader();
 
       doc.font('Helvetica-Bold').fontSize(13).fillColor('#0d6efd').text(player, left, doc.y);
       doc.moveDown(0.3).fillColor('#212529');
 
-      // header
       let y = doc.y, x = left;
       doc.rect(left, y, right-left, headH).fillAndStroke('#e9ecef', '#dee2e6');
       doc.font('Helvetica-Bold').fontSize(10).fillColor('#212529');
@@ -1349,7 +1357,8 @@ app.get('/report/distretti/export', async (req, res) => {
         const h3 = doc.heightOfString(r.note,        { width: colW.note        - 12 });
         const rowH = Math.max(22, pad*2 + Math.max(h1,h2,h3));
 
-        if (y + rowH > maxY) { addHeader(); // re-header
+        if (y + rowH > maxY) {
+          addHeader();
           y = doc.y; x = left;
           doc.rect(left, y, right-left, headH).fillAndStroke('#e9ecef', '#dee2e6');
           doc.font('Helvetica-Bold').fontSize(10).fillColor('#212529');
@@ -1378,9 +1387,11 @@ app.get('/report/distretti/export', async (req, res) => {
       doc.y = y + 8;
     };
 
-    // stream
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="Report_Distretto_${dist.nome}_${from}_to_${to}.pdf"`);
+    const fname = isAll ? `Report_Distretti_ALL_${from}_to_${to}.pdf`
+                        : `Report_Distretto_${distName}_${from}_to_${to}.pdf`;
+    res.setHeader('Content-Disposition', `attachment; filename="${fname}"`);
+
     doc.pipe(res);
     addHeader();
 
@@ -1395,10 +1406,11 @@ app.get('/report/distretti/export', async (req, res) => {
 
     doc.end();
   } catch (err) {
-    console.error('Export distretto:', err);
+    console.error('Export distretti:', err);
     res.status(500).send('Errore export');
   }
 });
+
 
 
 

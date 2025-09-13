@@ -55,6 +55,7 @@
         <h5 class="modal-title">
           Report distretto: <span id="md-distretto-name" class="text-primary"></span>
         </h5>
+         <button id="md-all" class="btn btn-sm btn-outline-secondary ms-2">Seleziona Tutti</button>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
       </div>
       <div class="modal-body">
@@ -219,20 +220,23 @@ function destroyChartIfExists(canvasId) {
 }
 
   // ====== Chart "Distretti (terapie)" con click ======
-  let distrettiChart, modalChart, distrettiMap = {};
-  let selectedDist = { id: null, nome: null };
+  let distrettiChart, modalChart, distrettiMap = {}, distrettiById = {};
+let selectedDist = { id: null, nome: null }; // id='ALL' => tutti
 
     function toDateInputValue(d) {
     return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
       .toISOString().slice(0, 10);
   }
 
-  async function fetchDistrettiMap() {
-    if (Object.keys(distrettiMap).length) return;
-    const r = await fetch('/api/distretti');
-    const j = await r.json();
-    j.items.forEach(d => distrettiMap[d.nome] = d.id);
-  }
+async function fetchDistrettiMap() {
+  if (Object.keys(distrettiMap).length) return;
+  const r = await fetch('/api/distretti');
+  const j = await r.json();
+  (j.items || []).forEach(d => {
+    distrettiMap[d.nome] = d.id;
+    distrettiById[d.id]  = d.nome;
+  });
+}
 
 async function loadDistrettiChart(period = document.getElementById('period-select').value) {
   const r = await fetch('/api/dashboard/distretti?period=' + period);
@@ -267,65 +271,97 @@ document.getElementById('modalDistretto')
   .addEventListener('hidden.bs.modal', () => {
     if (modalChart) { modalChart.destroy(); modalChart = null; }
   });
+// bottone "Seleziona Tutti"
+document.getElementById('md-all').addEventListener('click', async () => {
+  await fetchDistrettiMap(); // ci serve per i nomi
+  selectedDist = { id: 'ALL', nome: 'Tutti i distretti' };
+  document.getElementById('md-distretto-name').textContent = selectedDist.nome;
+  reloadModalChart();
+});
 
   // ricarica il grafico della modale per [from,to]
-   async function reloadModalChart() {
-    const from = document.getElementById('md-from').value;
-    const to   = document.getElementById('md-to').value;
+async function reloadModalChart() {
+  const from = document.getElementById('md-from').value;
+  const to   = document.getElementById('md-to').value;
+  if (!from || !to) return;
 
-    if (!from || !to) return;
-    if (new Date(from) > new Date(to)) {
-      document.getElementById('md-summary').textContent = 'Intervallo non valido.';
-      document.getElementById('md-export').disabled = true;
-      return;
-    }
+  if (new Date(from) > new Date(to)) {
+    document.getElementById('md-summary').textContent = 'Intervallo non valido.';
+    document.getElementById('md-export').disabled = true;
+    return;
+  }
 
-    const res = await fetch(`/api/dashboard/distretti/by-range?from=${from}&to=${to}`);
-    if (!res.ok) {
-      document.getElementById('md-summary').textContent = 'Errore nel caricamento dati.';
-      document.getElementById('md-export').disabled = true;
-      return;
-    }
-    const { items } = await res.json();
+  const res = await fetch(`/api/dashboard/distretti/by-range?from=${from}&to=${to}`);
+  if (!res.ok) {
+    document.getElementById('md-summary').textContent = 'Errore nel caricamento dati.';
+    document.getElementById('md-export').disabled = true;
+    return;
+  }
+  const { items = [] } = await res.json(); // [{id,count}]
 
-    const total = items.reduce((s,i)=>s+i.count,0);
-    const me    = items.find(i => i.id === selectedDist.id)?.count || 0;
+  const total = items.reduce((s,i)=>s+i.count,0);
 
-    const ctx = document.getElementById('md-chart').getContext('2d');
-    if (modalChart) modalChart.destroy();
+  const ctx = document.getElementById('md-chart').getContext('2d');
+  if (modalChart) modalChart.destroy();
+
+  // --- caso: TUTTI I DISTRETTI
+  if (selectedDist.id === 'ALL') {
+    // ordina per frequenza desc
+    const sorted = [...items].sort((a,b)=>b.count-a.count);
+    const labels = sorted.map(i => distrettiById[i.id] || `ID ${i.id}`);
+    const counts = sorted.map(i => i.count);
+
     modalChart = new Chart(ctx, {
-      type: 'doughnut',
-      data: { labels: [selectedDist.nome, 'Altri'], datasets: [{ data: [me, Math.max(0, total - me)] }] },
-      options: { plugins: { legend: { position: 'top' } } }
+      type: 'pie',
+      data: { labels, datasets: [{ data: counts }] },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'top' } } }
     });
 
     document.getElementById('md-summary').textContent =
-      total ? `${me} terapie su ${total} nel periodo selezionato.` : 'Nessuna terapia nel periodo selezionato.';
+      total ? `Totale ${total} terapie nel periodo selezionato.` : 'Nessuna terapia nel periodo selezionato.';
 
+    // export (tutti)
     const btn = document.getElementById('md-export');
-    btn.disabled = me === 0;
+    btn.disabled = total === 0;
     btn.onclick = () => {
-      window.location = `/report/distretti/export?distretto_id=${selectedDist.id}&from=${from}&to=${to}`;
+      window.location = `/report/distretti/export?distretto_id=all&from=${from}&to=${to}`;
     };
+    return;
   }
 
-  function openDistrettoModal() {
-    // default: ultimo mese in locale
-    const to = new Date();
-    const from = new Date();
-    from.setMonth(from.getMonth() - 1);
+  // --- caso: DISTRETTO SELEZIONATO
+  const me = items.find(i => i.id === selectedDist.id)?.count || 0;
+  modalChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels: [selectedDist.nome, 'Altri'], datasets: [{ data: [me, Math.max(0, total - me)] }] },
+    options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'top' } } }
+  });
 
-    document.getElementById('md-from').value = toDateInputValue(from);
-    document.getElementById('md-to').value   = toDateInputValue(to);
+  document.getElementById('md-summary').textContent =
+    total ? `${me} terapie su ${total} nel periodo selezionato.` : 'Nessuna terapia nel periodo selezionato.';
 
-    document.getElementById('md-distretto-name').textContent = selectedDist.nome;
-    reloadModalChart();
+  const btn = document.getElementById('md-export');
+  btn.disabled = me === 0;
+  btn.onclick = () => {
+    window.location = `/report/distretti/export?distretto_id=${selectedDist.id}&from=${from}&to=${to}`;
+  };
+}
 
-    document.getElementById('md-refresh').onclick = reloadModalChart;
 
-    const modal = new bootstrap.Modal(document.getElementById('modalDistretto'));
-    modal.show();
-  }
+function openDistrettoModal() {
+  const to = new Date(), from = new Date(); from.setMonth(from.getMonth() - 1);
+  document.getElementById('md-from').value = toDateInputValue(from);
+  document.getElementById('md-to').value   = toDateInputValue(to);
+
+  document.getElementById('md-distretto-name').textContent = selectedDist.nome; // o 'Tutti...' se in futuro apri in ALL
+  document.getElementById('md-refresh').onclick = reloadModalChart;
+
+  reloadModalChart();
+
+  const modal = new bootstrap.Modal(document.getElementById('modalDistretto'));
+  modal.show();
+}
+
 
   // cambia intervallo (dashboard select)
   document.getElementById('period-select').addEventListener('change', () => loadDistrettiChart());

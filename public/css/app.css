@@ -18,3 +18,15 @@ body { margin: 0; }
 /* Comode utility per le dimensioni che usi in lista e dettaglio */
 .thumb-60 { width:60px; height:60px; }
 .portrait-100 { width:100px; height:100px; }
+
+
+
+/* canvas modale: più compatto e responsive */
+#md-chart{
+  width:100% !important;
+  height:min(50vh, 360px) !important;   /* <= riduce l'altezza */
+  max-height:360px !important;
+}
+@media (max-width: 768px){
+  #md-chart{ height:45vh !important; max-height:320px !important; }
+}
