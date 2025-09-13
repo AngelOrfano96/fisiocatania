@@ -1522,42 +1522,56 @@ app.get('/terapie/export/today', async (req, res) => {
   const dayISO = today.toISOString().slice(0, 10);
 
   try {
-    // --- SUPABASE ---
-    const { data, error } = await supabase
-      .from('terapie')
-      .select(`
-        data_trattamento,
-        sigla,
-        note,
-        anagrafica:anagrafica_id ( id, nome, cognome ),
-        distretto:distretto_id ( nome ),
-        trattamento:trattamento_id ( nome )
-      `)
-      .eq('data_trattamento', dayISO)
-      .order('cognome', { foreignTable: 'anagrafica', ascending: true })
-      .order('nome', { foreignTable: 'anagrafica', ascending: true });
+  const { data, error } = await supabase
+    .from('terapie')
+    .select(`
+      id,
+      data_trattamento,
+      sigla,
+      note,
+      anagrafica:anagrafica_id ( id, nome, cognome ),
+      distretto:distretto_id ( nome ),
+      trattamento:trattamento_id ( nome )
+    `)
+    .eq('data_trattamento', dayISO) // (per /by-date usa req.query.date)
+    // 1) ordina per giocatore (come prima)…
+    .order('cognome', { foreignTable: 'anagrafica', ascending: true })
+    .order('nome',    { foreignTable: 'anagrafica', ascending: true })
+    // 2) …e dentro lo stesso giocatore ordina per "anzianità"
+    .order('id', { ascending: true });
 
-    if (error) throw error;
+  if (error) throw error;
 
-    // raggruppo per "Nome Cognome"
-    const grouped = {};
-    (data || []).forEach(row => {
-      const player = `${row.anagrafica?.nome || ''} ${row.anagrafica?.cognome || ''}`.trim();
-      if (!grouped[player]) grouped[player] = [];
-      grouped[player].push({
-        distretto: row.distretto?.nome || '—',
-        trattamento: row.trattamento?.nome || '—',
-        sigla: row.sigla || '',
-        note: row.note || ''
-      });
+  // raggruppo per "Nome Cognome"
+  const grouped = {};
+  (data || []).forEach(row => {
+    const player = `${row.anagrafica?.nome || ''} ${row.anagrafica?.cognome || ''}`.trim();
+    if (!grouped[player]) grouped[player] = [];
+    grouped[player].push({
+      // metto anche chiavi "tecniche" per l’ordinamento
+      id:   row.id,
+      data: String(row.data_trattamento).slice(0,10),
+      distretto:   row.distretto?.nome    || '—',
+      trattamento: row.trattamento?.nome  || '—',
+      sigla:       row.sigla              || '',
+      note:        row.note               || ''
     });
+  });
 
-    streamTerapiePDF(res, dayISO, grouped);
+  // 3) ordino ciascun gruppo: prima per data, poi per id (entrambi crescenti)
+  Object.values(grouped).forEach(items => {
+    items.sort((a, b) => {
+      const byDate = a.data.localeCompare(b.data);
+      if (byDate !== 0) return byDate;
+      return a.id - b.id;
+    });
+  });
 
-  } catch (err) {
-    console.error('Errore export today:', err);
-    res.status(500).send('Errore durante la generazione del PDF');
-  }
+  streamTerapiePDF(res, dayISO, grouped);
+} catch (err) {
+  console.error('Errore export:', err);
+  res.status(500).send('Errore durante la generazione del PDF');
+}
 });
 
 // GET /terapie/export/by-date?date=YYYY-MM-DD
@@ -1568,10 +1582,10 @@ app.get('/terapie/export/by-date', async (req, res) => {
   if (!dayISO) return res.status(400).send('Data non valida, formato atteso YYYY-MM-DD');
 
   try {
-    // --- SUPABASE ---
     const { data, error } = await supabase
       .from('terapie')
       .select(`
+        id,
         data_trattamento,
         sigla,
         note,
@@ -1581,29 +1595,40 @@ app.get('/terapie/export/by-date', async (req, res) => {
       `)
       .eq('data_trattamento', dayISO)
       .order('cognome', { foreignTable: 'anagrafica', ascending: true })
-      .order('nome', { foreignTable: 'anagrafica', ascending: true });
+      .order('nome',    { foreignTable: 'anagrafica', ascending: true })
+      .order('id',      { ascending: true }); // più vecchie prima a parità di giorno
 
     if (error) throw error;
 
+    // raggruppo per calciatore
     const grouped = {};
     (data || []).forEach(row => {
       const player = `${row.anagrafica?.nome || ''} ${row.anagrafica?.cognome || ''}`.trim();
-      if (!grouped[player]) grouped[player] = [];
-      grouped[player].push({
-        distretto: row.distretto?.nome || '—',
-        trattamento: row.trattamento?.nome || '—',
-        sigla: row.sigla || '',
-        note: row.note || ''
+      (grouped[player] ||= []).push({
+        id: row.id,                                              // per ordinamento stabile
+        data: String(row.data_trattamento).slice(0,10),          // per sicurezza
+        distretto:   row.distretto?.nome    || '—',
+        trattamento: row.trattamento?.nome  || '—',
+        sigla:       row.sigla              || '',
+        note:        row.note               || ''
+      });
+    });
+
+    // ordino ciascun gruppo: data asc, poi id asc
+    Object.values(grouped).forEach(items => {
+      items.sort((a, b) => {
+        const byDate = a.data.localeCompare(b.data);
+        return byDate !== 0 ? byDate : a.id - b.id;
       });
     });
 
     streamTerapiePDF(res, dayISO, grouped);
-
   } catch (err) {
     console.error('Errore export by-date:', err);
     res.status(500).send('Errore durante la generazione del PDF');
   }
 });
+
 // Copia una terapia con data odierna
 app.post('/terapie/copia/:id', async (req, res) => {
   if (!req.session.user) return res.status(401).send('Non autorizzato');
