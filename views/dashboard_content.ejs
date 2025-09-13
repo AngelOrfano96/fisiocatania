@@ -226,24 +226,30 @@ function destroyChartIfExists(canvasId) {
   const distrettiMap = {};
   let selectedDist = { id: null, nome: null };
 
-  function toDateInputValue(d) {
-    return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
-      .toISOString().slice(0, 10);
-  }
+  const toDateInputValue = d =>
+    new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 
   async function fetchDistrettiMap() {
     if (Object.keys(distrettiMap).length) return;
     const r = await fetch('/api/distretti');
     const j = await r.json();
-    j.items.forEach(d => distrettiMap[d.nome] = d.id);
+    (j.items || []).forEach(d => (distrettiMap[d.nome] = d.id));
   }
 
-  // Crea il chart in sicurezza sul canvas indicato
-  function safeNewChart(canvasId, config) {
+  // ---- helper: crea un chart in sicurezza
+  async function safeNewChart(canvasId, config) {
     const canvas = document.getElementById(canvasId);
-    if (!canvas) return null;                         // DOM non pronto
-    const prev = Chart.getChart(canvas);              // istanza già esistente?
-    if (prev) prev.destroy();                         // distruggo prima
+    if (!canvas || !canvas.isConnected) return null; // canvas non pronto
+
+    // distruggo eventuali grafici associati (sia da canvas che da context)
+    const prevByCanvas = Chart.getChart(canvas);
+    const prevByCtx    = Chart.getChart(canvas.getContext && canvas.getContext('2d'));
+    (prevByCanvas || prevByCtx)?.destroy();
+
+    // aspetto un frame per evitare race durante resize/unbind
+    await new Promise(requestAnimationFrame);
+
+    if (!canvas || !canvas.isConnected) return null; // ricontrollo
     return new Chart(canvas, config);
   }
 
@@ -251,10 +257,14 @@ function destroyChartIfExists(canvasId) {
     const sel = document.getElementById('period-select');
     period = period || (sel ? sel.value : 'month');
 
-    const r = await fetch('/api/dashboard/distretti?period=' + encodeURIComponent(period));
-    const { labels, counts } = await r.json();
+    const res = await fetch('/api/dashboard/distretti?period=' + encodeURIComponent(period));
+    if (!res.ok) return;
+    const { labels = [], counts = [] } = await res.json();
 
-    distrettiChart = safeNewChart('chart-distretti', {
+    // se la pagina è cambiata nel frattempo, esco
+    if (!document.getElementById('chart-distretti')) return;
+
+    distrettiChart = await safeNewChart('chart-distretti', {
       type: 'pie',
       data: { labels, datasets: [{ data: counts }] },
       options: {
@@ -262,7 +272,7 @@ function destroyChartIfExists(canvasId) {
         maintainAspectRatio: true,
         plugins: { legend: { position: 'top' } },
         onClick: async (evt, elements, chart) => {
-          if (!elements || !elements.length) return;
+          if (!elements?.length) return;
           await fetchDistrettiMap();
           const idx  = elements[0].index;
           const nome = chart.data.labels[idx];
@@ -275,34 +285,55 @@ function destroyChartIfExists(canvasId) {
     });
   }
 
-  // ricarica il grafico della modale per [from,to]
-  async function reloadModalChart() {
-    const from = document.getElementById('md-from').value;
-    const to   = document.getElementById('md-to').value;
+async function reloadModalChart() {
+  const from = document.getElementById('md-from').value;
+  const to   = document.getElementById('md-to').value;
+  if (!from || !to) return;
+  if (new Date(from) > new Date(to)) {
+    document.getElementById('md-summary').textContent = 'Intervallo non valido.';
+    document.getElementById('md-export').disabled = true;
+    return;
+  }
 
-    if (!from || !to) return;
-    if (new Date(from) > new Date(to)) {
-      document.getElementById('md-summary').textContent = 'Intervallo non valido.';
-      document.getElementById('md-export').disabled = true;
-      return;
-    }
+  const res = await fetch(`/api/dashboard/distretti/by-range?from=${from}&to=${to}`);
+  if (!res.ok) {
+    document.getElementById('md-summary').textContent = 'Errore nel caricamento dati.';
+    document.getElementById('md-export').disabled = true;
+    return;
+  }
+  const { items = [] } = await res.json();
+  const total = items.reduce((s,i)=>s+i.count,0);
 
-    const res = await fetch(`/api/dashboard/distretti/by-range?from=${from}&to=${to}`);
-    if (!res.ok) {
-      document.getElementById('md-summary').textContent = 'Errore nel caricamento dati.';
-      document.getElementById('md-export').disabled = true;
-      return;
-    }
-    const { items } = await res.json();
+  let cfg;
+  if (selectedDist.id === 'ALL') {
+    // top 8 + "Altri"
+    const sorted = [...items].sort((a,b)=>b.count-a.count);
+    const top = sorted.slice(0,8);
+    const rest = sorted.slice(8).reduce((s,i)=>s+i.count,0);
+    const labels = top.map(i=>i.nome).concat(rest?['Altri']:[]);
+    const data   = top.map(i=>i.count).concat(rest?[rest]:[]);
 
-    const total = items.reduce((s,i)=>s+i.count,0);
-    const me    = items.find(i => i.id === selectedDist.id)?.count || 0;
+    cfg = {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data }] },
+      options: { responsive:true, maintainAspectRatio:true, plugins:{ legend:{ position:'top' } } }
+    };
 
-    modalChart = safeNewChart('md-chart', {
+    document.getElementById('md-summary').textContent =
+      total ? `${total} terapie nel periodo selezionato.` : 'Nessuna terapia nel periodo selezionato.';
+
+    const btn = document.getElementById('md-export');
+    btn.disabled = total === 0;
+    btn.onclick = () => {
+      window.location = `/report/distretti/export?distretto_id=all&from=${from}&to=${to}`;
+    };
+  } else {
+    const me = items.find(i => i.id === selectedDist.id)?.count || 0;
+    cfg = {
       type: 'doughnut',
       data: { labels: [selectedDist.nome, 'Altri'], datasets: [{ data: [me, Math.max(0, total - me)] }] },
-      options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'top' } } }
-    });
+      options: { responsive:true, maintainAspectRatio:true, plugins:{ legend:{ position:'top' } } }
+    };
 
     document.getElementById('md-summary').textContent =
       total ? `${me} terapie su ${total} nel periodo selezionato.` : 'Nessuna terapia nel periodo selezionato.';
@@ -313,6 +344,19 @@ function destroyChartIfExists(canvasId) {
       window.location = `/report/distretti/export?distretto_id=${selectedDist.id}&from=${from}&to=${to}`;
     };
   }
+
+  modalChart = await safeNewChart('md-chart', cfg);
+}
+
+// bottone "Seleziona Tutti" (aggancia dopo il load)
+window.addEventListener('load', () => {
+  document.getElementById('md-all')?.addEventListener('click', () => {
+    selectedDist = { id: 'ALL', nome: 'Tutti i distretti' };
+    document.getElementById('md-distretto-name').textContent = selectedDist.nome;
+    reloadModalChart();
+  });
+});
+
 
   function openDistrettoModal() {
     const to = new Date();
@@ -329,31 +373,12 @@ function destroyChartIfExists(canvasId) {
     reloadModalChart();
   }
 
-  // >>> Sposto TUTTO dentro l'onload, così gli elementi esistono di sicuro
+  // init + cambio periodo
   window.addEventListener('load', () => {
     const periodSel = document.getElementById('period-select');
-    if (periodSel) periodSel.addEventListener('change', () => loadDistrettiChart());
+    periodSel?.addEventListener('change', () => loadDistrettiChart());
     loadDistrettiChart(); // primo render
   });
-
-
-
-document.getElementById('modalDistretto')
-  .addEventListener('hidden.bs.modal', () => {
-    if (modalChart) { modalChart.destroy(); modalChart = null; }
-  });
-// bottone "Seleziona Tutti"
-document.getElementById('md-all').addEventListener('click', async () => {
-  await fetchDistrettiMap(); // ci serve per i nomi
-  selectedDist = { id: 'ALL', nome: 'Tutti i distretti' };
-  document.getElementById('md-distretto-name').textContent = selectedDist.nome;
-  reloadModalChart();
-});
-  // cambia intervallo (dashboard select)
-  document.getElementById('period-select').addEventListener('change', () => loadDistrettiChart());
-
-  // prima render
-  loadDistrettiChart();
 
 
 </script>

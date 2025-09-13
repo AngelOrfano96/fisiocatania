@@ -30,3 +30,4 @@ body { margin: 0; }
 @media (max-width: 768px){
   #md-chart{ height:45vh !important; max-height:320px !important; }
 }
+
