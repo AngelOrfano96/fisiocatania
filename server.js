@@ -1121,6 +1121,13 @@ app.post('/operatori/delete/:id', async (req, res) => {
 
   res.redirect('/operatori');
 });
+// helper: distrugge qualunque chart già montato su una canvas
+function destroyChartIfExists(canvasId) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const prev = Chart.getChart ? Chart.getChart(canvas) : null;
+  if (prev) prev.destroy();
+}
 
 app.get('/api/dashboard/:metric', async (req, res) => {
   if (!req.session.user) return res.status(401).end();

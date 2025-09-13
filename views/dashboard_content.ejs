@@ -227,30 +227,39 @@
     j.items.forEach(d => distrettiMap[d.nome] = d.id);
   }
 
-  async function loadDistrettiChart(period = document.getElementById('period-select').value) {
-    const r = await fetch('/api/dashboard/distretti?period=' + period);
-    const { labels, counts } = await r.json();
+async function loadDistrettiChart(period = document.getElementById('period-select').value) {
+  const r = await fetch('/api/dashboard/distretti?period=' + period);
+  const { labels, counts } = await r.json();
 
-    const ctx = document.getElementById('chart-distretti').getContext('2d');
-    if (distrettiChart) { distrettiChart.destroy(); }
-    distrettiChart = new Chart(ctx, {
-      type: 'pie',
-      data: { labels, datasets: [{ data: counts }] },
-      options: {
-        plugins: { legend: { position: 'top' } },
-        onClick: async (evt, els) => {
-          if (!els.length) return;
-          await fetchDistrettiMap();
-          const idx   = els[0].index;
-          const nome  = distrettiChart.data.labels[idx];
-          const id    = distrettiMap[nome];
-          if (!id) return alert('Distretto non riconosciuto.');
-          selectedDist = { id, nome };
-          openDistrettoModal();
-        }
+  destroyChartIfExists('chart-distretti'); // <— evita “Canvas is already in use”
+
+  const canvas = document.getElementById('chart-distretti');
+  distrettiChart = new Chart(canvas, {
+    type: 'pie',
+    data: { labels, datasets: [{ data: counts }] },
+    options: {
+      plugins: { legend: { position: 'top' } },
+      onClick: async (evt, _activeEls, chart) => {
+        // più affidabile per individuare la fetta cliccata
+        const points = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+        if (!points.length) return;
+
+        await fetchDistrettiMap();
+        const idx  = points[0].index;
+        const nome = chart.data.labels[idx];
+        const id   = distrettiMap[nome];
+        if (!id) return alert('Distretto non riconosciuto.');
+        selectedDist = { id, nome };
+        openDistrettoModal();
       }
-    });
-  }
+    }
+  });
+}
+
+document.getElementById('modalDistretto')
+  .addEventListener('hidden.bs.modal', () => {
+    if (modalChart) { modalChart.destroy(); modalChart = null; }
+  });
 
   // ricarica il grafico della modale per [from,to]
    async function reloadModalChart() {
