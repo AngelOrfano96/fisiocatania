@@ -211,6 +211,8 @@
       }
     });
   });
+
+
 // helper: distrugge qualunque chart già montato su una canvas
 function destroyChartIfExists(canvasId) {
   const canvas = document.getElementById(canvasId);
@@ -333,7 +335,7 @@ function destroyChartIfExists(canvasId) {
     if (periodSel) periodSel.addEventListener('change', () => loadDistrettiChart());
     loadDistrettiChart(); // primo render
   });
-</script>
+
 
 
 document.getElementById('modalDistretto')
