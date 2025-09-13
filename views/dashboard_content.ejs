@@ -237,21 +237,20 @@ function destroyChartIfExists(canvasId) {
   }
 
   // ---- helper: crea un chart in sicurezza
-  async function safeNewChart(canvasId, config) {
-    const canvas = document.getElementById(canvasId);
-    if (!canvas || !canvas.isConnected) return null; // canvas non pronto
+function safeNewChart(canvasId, config) {
+  const canvas = document.getElementById(canvasId);
+  if (!(canvas instanceof HTMLCanvasElement)) return null;
 
-    // distruggo eventuali grafici associati (sia da canvas che da context)
-    const prevByCanvas = Chart.getChart(canvas);
-    const prevByCtx    = Chart.getChart(canvas.getContext && canvas.getContext('2d'));
-    (prevByCanvas || prevByCtx)?.destroy();
+  // distruggo l’eventuale istanza precedente legata a questo canvas
+  const prev = Chart.getChart(canvas);
+  if (prev) prev.destroy();
 
-    // aspetto un frame per evitare race durante resize/unbind
-    await new Promise(requestAnimationFrame);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null; // se il canvas non è pronto
 
-    if (!canvas || !canvas.isConnected) return null; // ricontrollo
-    return new Chart(canvas, config);
-  }
+  return new Chart(ctx, config);
+}
+
 
   async function loadDistrettiChart(period) {
     const sel = document.getElementById('period-select');
@@ -264,25 +263,26 @@ function destroyChartIfExists(canvasId) {
     // se la pagina è cambiata nel frattempo, esco
     if (!document.getElementById('chart-distretti')) return;
 
-    distrettiChart = await safeNewChart('chart-distretti', {
-      type: 'pie',
-      data: { labels, datasets: [{ data: counts }] },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        plugins: { legend: { position: 'top' } },
-        onClick: async (evt, elements, chart) => {
-          if (!elements?.length) return;
-          await fetchDistrettiMap();
-          const idx  = elements[0].index;
-          const nome = chart.data.labels[idx];
-          const id   = distrettiMap[nome];
-          if (!id) return;
-          selectedDist = { id, nome };
-          openDistrettoModal();
-        }
-      }
-    });
+    distrettiChart = safeNewChart('chart-distretti', {
+  type: 'pie',
+  data: { labels, datasets: [{ data: counts }] },
+  options: {
+    responsive: true,
+    maintainAspectRatio: true,
+    plugins: { legend: { position: 'top' } },
+    onClick: async (evt, elements, chart) => {
+      if (!elements?.length) return;
+      await fetchDistrettiMap();
+      const idx  = elements[0].index;
+      const nome = chart.data.labels[idx];
+      const id   = distrettiMap[nome];
+      if (!id) return;
+      selectedDist = { id, nome };
+      openDistrettoModal();
+    }
+  }
+});
+
   }
 
 async function reloadModalChart() {
@@ -345,7 +345,7 @@ async function reloadModalChart() {
     };
   }
 
-  modalChart = await safeNewChart('md-chart', cfg);
+  modalChart = safeNewChart('md-chart', cfg);
 }
 
 // bottone "Seleziona Tutti" (aggancia dopo il load)
@@ -357,6 +357,7 @@ window.addEventListener('load', () => {
   });
 });
 
+if (!document.getElementById('chart-distretti')) return;
 
   function openDistrettoModal() {
     const to = new Date();
