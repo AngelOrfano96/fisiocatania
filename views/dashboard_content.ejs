@@ -47,6 +47,38 @@
     </div>
   </div>
 </div>
+<!-- Modal: Report Distretto -->
+<div class="modal fade" id="modalDistretto" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          Report distretto: <span id="md-distretto-name" class="text-primary"></span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+          <div>
+            <label class="form-label mb-1">Dal</label>
+            <input id="md-from" type="date" class="form-control">
+          </div>
+          <div>
+            <label class="form-label mb-1">Al</label>
+            <input id="md-to" type="date" class="form-control">
+          </div>
+          <button id="md-refresh" class="btn btn-outline-secondary">Aggiorna</button>
+          <div class="ms-auto"></div>
+          <button id="md-export" class="btn btn-primary" disabled>
+            Esporta Report Distretti (terapie)
+          </button>
+        </div>
+        <canvas id="md-chart" height="220"></canvas>
+        <div id="md-summary" class="small text-muted mt-2"></div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <hr>
 
@@ -178,6 +210,101 @@
       }
     });
   });
+
+  // ====== Chart "Distretti (terapie)" con click ======
+  let distrettiChart, modalChart, distrettiMap = {};
+  let selectedDist = { id: null, nome: null };
+
+  async function fetchDistrettiMap() {
+    if (Object.keys(distrettiMap).length) return;
+    const r = await fetch('/api/distretti');
+    const j = await r.json();
+    j.items.forEach(d => distrettiMap[d.nome] = d.id);
+  }
+
+  async function loadDistrettiChart(period = document.getElementById('period-select').value) {
+    const r = await fetch('/api/dashboard/distretti?period=' + period);
+    const { labels, counts } = await r.json();
+
+    const ctx = document.getElementById('chart-distretti').getContext('2d');
+    if (distrettiChart) { distrettiChart.destroy(); }
+    distrettiChart = new Chart(ctx, {
+      type: 'pie',
+      data: { labels, datasets: [{ data: counts }] },
+      options: {
+        plugins: { legend: { position: 'top' } },
+        onClick: async (evt, els) => {
+          if (!els.length) return;
+          await fetchDistrettiMap();
+          const idx   = els[0].index;
+          const nome  = distrettiChart.data.labels[idx];
+          const id    = distrettiMap[nome];
+          if (!id) return alert('Distretto non riconosciuto.');
+          selectedDist = { id, nome };
+          openDistrettoModal();
+        }
+      }
+    });
+  }
+
+  // ricarica il grafico della modale per [from,to]
+  async function reloadModalChart() {
+    const from = document.getElementById('md-from').value;
+    const to   = document.getElementById('md-to').value;
+    const url  = `/api/dashboard/distretti/by-range?from=${from}&to=${to}`;
+    const { items } = await (await fetch(url)).json();
+
+    const total = items.reduce((s,i)=>s+i.count,0);
+    const me    = items.find(i => i.id === selectedDist.id)?.count || 0;
+
+    const ctx = document.getElementById('md-chart').getContext('2d');
+    if (modalChart) modalChart.destroy();
+    modalChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: [selectedDist.nome, 'Altri'],
+        datasets: [{ data: [me, Math.max(0,total-me)] }]
+      },
+      options: { plugins:{ legend:{ position:'top' } } }
+    });
+
+    document.getElementById('md-summary').textContent =
+      total ? `${me} terapie su ${total} nel periodo selezionato.`
+            : 'Nessuna terapia nel periodo selezionato.';
+
+    const btn = document.getElementById('md-export');
+    btn.disabled = me === 0;
+    btn.onclick = () => {
+      const href = `/report/distretti/export?distretto_id=${selectedDist.id}&from=${from}&to=${to}`;
+      window.location = href;
+    };
+  }
+
+  function openDistrettoModal() {
+    // default: ultimo mese
+    const to   = new Date();
+    const from = new Date(); from.setMonth(from.getMonth() - 1);
+    const toStr   = to.toISOString().slice(0,10);
+    const fromStr = new Date(to.getTime() - to.getTimezoneOffset()*60000);
+    document.getElementById('md-from').value = from.toISOString().slice(0,10);
+    document.getElementById('md-to').value   = toStr;
+
+    document.getElementById('md-distretto-name').textContent = selectedDist.nome;
+    reloadModalChart();
+
+    document.getElementById('md-refresh').onclick = reloadModalChart;
+
+    const modal = new bootstrap.Modal(document.getElementById('modalDistretto'));
+    modal.show();
+  }
+
+  // cambia intervallo (dashboard select)
+  document.getElementById('period-select').addEventListener('change', () => loadDistrettiChart());
+
+  // prima render
+  loadDistrettiChart();
+
+
 </script>
 
 

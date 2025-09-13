@@ -1195,6 +1195,210 @@ app.get('/api/dashboard/:metric', async (req, res) => {
     return res.status(500).end();
   }
 });
+// Mappa distretti per avere id<->nome al volo
+app.get('/api/distretti', async (req, res) => {
+  if (!req.session.user) return res.status(401).end();
+  const { data, error } = await supabase
+    .from('distretti')
+    .select('id,nome')
+    .order('nome', { ascending: true });
+  if (error) return res.status(500).end();
+  res.json({ items: data || [] });
+});
+
+// Aggregazione distretti in un intervallo [from,to]
+app.get('/api/dashboard/distretti/by-range', async (req, res) => {
+  if (!req.session.user) return res.status(401).end();
+  const { from, to } = req.query || {};
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from || '') || !/^\d{4}-\d{2}-\d{2}$/.test(to || ''))
+    return res.status(400).send('Intervallo non valido');
+
+  try {
+    const { data: rows, error } = await supabase
+      .from('terapie')
+      .select(`distretto_id, distretti:distretto_id ( id, nome )`)
+      .gte('data_trattamento', from)
+      .lte('data_trattamento', to);
+    if (error) throw error;
+
+    const cnt = new Map();          // id -> { id, nome, count }
+    rows.forEach(r => {
+      const id   = r.distretto_id;
+      const nome = r.distretti?.nome || '—';
+      if (!cnt.has(id)) cnt.set(id, { id, nome, count: 0 });
+      cnt.get(id).count++;
+    });
+
+    const items  = [...cnt.values()].sort((a,b) => b.count - a.count);
+    const labels = items.map(i => i.nome);
+    const counts = items.map(i => i.count);
+    res.json({ items, labels, counts });
+  } catch (err) {
+    console.error('by-range error:', err);
+    res.status(500).end();
+  }
+});
+
+// Export PDF per singolo distretto e periodo
+app.get('/report/distretti/export', async (req, res) => {
+  if (!req.session.user) return res.status(401).send('Non autorizzato');
+
+  const distretto_id = parseInt(req.query.distretto_id, 10);
+  const { from, to } = req.query || {};
+  if (!Number.isInteger(distretto_id)) return res.status(400).send('distretto_id mancante');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from || '') || !/^\d{4}-\d{2}-\d{2}$/.test(to || ''))
+    return res.status(400).send('Intervallo non valido');
+
+  try {
+    // leggo nome distretto
+    const { data: dist, error: eD } = await supabase
+      .from('distretti')
+      .select('id,nome')
+      .eq('id', distretto_id)
+      .single();
+    if (eD || !dist) throw eD || new Error('Distretto non trovato');
+
+    // prendo le terapie nel periodo per quel distretto
+    const { data: rows, error: eT } = await supabase
+      .from('terapie')
+      .select(`
+        id, data_trattamento, note, sigla,
+        anagrafica:anagrafica_id ( id, nome, cognome ),
+        distretto:distretto_id ( nome ),
+        trattamento:trattamento_id ( nome )
+      `)
+      .eq('distretto_id', distretto_id)
+      .gte('data_trattamento', from)
+      .lte('data_trattamento', to)
+      .order('cognome', { foreignTable: 'anagrafica', ascending: true })
+      .order('nome',    { foreignTable: 'anagrafica', ascending: true })
+      .order('data_trattamento', { ascending: true })  // più vecchie prima
+      .order('id', { ascending: true });               // stabilizza
+
+    if (eT) throw eT;
+
+    // raggruppo per giocatore
+    const grouped = {};
+    (rows || []).forEach(r => {
+      const player = `${r.anagrafica?.nome || ''} ${r.anagrafica?.cognome || ''}`.trim();
+      (grouped[player] ||= []).push({
+        data:        String(r.data_trattamento).slice(0,10),
+        trattamento: r.trattamento?.nome || '—',
+        distretto:   r.distretto?.nome   || '—',
+        note:        r.note || '—'
+      });
+    });
+
+    // ===== PDF (header simile al tuo) =====
+    const PDFDocument = require('pdfkit');
+    const doc = new PDFDocument({ margin: 40, size: 'A4', autoFirstPage: false });
+
+    const fmt = s => `${s.slice(8,10)}/${s.slice(5,7)}/${s.slice(0,4)}`;
+    const addHeader = () => {
+      doc.addPage();
+      const left = doc.page.margins.left;
+      const right = doc.page.width - doc.page.margins.right;
+      const top = 30;
+
+      // logo
+      try { if (fs.existsSync(LOGO_PATH)) doc.image(LOGO_PATH, left, top, { height: 92 }); } catch {}
+
+      // titoli
+      doc.font('Helvetica-Bold').fontSize(14).fillColor('#212529')
+        .text('CATANIA FC – STAFF MEDICO', left + 120, top + 4);
+      doc.fontSize(20)
+        .text(`Report Distretti (terapie)`, left + 120, top + 28);
+      doc.font('Helvetica').fontSize(12)
+        .text(`Distretto: ${dist.nome}`, left + 120, top + 54)
+        .text(`Periodo: ${fmt(from)} → ${fmt(to)}`, left + 120, top + 72);
+
+      const hrY = top + 110;
+      doc.moveTo(left, hrY).lineTo(right, hrY).strokeColor('#dee2e6').lineWidth(1).stroke();
+      doc.y = hrY + 14;
+    };
+
+    const drawPlayerTable = (player, items) => {
+      const left = doc.page.margins.left;
+      const right = doc.page.width - doc.page.margins.right;
+      const maxY = doc.page.height - doc.page.margins.bottom;
+
+      const colW = { data: 90, trattamento: 180, distretto: 140, note: (right-left) - (90+180+140) };
+      const headH = 22, pad = 6;
+
+      // a capo se non c'è spazio per titolo+header
+      if (doc.y + 40 > maxY) addHeader();
+
+      doc.font('Helvetica-Bold').fontSize(13).fillColor('#0d6efd').text(player, left, doc.y);
+      doc.moveDown(0.3).fillColor('#212529');
+
+      // header
+      let y = doc.y, x = left;
+      doc.rect(left, y, right-left, headH).fillAndStroke('#e9ecef', '#dee2e6');
+      doc.font('Helvetica-Bold').fontSize(10).fillColor('#212529');
+      doc.text('Data',        x+6, y+6, { width: colW.data }); x += colW.data;
+      doc.text('Trattamento', x+6, y+6, { width: colW.trattamento }); x += colW.trattamento;
+      doc.text('Distretto',   x+6, y+6, { width: colW.distretto }); x += colW.distretto;
+      doc.text('Note',        x+6, y+6, { width: colW.note });
+      doc.font('Helvetica').fontSize(10); y += headH;
+
+      for (const r of items) {
+        const h1 = doc.heightOfString(r.trattamento, { width: colW.trattamento - 12 });
+        const h2 = doc.heightOfString(r.distretto,   { width: colW.distretto   - 12 });
+        const h3 = doc.heightOfString(r.note,        { width: colW.note        - 12 });
+        const rowH = Math.max(22, pad*2 + Math.max(h1,h2,h3));
+
+        if (y + rowH > maxY) { addHeader(); // re-header
+          y = doc.y; x = left;
+          doc.rect(left, y, right-left, headH).fillAndStroke('#e9ecef', '#dee2e6');
+          doc.font('Helvetica-Bold').fontSize(10).fillColor('#212529');
+          doc.text('Data',        x+6, y+6, { width: colW.data }); x += colW.data;
+          doc.text('Trattamento', x+6, y+6, { width: colW.trattamento }); x += colW.trattamento;
+          doc.text('Distretto',   x+6, y+6, { width: colW.distretto }); x += colW.distretto;
+          doc.text('Note',        x+6, y+6, { width: colW.note });
+          doc.font('Helvetica').fontSize(10); y += headH;
+        }
+
+        x = left;
+        doc.rect(x, y, colW.data, rowH).strokeColor('#dee2e6').stroke();
+        doc.text(fmt(r.data), x+6, y+pad, { width: colW.data - 12 }); x += colW.data;
+
+        doc.rect(x, y, colW.trattamento, rowH).stroke();
+        doc.text(r.trattamento, x+6, y+pad, { width: colW.trattamento - 12 }); x += colW.trattamento;
+
+        doc.rect(x, y, colW.distretto, rowH).stroke();
+        doc.text(r.distretto, x+6, y+pad, { width: colW.distretto - 12 }); x += colW.distretto;
+
+        doc.rect(x, y, colW.note, rowH).stroke();
+        doc.text(r.note, x+6, y+pad, { width: colW.note - 12 });
+
+        y += rowH;
+      }
+      doc.y = y + 8;
+    };
+
+    // stream
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="Report_Distretto_${dist.nome}_${from}_to_${to}.pdf"`);
+    doc.pipe(res);
+    addHeader();
+
+    if (!Object.keys(grouped).length) {
+      doc.fontSize(12).fillColor('#6c757d').text('Nessuna terapia nel periodo selezionato.');
+      doc.end(); return;
+    }
+
+    Object.entries(grouped)
+      .sort((a,b) => a[0].localeCompare(b[0], 'it'))
+      .forEach(([player, items]) => drawPlayerTable(player, items));
+
+    doc.end();
+  } catch (err) {
+    console.error('Export distretto:', err);
+    res.status(500).send('Errore export');
+  }
+});
+
+
 
 // In fondo a server.js, subito prima di "Avvio server"
 app.post('/fascicoli/:id/infortunio', async (req, res) => {
