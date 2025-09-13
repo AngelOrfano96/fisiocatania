@@ -210,6 +210,13 @@
       }
     });
   });
+// helper: distrugge qualunque chart già montato su una canvas
+function destroyChartIfExists(canvasId) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const prev = Chart.getChart ? Chart.getChart(canvas) : null;
+  if (prev) prev.destroy();
+}
 
   // ====== Chart "Distretti (terapie)" con click ======
   let distrettiChart, modalChart, distrettiMap = {};
