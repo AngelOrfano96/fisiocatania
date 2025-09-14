@@ -1476,7 +1476,7 @@ app.get('/report/trattamenti/export', async (req, res) => {
 
   const raw = String(req.query.trattamento_id || '');
   const isAll = raw.toLowerCase() === 'all';
-  const trattamento_id = isAll ? null : parseInt(raw, 10);
+  const trattamento_id = isAll ? null : Number.parseInt(raw, 10);
   const { from, to } = req.query || {};
 
   if (!isAll && !Number.isInteger(trattamento_id))
@@ -1485,6 +1485,7 @@ app.get('/report/trattamenti/export', async (req, res) => {
     return res.status(400).send('Intervallo non valido');
 
   try {
+    // nome trattamento (o "Tutti i trattamenti")
     let trattNome = 'Tutti i trattamenti';
     if (!isAll) {
       const { data: t, error: eTn } = await supabase
@@ -1493,7 +1494,7 @@ app.get('/report/trattamenti/export', async (req, res) => {
       trattNome = t.nome;
     }
 
-    // query base
+    // query dati
     let q = supabase
       .from('terapie')
       .select(`
@@ -1514,7 +1515,7 @@ app.get('/report/trattamenti/export', async (req, res) => {
     const { data: rows, error } = await q;
     if (error) throw error;
 
-    // group by player
+    // raggruppo per giocatore
     const grouped = {};
     (rows || []).forEach(r => {
       const player = `${r.anagrafica?.nome || ''} ${r.anagrafica?.cognome || ''}`.trim();
@@ -1526,108 +1527,131 @@ app.get('/report/trattamenti/export', async (req, res) => {
       });
     });
 
-    // ===== PDF (stile come quello dei distretti) =====
+    // ===== PDF =====
     const PDFDocument = require('pdfkit');
     const doc = new PDFDocument({ margin: 40, size: 'A4', autoFirstPage: false });
 
     const fmt = s => `${s.slice(8,10)}/${s.slice(5,7)}/${s.slice(0,4)}`;
-    const addHeader = () => {
+
+    // header di pagina + reset colori
+    const drawHeader = () => {
       doc.addPage();
+
+      // reset stato grafico ogni pagina (evita testo grigio)
+      doc.fillColor('#212529');
+      doc.strokeColor('#dee2e6');
+      doc.lineWidth(1);
+
       const L = doc.page.margins.left;
       const R = doc.page.width - doc.page.margins.right;
       const T = 30;
 
       try { if (fs.existsSync(LOGO_PATH)) doc.image(LOGO_PATH, L, T, { height: 92 }); } catch {}
 
-      // dentro addHeader()
-doc.font('Helvetica-Bold').fontSize(14).fillColor('#212529')
-   .text('CATANIA FC – STAFF MEDICO', L + 120, T + 4);
+      doc.font('Helvetica-Bold').fontSize(14).fillColor('#212529')
+         .text('CATANIA FC – STAFF MEDICO', L + 120, T + 4);
 
-doc.fontSize(20).fillColor('#212529')
-   .text('Report Trattamenti (terapie)', L + 120, T + 28);
+      doc.fontSize(20).fillColor('#212529')
+         .text('Report Trattamenti (terapie)', L + 120, T + 28);
 
-doc.font('Helvetica').fontSize(12).fillColor('#212529')
-   .text(`Trattamento: ${trattNome}`, L + 120, T + 54)
-   // evita "→" (non è nel font Helvetica base)
-   .text(`Periodo: ${fmt(from)} – ${fmt(to)}`, L + 120, T + 72);
-
+      doc.font('Helvetica').fontSize(12).fillColor('#212529')
+         .text(`Trattamento: ${trattNome}`, L + 120, T + 54)
+         .text(`Periodo: ${fmt(from)} – ${fmt(to)}`, L + 120, T + 72);
 
       const hrY = T + 110;
-      doc.moveTo(L, hrY).lineTo(R, hrY).strokeColor('#dee2e6').lineWidth(1).stroke();
+      doc.moveTo(L, hrY).lineTo(R, hrY).stroke();
       doc.y = hrY + 14;
     };
 
+    // intestazione tabella (anche dopo salto pagina)
+    const drawTableHeader = () => {
+      const L = doc.page.margins.left;
+      const R = doc.page.width - doc.page.margins.right;
+      const headH = 22;
+      const y = doc.y;
+
+      doc.rect(L, y, R - L, headH).fillAndStroke('#e9ecef', '#dee2e6');
+      doc.fillColor('#212529'); // <<< torna al testo nero dopo il fill grigio
+
+      const colW = { data: 90, distretto: 160, trattamento: 160, note: (R - L) - (90 + 160 + 160) };
+      let x = L;
+
+      doc.font('Helvetica-Bold').fontSize(10);
+      doc.text('Data',        x + 6, y + 6, { width: colW.data });        x += colW.data;
+      doc.text('Distretto',   x + 6, y + 6, { width: colW.distretto });   x += colW.distretto;
+      doc.text('Trattamento', x + 6, y + 6, { width: colW.trattamento }); x += colW.trattamento;
+      doc.text('Note',        x + 6, y + 6, { width: colW.note });
+
+      doc.font('Helvetica').fontSize(10);
+      doc.y = y + headH;
+      return colW;
+    };
+
+    // tabella per giocatore
     const drawPlayerTable = (player, items) => {
       const L = doc.page.margins.left;
       const R = doc.page.width - doc.page.margins.right;
       const maxY = doc.page.height - doc.page.margins.bottom;
+      const pad = 6;
 
-      const colW = { data: 90, distretto: 160, trattamento: 160, note: (R-L) - (90+160+160) };
-      const headH = 22, pad = 6;
-
-      if (doc.y + 40 > maxY) addHeader();
+      if (doc.y + 40 > maxY) drawHeader();
 
       doc.font('Helvetica-Bold').fontSize(13).fillColor('#0d6efd').text(player, L, doc.y);
-      doc.moveDown(0.3).fillColor('#212529');
+      doc.moveDown(0.3);
+      doc.fillColor('#212529');
 
-      let y = doc.y, x = L;
-      doc.rect(L, y, R-L, headH).fillAndStroke('#e9ecef', '#dee2e6');
-      doc.font('Helvetica').fontSize(10).fillColor('#212529');
-      doc.text('Data',        x+6, y+6, { width: colW.data });        x += colW.data;
-      doc.text('Distretto',   x+6, y+6, { width: colW.distretto });   x += colW.distretto;
-      doc.text('Trattamento', x+6, y+6, { width: colW.trattamento }); x += colW.trattamento;
-      doc.text('Note',        x+6, y+6, { width: colW.note });
-      doc.font('Helvetica').fontSize(10); y += headH;
+      let colW = drawTableHeader();
+      let y = doc.y;
 
       for (const r of items) {
         const h2 = doc.heightOfString(r.distretto,   { width: colW.distretto   - 12 });
         const h3 = doc.heightOfString(r.trattamento, { width: colW.trattamento - 12 });
         const h4 = doc.heightOfString(r.note,        { width: colW.note        - 12 });
-        const rowH = Math.max(22, pad*2 + Math.max(h2,h3,h4));
+        const rowH = Math.max(22, pad * 2 + Math.max(h2, h3, h4));
 
-        if (y + rowH > maxY) { addHeader();
-          y = doc.y; x = L;
-          doc.rect(L, y, R-L, headH).fillAndStroke('#e9ecef', '#dee2e6');
-          doc.font('Helvetica-Bold').fontSize(10);
-          doc.text('Data',        x+6, y+6, { width: colW.data });        x += colW.data;
-          doc.text('Distretto',   x+6, y+6, { width: colW.distretto });   x += colW.distretto;
-          doc.text('Trattamento', x+6, y+6, { width: colW.trattamento }); x += colW.trattamento;
-          doc.text('Note',        x+6, y+6, { width: colW.note });
-          doc.font('Helvetica').fontSize(10); y += headH;
+        if (y + rowH > maxY) {
+          drawHeader();
+          colW = drawTableHeader();   // re-intestazione su nuova pagina
+          y = doc.y;
         }
 
-        x = L;
-        doc.rect(x, y, colW.data, rowH).strokeColor('#dee2e6').stroke();
-        doc.text(fmt(r.data), x+6, y+pad, { width: colW.data - 12 }); x += colW.data;
+        let x = L;
+
+        doc.rect(x, y, colW.data, rowH).stroke();
+        doc.text(fmt(r.data), x + 6, y + pad, { width: colW.data - 12 }); x += colW.data;
 
         doc.rect(x, y, colW.distretto, rowH).stroke();
-        doc.text(r.distretto, x+6, y+pad, { width: colW.distretto - 12 }); x += colW.distretto;
+        doc.text(r.distretto, x + 6, y + pad, { width: colW.distretto - 12 }); x += colW.distretto;
 
         doc.rect(x, y, colW.trattamento, rowH).stroke();
-        doc.text(r.trattamento, x+6, y+pad, { width: colW.trattamento - 12 }); x += colW.trattamento;
+        doc.text(r.trattamento, x + 6, y + pad, { width: colW.trattamento - 12 }); x += colW.trattamento;
 
         doc.rect(x, y, colW.note, rowH).stroke();
-        doc.text(r.note, x+6, y+pad, { width: colW.note - 12 });
+        doc.text(r.note, x + 6, y + pad, { width: colW.note - 12 });
 
         y += rowH;
       }
       doc.y = y + 8;
     };
 
+    // stream
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition',
-      `attachment; filename="Report_Trattamenti_${isAll ? 'Tutti' : trattNome}_${from}_to_${to}.pdf"`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="Report_Trattamenti_${isAll ? 'Tutti' : trattNome}_${from}_to_${to}.pdf"`
+    );
 
     doc.pipe(res);
-    addHeader();
+    drawHeader();
 
     if (!Object.keys(grouped).length) {
-      doc.fontSize(12).fillColor('#6c757d').text('Nessuna terapia nel periodo selezionato.');
-      doc.end(); return;
+      doc.font('Helvetica').fontSize(12).fillColor('#6c757d')
+         .text('Nessuna terapia nel periodo selezionato.');
+      return void doc.end();
     }
 
     Object.entries(grouped)
-      .sort((a,b) => a[0].localeCompare(b[0], 'it'))
+      .sort((a, b) => a[0].localeCompare(b[0], 'it'))
       .forEach(([player, items]) => drawPlayerTable(player, items));
 
     doc.end();
@@ -1636,6 +1660,7 @@ doc.font('Helvetica').fontSize(12).fillColor('#212529')
     res.status(500).send('Errore export');
   }
 });
+
 
 
 // In fondo a server.js, subito prima di "Avvio server"

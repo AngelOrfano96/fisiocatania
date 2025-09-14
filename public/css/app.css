@@ -31,3 +31,12 @@ body { margin: 0; }
   #md-chart{ height:45vh !important; max-height:320px !important; }
 }
 
+/* canvas modale: più compatto e responsive */
+#mt-chart{
+  width:100% !important;
+  height:min(50vh, 360px) !important;   /* <= riduce l'altezza */
+  max-height:360px !important;
+}
+@media (max-width: 768px){
+  #mt-chart{ height:45vh !important; max-height:320px !important; }
+}
