@@ -253,6 +253,8 @@ function safeNewChart(canvasId, config) {
 
 
   async function loadDistrettiChart(period) {
+    const canvas = document.getElementById('chart-distretti');
+  if (!canvas) return;
     const sel = document.getElementById('period-select');
     period = period || (sel ? sel.value : 'month');
 
@@ -286,6 +288,8 @@ function safeNewChart(canvasId, config) {
   }
 
 async function reloadModalChart() {
+   const canvas = document.getElementById('md-chart');
+  if (!canvas) return; // modale chiusa/non montata
   const from = document.getElementById('md-from').value;
   const to   = document.getElementById('md-to').value;
   if (!from || !to) return;
