@@ -1411,7 +1411,226 @@ app.get('/report/distretti/export', async (req, res) => {
   }
 });
 
+// GET /api/trattamenti
+app.get('/api/trattamenti', async (req, res) => {
+  if (!req.session.user) return res.status(401).end();
+  try {
+    const { data, error } = await supabase
+      .from('trattamenti')
+      .select('id,nome')
+      .order('nome', { ascending: true });
+    if (error) throw error;
+    res.json({ items: data || [] });
+  } catch (err) {
+    console.error('api/trattamenti:', err);
+    res.status(500).json({ items: [] });
+  }
+});
 
+// GET /api/dashboard/trattamenti/by-range?from=YYYY-MM-DD&to=YYYY-MM-DD
+app.get('/api/dashboard/trattamenti/by-range', async (req, res) => {
+  if (!req.session.user) return res.status(401).end();
+  const { from, to } = req.query || {};
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from || '') || !/^\d{4}-\d{2}-\d{2}$/.test(to || ''))
+    return res.status(400).send('Intervallo non valido');
+
+  try {
+    const { data, error } = await supabase
+      .from('terapie')
+      .select('trattamento_id, trattamenti:trattamento_id ( nome )')
+      .gte('data_trattamento', from)
+      .lte('data_trattamento', to);
+    if (error) throw error;
+
+    const counter = {};
+    (data || []).forEach(r => {
+      const id = r.trattamento_id;
+      if (!id) return;
+      counter[id] = (counter[id] || 0) + 1;
+    });
+
+    const ids = Object.keys(counter).map(n => parseInt(n, 10));
+    let nameMap = {};
+    if (ids.length) {
+      const { data: names } = await supabase
+        .from('trattamenti')
+        .select('id,nome')
+        .in('id', ids);
+      (names || []).forEach(t => { nameMap[t.id] = t.nome; });
+    }
+
+    const items = ids
+      .map(id => ({ id, nome: nameMap[id] || String(id), count: counter[id] }))
+      .sort((a,b) => b.count - a.count);
+
+    res.json({ items });
+  } catch (err) {
+    console.error('trattamenti/by-range:', err);
+    res.status(500).json({ items: [] });
+  }
+});
+
+// GET /report/trattamenti/export?trattamento_id=<id|all>&from=YYYY-MM-DD&to=YYYY-MM-DD
+app.get('/report/trattamenti/export', async (req, res) => {
+  if (!req.session.user) return res.status(401).send('Non autorizzato');
+
+  const raw = String(req.query.trattamento_id || '');
+  const isAll = raw.toLowerCase() === 'all';
+  const trattamento_id = isAll ? null : parseInt(raw, 10);
+  const { from, to } = req.query || {};
+
+  if (!isAll && !Number.isInteger(trattamento_id))
+    return res.status(400).send('trattamento_id mancante');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from || '') || !/^\d{4}-\d{2}-\d{2}$/.test(to || ''))
+    return res.status(400).send('Intervallo non valido');
+
+  try {
+    let trattNome = 'Tutti i trattamenti';
+    if (!isAll) {
+      const { data: t, error: eTn } = await supabase
+        .from('trattamenti').select('id,nome').eq('id', trattamento_id).single();
+      if (eTn || !t) throw eTn || new Error('Trattamento non trovato');
+      trattNome = t.nome;
+    }
+
+    // query base
+    let q = supabase
+      .from('terapie')
+      .select(`
+        id, data_trattamento, note, sigla,
+        anagrafica:anagrafica_id ( id, nome, cognome ),
+        distretto:distretto_id ( nome ),
+        trattamento:trattamento_id ( nome )
+      `)
+      .gte('data_trattamento', from)
+      .lte('data_trattamento', to)
+      .order('cognome', { foreignTable: 'anagrafica', ascending: true })
+      .order('nome',    { foreignTable: 'anagrafica', ascending: true })
+      .order('data_trattamento', { ascending: true })
+      .order('id', { ascending: true });
+
+    if (!isAll) q = q.eq('trattamento_id', trattamento_id);
+
+    const { data: rows, error } = await q;
+    if (error) throw error;
+
+    // group by player
+    const grouped = {};
+    (rows || []).forEach(r => {
+      const player = `${r.anagrafica?.nome || ''} ${r.anagrafica?.cognome || ''}`.trim();
+      (grouped[player] ||= []).push({
+        data:        String(r.data_trattamento).slice(0,10),
+        distretto:   r.distretto?.nome   || '—',
+        trattamento: r.trattamento?.nome || '—',
+        note:        r.note || '—'
+      });
+    });
+
+    // ===== PDF (stile come quello dei distretti) =====
+    const PDFDocument = require('pdfkit');
+    const doc = new PDFDocument({ margin: 40, size: 'A4', autoFirstPage: false });
+
+    const fmt = s => `${s.slice(8,10)}/${s.slice(5,7)}/${s.slice(0,4)}`;
+    const addHeader = () => {
+      doc.addPage();
+      const L = doc.page.margins.left;
+      const R = doc.page.width - doc.page.margins.right;
+      const T = 30;
+
+      try { if (fs.existsSync(LOGO_PATH)) doc.image(LOGO_PATH, L, T, { height: 92 }); } catch {}
+
+      doc.font('Helvetica-Bold').fontSize(14).fillColor('#212529')
+         .text('CATANIA FC – STAFF MEDICO', L + 120, T + 4);
+      doc.fontSize(20)
+         .text('Report Trattamenti (terapie)', L + 120, T + 28);
+      doc.font('Helvetica').fontSize(12)
+         .text(`Trattamento: ${trattNome}`, L + 120, T + 54)
+         .text(`Periodo: ${fmt(from)} → ${fmt(to)}`, L + 120, T + 72);
+
+      const hrY = T + 110;
+      doc.moveTo(L, hrY).lineTo(R, hrY).strokeColor('#dee2e6').lineWidth(1).stroke();
+      doc.y = hrY + 14;
+    };
+
+    const drawPlayerTable = (player, items) => {
+      const L = doc.page.margins.left;
+      const R = doc.page.width - doc.page.margins.right;
+      const maxY = doc.page.height - doc.page.margins.bottom;
+
+      const colW = { data: 90, distretto: 160, trattamento: 160, note: (R-L) - (90+160+160) };
+      const headH = 22, pad = 6;
+
+      if (doc.y + 40 > maxY) addHeader();
+
+      doc.font('Helvetica-Bold').fontSize(13).fillColor('#0d6efd').text(player, L, doc.y);
+      doc.moveDown(0.3).fillColor('#212529');
+
+      let y = doc.y, x = L;
+      doc.rect(L, y, R-L, headH).fillAndStroke('#e9ecef', '#dee2e6');
+      doc.font('Helvetica-Bold').fontSize(10);
+      doc.text('Data',        x+6, y+6, { width: colW.data });        x += colW.data;
+      doc.text('Distretto',   x+6, y+6, { width: colW.distretto });   x += colW.distretto;
+      doc.text('Trattamento', x+6, y+6, { width: colW.trattamento }); x += colW.trattamento;
+      doc.text('Note',        x+6, y+6, { width: colW.note });
+      doc.font('Helvetica').fontSize(10); y += headH;
+
+      for (const r of items) {
+        const h2 = doc.heightOfString(r.distretto,   { width: colW.distretto   - 12 });
+        const h3 = doc.heightOfString(r.trattamento, { width: colW.trattamento - 12 });
+        const h4 = doc.heightOfString(r.note,        { width: colW.note        - 12 });
+        const rowH = Math.max(22, pad*2 + Math.max(h2,h3,h4));
+
+        if (y + rowH > maxY) { addHeader();
+          y = doc.y; x = L;
+          doc.rect(L, y, R-L, headH).fillAndStroke('#e9ecef', '#dee2e6');
+          doc.font('Helvetica-Bold').fontSize(10);
+          doc.text('Data',        x+6, y+6, { width: colW.data });        x += colW.data;
+          doc.text('Distretto',   x+6, y+6, { width: colW.distretto });   x += colW.distretto;
+          doc.text('Trattamento', x+6, y+6, { width: colW.trattamento }); x += colW.trattamento;
+          doc.text('Note',        x+6, y+6, { width: colW.note });
+          doc.font('Helvetica').fontSize(10); y += headH;
+        }
+
+        x = L;
+        doc.rect(x, y, colW.data, rowH).strokeColor('#dee2e6').stroke();
+        doc.text(fmt(r.data), x+6, y+pad, { width: colW.data - 12 }); x += colW.data;
+
+        doc.rect(x, y, colW.distretto, rowH).stroke();
+        doc.text(r.distretto, x+6, y+pad, { width: colW.distretto - 12 }); x += colW.distretto;
+
+        doc.rect(x, y, colW.trattamento, rowH).stroke();
+        doc.text(r.trattamento, x+6, y+pad, { width: colW.trattamento - 12 }); x += colW.trattamento;
+
+        doc.rect(x, y, colW.note, rowH).stroke();
+        doc.text(r.note, x+6, y+pad, { width: colW.note - 12 });
+
+        y += rowH;
+      }
+      doc.y = y + 8;
+    };
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition',
+      `attachment; filename="Report_Trattamenti_${isAll ? 'Tutti' : trattNome}_${from}_to_${to}.pdf"`);
+
+    doc.pipe(res);
+    addHeader();
+
+    if (!Object.keys(grouped).length) {
+      doc.fontSize(12).fillColor('#6c757d').text('Nessuna terapia nel periodo selezionato.');
+      doc.end(); return;
+    }
+
+    Object.entries(grouped)
+      .sort((a,b) => a[0].localeCompare(b[0], 'it'))
+      .forEach(([player, items]) => drawPlayerTable(player, items));
+
+    doc.end();
+  } catch (err) {
+    console.error('Export trattamenti:', err);
+    res.status(500).send('Errore export');
+  }
+});
 
 
 // In fondo a server.js, subito prima di "Avvio server"
