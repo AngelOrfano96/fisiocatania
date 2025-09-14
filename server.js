@@ -1539,13 +1539,18 @@ app.get('/report/trattamenti/export', async (req, res) => {
 
       try { if (fs.existsSync(LOGO_PATH)) doc.image(LOGO_PATH, L, T, { height: 92 }); } catch {}
 
-      doc.font('Helvetica-Bold').fontSize(14).fillColor('#212529')
-         .text('CATANIA FC – STAFF MEDICO', L + 120, T + 4);
-      doc.fontSize(20)
-         .text('Report Trattamenti (terapie)', L + 120, T + 28);
-      doc.font('Helvetica').fontSize(12)
-         .text(`Trattamento: ${trattNome}`, L + 120, T + 54)
-         .text(`Periodo: ${fmt(from)} → ${fmt(to)}`, L + 120, T + 72);
+      // dentro addHeader()
+doc.font('Helvetica-Bold').fontSize(14).fillColor('#212529')
+   .text('CATANIA FC – STAFF MEDICO', L + 120, T + 4);
+
+doc.fontSize(20).fillColor('#212529')
+   .text('Report Trattamenti (terapie)', L + 120, T + 28);
+
+doc.font('Helvetica').fontSize(12).fillColor('#212529')
+   .text(`Trattamento: ${trattNome}`, L + 120, T + 54)
+   // evita "→" (non è nel font Helvetica base)
+   .text(`Periodo: ${fmt(from)} – ${fmt(to)}`, L + 120, T + 72);
+
 
       const hrY = T + 110;
       doc.moveTo(L, hrY).lineTo(R, hrY).strokeColor('#dee2e6').lineWidth(1).stroke();
@@ -1567,7 +1572,7 @@ app.get('/report/trattamenti/export', async (req, res) => {
 
       let y = doc.y, x = L;
       doc.rect(L, y, R-L, headH).fillAndStroke('#e9ecef', '#dee2e6');
-      doc.font('Helvetica-Bold').fontSize(10);
+      doc.font('Helvetica').fontSize(10).fillColor('#212529');
       doc.text('Data',        x+6, y+6, { width: colW.data });        x += colW.data;
       doc.text('Distretto',   x+6, y+6, { width: colW.distretto });   x += colW.distretto;
       doc.text('Trattamento', x+6, y+6, { width: colW.trattamento }); x += colW.trattamento;

@@ -273,18 +273,18 @@ function destroyChartIfExists(canvasId) {
 
   // ---- helper: crea un chart in sicurezza
 function safeNewChart(canvasId, config) {
-  const canvas = document.getElementById(canvasId);
+  const canvas = typeof canvasId === 'string'
+    ? document.getElementById(canvasId)
+    : canvasId;
   if (!(canvas instanceof HTMLCanvasElement)) return null;
 
-  // distruggo l’eventuale istanza precedente legata a questo canvas
   const prev = Chart.getChart(canvas);
   if (prev) prev.destroy();
 
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null; // se il canvas non è pronto
-
-  return new Chart(ctx, config);
+  // IMPORTANTISSIMO: passa il CANVAS, non il context
+  return new Chart(canvas, config);
 }
+
 
 
   async function loadDistrettiChart(period) {
@@ -532,11 +532,15 @@ window.addEventListener('load', () => {
 window.addEventListener('load', () => {
   const sel = document.getElementById('period-select');
   sel?.addEventListener('change', () => {
-    loadDistrettiChart();      // già presente
-    loadTrattamentiChart();    // aggiungi
+    loadDistrettiChart();
+    loadTrattamentiChart();
   });
-  loadTrattamentiChart();      // primo render dei Trattamenti
+
+  // primo render di ENTRAMBI
+  loadDistrettiChart();
+  loadTrattamentiChart();
 });
+
 
 
 
